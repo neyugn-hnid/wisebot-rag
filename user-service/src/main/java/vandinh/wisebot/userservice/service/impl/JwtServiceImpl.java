@@ -7,6 +7,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -26,6 +27,7 @@ import static vandinh.wisebot.userservice.common.enums.TokenType.ACCESS_TOKEN;
 import static vandinh.wisebot.userservice.common.enums.TokenType.REFRESH_TOKEN;
 
 @Service
+@Slf4j(topic = "JWT-SERVICE")
 public class JwtServiceImpl implements JwtService {
     @Value("${jwt.expiryMinutes:60}")
     private long expiryMinutes;

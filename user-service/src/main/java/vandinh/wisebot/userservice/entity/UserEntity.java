@@ -82,7 +82,9 @@ public class UserEntity implements UserDetails, Serializable {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of((GrantedAuthority) () -> "ROLE_" + getRoles());
+        return roles.stream()
+                .map(role -> (GrantedAuthority) () -> "ROLE_" + role.getName().name())
+                .toList();
     }
 
     @Override
