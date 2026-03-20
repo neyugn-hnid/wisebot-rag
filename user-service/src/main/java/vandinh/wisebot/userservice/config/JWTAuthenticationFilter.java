@@ -35,8 +35,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
 
     // Whitelist: bypass filter
     private static final String[] AUTH_WHITELIST = {
-            "/api/user/auth/**",
-            "/api/esb/auth/**",
+            "/api/auth/**",
             "/user/auth/**",
             "/swagger-ui/**",
             "/v3/**",
