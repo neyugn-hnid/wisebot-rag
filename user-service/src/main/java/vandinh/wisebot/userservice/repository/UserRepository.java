@@ -5,8 +5,4 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import vandinh.wisebot.userservice.entity.UserEntity;
 
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
-    UserEntity findByUsername(String username);
-    UserEntity findByEmail(String email);
-    
-
 }

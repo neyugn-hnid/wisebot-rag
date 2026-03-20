@@ -29,9 +29,8 @@ public class SecurityConfig {
     private final CustomAuthEntryPoint customAuthEntryPoint;
 
     private static final String[] AUTH_WHITELIST = {
+            "/auth/**",
             "/api/auth/**",
-            "/api/user/auth/**",
-            "/api/esb/auth/**",
             "/user/auth/**",
             "/swagger-ui/**",
             "/v3/**",
