@@ -3,6 +3,7 @@
   <component name="CompilerConfiguration">
     <annotationProcessing>
       <profile default="true" name="Default" enabled="true" />
+
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="user-service" target="17" />
