@@ -10,6 +10,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j(topic = "USER-DETAIL-SERVICE")
@@ -18,18 +20,18 @@ public class UserServiceDetail implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        UserEntity user = userRepository.findByUsername(username);
+        Optional<UserEntity> user = userRepository.findByUsername(username);
 
-        if (user == null) {
-            user = userRepository.findByEmail(username);
+        if (user.isEmpty()) {
+            user = userRepository.findByUsername(username);
         }
 
-        if (user == null) {
+        UserEntity userEntity = user.orElseThrow(() -> {
             log.error("User not found in the database: {}", username);
-            throw new UsernameNotFoundException("User not found in the database");
-        } else {
-            log.info("User found in the database: {}", username);
-        }
-        return user;
+            return new UsernameNotFoundException("User not found");
+        });
+
+        log.info("User found in the database: {}", username);
+        return userEntity;
     }
 }
