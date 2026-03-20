@@ -7,5 +7,4 @@ import vandinh.wisebot.userservice.dto.request.RegisterRequest;
 public interface AuthService {
     TokenResponse login (LoginRequest request);
     void register(RegisterRequest request);
-
 }
