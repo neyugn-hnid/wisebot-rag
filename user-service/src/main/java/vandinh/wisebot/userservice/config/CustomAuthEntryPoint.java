@@ -28,7 +28,12 @@ public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
         errorResponse.setTimestamp(new Date());
         errorResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
         errorResponse.setError("Unauthorized");
-        errorResponse.setMessage("Sai email hoặc mật khẩu");
+        String path = request.getRequestURI();
+        if (path != null && path.startsWith("/auth/login")) {
+            errorResponse.setMessage("Sai email hoặc mật khẩu");
+        } else {
+            errorResponse.setMessage("Bạn chưa đăng nhập hoặc token không hợp lệ");
+        }
         errorResponse.setPath(request.getRequestURI());
 
         new ObjectMapper().writeValue(response.getOutputStream(), errorResponse);
