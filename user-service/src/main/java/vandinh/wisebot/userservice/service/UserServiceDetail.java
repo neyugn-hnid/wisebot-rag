@@ -36,4 +36,16 @@ public class UserServiceDetail implements UserDetailsService {
         log.info("User found in the database: {}", username);
         return userEntity;
     }
+
+    @Transactional(readOnly = true)
+    public UserDetails loadUserById(Long userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.error("User not found with id: {}", userId);
+                    return new UsernameNotFoundException("User not found");
+                });
+
+        log.info("User found with id: {}", userId);
+        return user;
+    }
 }

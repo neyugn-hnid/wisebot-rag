@@ -13,6 +13,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import vandinh.wisebot.userservice.common.enums.TokenType;
+import vandinh.wisebot.userservice.entity.UserEntity;
 import vandinh.wisebot.userservice.exception.InvalidDataException;
 import vandinh.wisebot.userservice.service.JwtService;
 
@@ -42,31 +43,50 @@ public class JwtServiceImpl implements JwtService {
     private String refreshKey;
 
     @Override
-    public String generateAccessToken(String email, List<String> authorities) {
+    public String generateAccessToken(Long userId, String email, List<String> authorities) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", authorities);
-        return createAccessToken(claims, email);
+        claims.put("userId", userId);
+        claims.put("email", email);
+        return createAccessToken(claims, userId);
     }
 
-
     @Override
-    public String generateRefreshToken(String email, List<String> authorities) {
+    public String generateRefreshToken(Long userId, String email, List<String> authorities) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", authorities);
-
-        return createRefreshToken(claims, email);
+        claims.put("userId", userId);
+        claims.put("email", email);
+        return createRefreshToken(claims, userId);
     }
 
     @Override
     public String extractEmail(String token, TokenType type) {
-        return extractClaim(token, type, Claims::getSubject);
+        String email = extractClaim(token, type, claims -> claims.get("email", String.class));
+        if (email != null && !email.isBlank()) {
+            return email;
+        }
+
+        String subject = extractClaim(token, type, Claims::getSubject);
+        return (subject != null && subject.contains("@")) ? subject : null;
+    }
+
+    @Override
+    public Long extractUserId(String token, TokenType type) {
+        return extractClaim(token, type, claims -> claims.get("userId", Long.class));
     }
 
     @Override
     public boolean isTokenValid(String token, UserDetails userDetails) {
         try {
-            final String email = extractEmail(token, ACCESS_TOKEN);
-            return (email.equals(userDetails.getUsername())) && !isTokenExpired(token, ACCESS_TOKEN);
+            if (!(userDetails instanceof UserEntity userEntity)) {
+                return false;
+            }
+
+            Long tokenUserId = extractUserId(token, ACCESS_TOKEN);
+            return tokenUserId != null
+                    && tokenUserId.equals(userEntity.getId())
+                    && !isTokenExpired(token, ACCESS_TOKEN);
         } catch (Exception e) {
             return false;
         }
@@ -81,20 +101,20 @@ public class JwtServiceImpl implements JwtService {
     }
 
 
-    private String createAccessToken(Map<String, Object> claims, String email) {
+    private String createAccessToken(Map<String, Object> claims, Long userId) {
         return Jwts.builder()
                 .setClaims(claims)
-                .setSubject(email)
+                .setSubject(String.valueOf(userId))
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * expiryMinutes))
                 .signWith(getKey(ACCESS_TOKEN), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    private String createRefreshToken(Map<String, Object> claims, String email) {
+    private String createRefreshToken(Map<String, Object> claims, Long userId) {
         return Jwts.builder()
                 .setClaims(claims)
-                .setSubject(email)
+                .setSubject(String.valueOf(userId))
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24 * expiryDay))
                 .signWith(getKey(REFRESH_TOKEN), SignatureAlgorithm.HS256)

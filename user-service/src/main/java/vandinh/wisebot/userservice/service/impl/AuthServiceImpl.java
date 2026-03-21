@@ -62,8 +62,9 @@ public class AuthServiceImpl implements AuthService {
                     .map(a -> a.getAuthority())
                     .toList();
 
-            String accessToken = jwtService.generateAccessToken(authentication.getName(), authorities);
-            String refreshToken = jwtService.generateRefreshToken(authentication.getName(), authorities);
+            Long userId = user.getId();
+            String accessToken = jwtService.generateAccessToken(userId, user.getEmail(), authorities);
+            String refreshToken = jwtService.generateRefreshToken(userId, user.getEmail(), authorities);
 
             return TokenResponse.builder()
                     .accessToken(accessToken)
@@ -98,7 +99,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new RuntimeException("Password and Confirm Password do not match");
+            throw new InvalidDataException("Password and Confirm Password do not match");
         }
 
         Role role = roleRepository.findByName(RoleName.USER)

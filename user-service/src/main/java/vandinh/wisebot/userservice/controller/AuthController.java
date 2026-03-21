@@ -27,7 +27,7 @@ public class AuthController {
 
     @Operation(summary = "Login", description = "Get access token and refresh token by username/email and password")
     @PostMapping("/login")
-    public TokenResponse login(@RequestBody LoginRequest request) {
+    public TokenResponse login(@RequestBody @Valid LoginRequest request) {
         log.info("Login request with payload: {}", request);
         return authService.login(request);
     }

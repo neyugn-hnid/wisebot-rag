@@ -23,7 +23,7 @@ import java.util.*;
 public class UserEntity implements UserDetails, Serializable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private Long id;
 
     @ManyToOne
@@ -36,7 +36,7 @@ public class UserEntity implements UserDetails, Serializable {
     @Column(nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false, length = 50)
     private String password;
 
     @Column(name = "full_name", length = 150)
