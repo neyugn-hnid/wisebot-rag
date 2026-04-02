@@ -1,2 +1,129 @@
-package vandinh.wisebot.apigateway.fillter;public class JwtAuthenticationFilter {
+package vandinh.wisebot.apigateway.fillter;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.gateway.filter.GatewayFilter;
+import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
+import org.springframework.util.StringUtils;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
+
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.time.Instant;
+import java.util.Date;
+
+@Component
+@Slf4j(topic = "JWT_AUTH_FILTER")
+public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAuthenticationFilter.Config> {
+
+    @Value("${jwt.secret}")
+    private String jwtSecret;
+
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
+
+    // Whitelist: bypass filter
+    private static final String[] AUTH_WHITELIST = {
+            "/auth/**",
+            "/api/auth/**",
+            "/swagger-ui/**",
+            "/v3/**",
+            "/webjars/**",
+            "/favicon.ico",
+            "/actuator/**"
+    };
+
+    public JwtAuthenticationFilter() {
+        super(Config.class);
+    }
+
+    public static class Config {
+    }
+
+    @Override
+    public GatewayFilter apply(Config config) {
+        return (exchange, chain) -> {
+            String path = exchange.getRequest().getURI().getPath();
+
+            for (String pattern : AUTH_WHITELIST) {
+                if (pathMatcher.match(pattern, path)) {
+                    return chain.filter(exchange);
+                }
+            }
+
+            String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+            if (!StringUtils.hasText(authHeader) || !authHeader.startsWith("Bearer ")) {
+                log.warn("Missing or invalid Authorization header for path: {}", path);
+                return unauthorized(exchange, "Missing or invalid Authorization header");
+            }
+
+            String token = authHeader.substring(7);
+
+            try {
+                Claims claims = parseClaims(token);
+                if (isExpired(claims)) {
+                    return unauthorized(exchange, "Token expired");
+                }
+                log.debug("JWT token validated for path: {}", path);
+            } catch (ExpiredJwtException e) {
+                log.warn("JWT expired for path {}: {}", path, e.getMessage());
+                return unauthorized(exchange, "Token expired");
+            } catch (JwtException e) {
+                log.warn("JWT invalid for path {}: {}", path, e.getMessage());
+                return unauthorized(exchange, "Invalid token");
+            } catch (Exception e) {
+                log.error("JWT filter error for path {}: {}", path, e.getMessage());
+                return unauthorized(exchange, "Token validation error");
+            }
+
+            return chain.filter(exchange);
+        };
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    private Key getSigningKey() {
+        byte[] keyBytes;
+        try {
+            keyBytes = Decoders.BASE64.decode(jwtSecret);
+        } catch (IllegalArgumentException ex) {
+            keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
+        }
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private boolean isExpired(Claims claims) {
+        Date expiration = claims.getExpiration();
+        if (expiration == null) {
+            return false;
+        }
+        return expiration.toInstant().isBefore(Instant.now());
+    }
+
+    private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
+        ServerHttpResponse response = exchange.getResponse();
+        response.setStatusCode(HttpStatus.UNAUTHORIZED);
+        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        String body = "{\"error\":\"" + message + "\"}";
+        return response.writeWith(Mono.just(response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8))));
+    }
 }
+
