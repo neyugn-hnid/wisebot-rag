@@ -40,6 +40,13 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       timeout: 6000
+      repositories:
+        enabled: false
+
+  cache:
+    type: redis
+    redis:
+      cache-null-values: false
 
   # DEVTOOLS
   devtools:
@@ -80,3 +87,26 @@ logging:
     root: INFO
     org.springframework: INFO
     org.hibernate.SQL: DEBUG
+
+app:
+  redis:
+    jwt-blacklist:
+      enabled: true
+      prefix: "jwt:bl:"
+    rate-limit:
+      enabled: true
+      limit: 100
+      window-seconds: 60
+      prefix: "rate:ip:"
+    audit:
+      enabled: false
+      db-enabled: false
+      list-key: audit:logs
+      max-length: 10000
+      batch-size: 200
+      poll-interval-ms: 1000
+    cache:
+      enabled: true
+      default-ttl: 10m
+      ttl-by-cache:
+        user-by-id: 5m

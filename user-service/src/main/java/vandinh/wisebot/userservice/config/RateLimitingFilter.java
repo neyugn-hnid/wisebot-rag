@@ -26,6 +26,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
+    private static final int SC_TOO_MANY_REQUESTS = 429;
+
     private static final String[] AUTH_WHITELIST = {
             "/auth/**",
             "/api/auth/**",
@@ -48,7 +50,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         String clientKey = resolveClientKey(request);
         if (!rateLimiterService.isAllowed(clientKey)) {
             log.warn("Rate limit exceeded for key: {}", clientKey);
-            writeErrorResponse(response, request.getRequestURI(), "Too many requests", HttpServletResponse.SC_TOO_MANY_REQUESTS);
+            writeErrorResponse(response, request.getRequestURI(), "Too many requests", SC_TOO_MANY_REQUESTS);
             return;
         }
 

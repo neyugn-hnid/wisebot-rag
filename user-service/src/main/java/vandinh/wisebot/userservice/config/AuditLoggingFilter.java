@@ -42,12 +42,24 @@ public class AuditLoggingFilter extends OncePerRequestFilter {
 
         AuditLogEntry entry = AuditLogEntry.builder()
                 .userId(userId)
+            .action("HTTP_REQUEST")
+            .resource("API")
                 .endpoint(request.getRequestURI())
                 .method(request.getMethod())
                 .timestamp(Instant.now().toString())
                 .status(response.getStatus())
+            .ipAddress(resolveClientIp(request))
+            .userAgent(request.getHeader("User-Agent"))
                 .build();
 
         auditLogService.enqueue(entry);
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

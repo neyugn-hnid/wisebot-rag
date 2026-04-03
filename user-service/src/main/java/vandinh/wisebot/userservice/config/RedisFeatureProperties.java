@@ -37,8 +37,11 @@ public class RedisFeatureProperties {
     @Setter
     public static class Audit {
         private boolean enabled = false;
+        private boolean dbEnabled = false;
         private String listKey = "audit:logs";
         private int maxLength = 10000;
+        private int batchSize = 200;
+        private long pollIntervalMs = 1000;
     }
 
     @Getter
