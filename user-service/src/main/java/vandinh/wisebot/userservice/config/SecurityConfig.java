@@ -25,6 +25,8 @@ import org.springframework.web.client.RestTemplate;
 public class SecurityConfig {
 
     private final JWTAuthenticationFilter jwtFilter;
+    private final RateLimitingFilter rateLimitingFilter;
+    private final AuditLoggingFilter auditLoggingFilter;
     private final UserServiceDetail userServiceDetail;
     private final CustomAuthEntryPoint customAuthEntryPoint;
 
@@ -53,7 +55,9 @@ public class SecurityConfig {
                         .authenticationEntryPoint(customAuthEntryPoint)
                 )
                 .authenticationProvider(authenticationProvider())
-                .addFilterAfter(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(auditLoggingFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

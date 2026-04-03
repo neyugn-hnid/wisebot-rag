@@ -2,6 +2,8 @@ package vandinh.wisebot.userservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -52,6 +54,7 @@ public class UserServiceImpl implements UserService {
 
     @Transactional
     @Override
+    @Cacheable(cacheNames = "user-by-id", key = "#id")
     public UserResponse getUserById(UUID id) {
         UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -61,12 +64,14 @@ public class UserServiceImpl implements UserService {
 
     @Transactional
     @Override
+    @Cacheable(cacheNames = "user-by-id", key = "#id")
     public UserResponse getProfile(UUID id) {
         return getUserById(id);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(cacheNames = "user-by-id", key = "#id")
     public void updateUser(UserUpdateRequest request, UUID id) {
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
@@ -83,6 +88,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(cacheNames = "user-by-id", key = "#id")
     public void updateEmail(EmailUpdateRequest request, UUID id) {
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
@@ -95,6 +101,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(cacheNames = "user-by-id", key = "#id")
     public void changeStatus(ChangeStatusRequest request, UUID id) {
         UserEntity user = getUserEntity(id);
         user.setStatus(request.getNewStatus());
@@ -103,6 +110,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(cacheNames = "user-by-id", key = "#id")
     public void changePassword(ChangePasswordRequest request, UUID id) {
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));

@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vandinh.wisebot.userservice.common.enums.LoginProvider;
 import vandinh.wisebot.userservice.common.enums.RoleName;
 import vandinh.wisebot.userservice.common.enums.UserStatus;
+import vandinh.wisebot.userservice.common.response.ApiResponse;
 import vandinh.wisebot.userservice.common.response.TokenResponse;
 import vandinh.wisebot.userservice.dto.request.LoginRequest;
 import vandinh.wisebot.userservice.dto.request.RegisterRequest;
@@ -24,6 +25,10 @@ import vandinh.wisebot.userservice.repository.TenantRepository;
 import vandinh.wisebot.userservice.repository.UserRepository;
 import vandinh.wisebot.userservice.service.AuthService;
 import vandinh.wisebot.userservice.service.JwtService;
+import vandinh.wisebot.userservice.service.redis.JwtBlacklistService;
+import org.springframework.http.HttpStatus;
+
+import java.util.Date;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,6 +40,7 @@ import java.util.UUID;
 @Slf4j(topic = "AUTH-SERVICE")
 public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
+    private final JwtBlacklistService jwtBlacklistService;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final TenantRepository tenantRepository;
@@ -120,5 +126,31 @@ public class AuthServiceImpl implements AuthService {
                 .isEmailVerified(false)
                 .build();
         userRepository.save(user);
+    }
+
+    @Override
+    public ApiResponse logout(String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return ApiResponse.builder()
+                    .status(HttpStatus.BAD_REQUEST.value())
+                    .message("Missing Authorization header")
+                    .build();
+        }
+
+        String token = authorizationHeader.substring(7);
+        try {
+            Date expiry = jwtService.extractExpiration(token, vandinh.wisebot.userservice.common.enums.TokenType.ACCESS_TOKEN);
+            jwtBlacklistService.blacklist(token, expiry);
+        } catch (Exception ex) {
+            return ApiResponse.builder()
+                    .status(HttpStatus.UNAUTHORIZED.value())
+                    .message("Invalid or expired token")
+                    .build();
+        }
+
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Logged out successfully")
+                .build();
     }
 }
