@@ -29,4 +29,5 @@ public class RegisterRequest implements Serializable {
     @NotBlank(message = "confirmPassword must be not blank")
     private String confirmPassword;
     private Boolean isEmailVerified;
+    private String inviteToken;
 }

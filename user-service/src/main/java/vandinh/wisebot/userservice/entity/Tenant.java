@@ -2,10 +2,7 @@ package vandinh.wisebot.userservice.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import vandinh.wisebot.userservice.common.enums.TenantPlan;
 
@@ -19,6 +16,7 @@ import java.util.UUID;
 @Table(name = "tenants")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Tenant {

@@ -5,31 +5,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9395e225-b2fc-43f8-8b76-11165b432eb5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/AuditLoggingFilter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/RateLimitingFilter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/RedisConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/RedisFeatureProperties.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/entity/AuditLog.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/repository/AuditLogRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/redis/AuditLogEntry.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/redis/AuditLogService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/redis/JwtBlacklistService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/redis/RateLimiterService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/redis/RedisAuditLogConsumer.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/redis/RedisAuditLogService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/redis/RedisJwtBlacklistService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/redis/RedisRateLimiterService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/sqldialects.xml" beforeDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/sqldialects.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/common/enums/InviteStatus.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/dto/request/InviteRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/entity/TenantInvite.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/repository/TenantInviteRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/resources/db/migration/V5__create_tenant_invites.sql" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/UserServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/UserServiceApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/JWTAuthenticationFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/JWTAuthenticationFilter.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/SecurityConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/controller/AuthController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/dto/request/RegisterRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/dto/request/RegisterRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/entity/Tenant.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/entity/Tenant.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/AuthService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/impl/AuthServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/impl/AuthServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/impl/UserServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/impl/UserServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/resources/application.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -102,7 +89,7 @@
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "Spring Boot.ApiGatewayApplication.executor": "Run",
     "Spring Boot.UserServiceApplication.executor": "Run",
-    "git-widget-placeholder": "feature/redis",
+    "git-widget-placeholder": "feature/update-api-auth-register",
     "jdk.selected.JAVA_MODULE": "17",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "C:/Users/VanDinh/OneDrive/Máy tính/wisebot-rag",
