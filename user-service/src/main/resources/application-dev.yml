@@ -2,40 +2,15 @@ spring:
   config:
     activate:
       on-profile: dev
-  devtools:
-    add-properties: true
+
   datasource:
-    url: jdbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:5432}/user_db
-    username: ${DATABASE_USERNAME:postgres}
-    password: ${DATABASE_PASSWORD:password}
+    url: jdbc:postgresql://localhost:5432/wisebot_user_database
+    username: postgres
+    password: password
+
   jpa:
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        cache:
-          use_second_level_cache: false
-          region.factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
-    show-sql: false
-    hibernate:
-      ddl-auto: none
+    show-sql: true
 
-# application-dev.yml
-springdoc:
-  api-docs:
-    enabled: true
-  swagger-ui:
-    enabled: true
-openapi:
-  service:
-    api-docs: user-service
-    server: ${BACKEND_HOST:http://localhost:${server.port}}
-    title: User Service API
-    description: API documentation for User Service
-    version: 1.0.0
-
-# Generate HMAC Authentication Code: https://www.devglan.com/online-tools/hmac-sha256-online
-jwt:
-  expiryMinutes: ${JWT_EXPIRY_MINUTES:60}
-  expiryDay: ${JWT_EXPIRY_DAY:14}
-  accessKey: ${JWT_ACCESS_KEY:VYW20sDO+am1aOTsq/4Tn48CZ6oEV13ooo51rDrz7AI=}
-  refreshKey: ${JWT_REFRESH_KEY:UYDDaHfHJxiTtOfyGkRbae6KlWwufFFvxA04gh/9uZI=}
+logging:
+  level:
+    root: INFO

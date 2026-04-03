@@ -28,6 +28,7 @@ import vandinh.wisebot.userservice.service.JwtService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -62,7 +63,7 @@ public class AuthServiceImpl implements AuthService {
                     .map(a -> a.getAuthority())
                     .toList();
 
-            Long userId = user.getId();
+            UUID userId = user.getId();
             String accessToken = jwtService.generateAccessToken(userId, user.getEmail(), authorities);
             String refreshToken = jwtService.generateRefreshToken(userId, user.getEmail(), authorities);
 
@@ -105,8 +106,8 @@ public class AuthServiceImpl implements AuthService {
         Role role = roleRepository.findByName(RoleName.USER)
                 .orElseThrow(() -> new RuntimeException("Role not found"));
 
-        Tenant tenant = tenantRepository.findById(1L)
-                .orElseThrow(() -> new RuntimeException("Tenant not found"));
+        Tenant tenant = tenantRepository.findFirstByOrderByCreatedAtAsc()
+            .orElseThrow(() -> new RuntimeException("Tenant not found"));
 
         UserEntity user = UserEntity.builder()
                 .fullName(request.getFullName())

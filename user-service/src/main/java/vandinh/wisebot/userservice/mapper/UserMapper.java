@@ -2,7 +2,6 @@ package vandinh.wisebot.userservice.mapper;
 
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
-import vandinh.wisebot.userservice.common.enums.RoleName;
 import vandinh.wisebot.userservice.dto.response.UserPageResponse;
 import vandinh.wisebot.userservice.dto.response.UserResponse;
 import vandinh.wisebot.userservice.entity.Role;

@@ -17,6 +17,8 @@ import vandinh.wisebot.userservice.dto.request.UserUpdateRequest;
 import vandinh.wisebot.userservice.entity.UserEntity;
 import vandinh.wisebot.userservice.service.UserService;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("user")
 @Tag(name = "User Controller")
@@ -43,7 +45,7 @@ public class UserController {
     @Operation(summary = "Get user", description = "API retrieve user")
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
-    public ApiResponse getUser(@PathVariable Long id) {
+    public ApiResponse getUser(@PathVariable UUID id) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
                 .message("User profile retrieved successfully")
@@ -92,7 +94,7 @@ public class UserController {
     @Operation(summary = "Change status", description = "API change status of user")
     @PatchMapping("/{id}/change-status")
     @PreAuthorize("isAuthenticated()")
-    public ApiResponse changeStatus(@PathVariable Long id,
+    public ApiResponse changeStatus(@PathVariable UUID id,
                                     @RequestBody
                                     @Valid
                                     ChangeStatusRequest request) {

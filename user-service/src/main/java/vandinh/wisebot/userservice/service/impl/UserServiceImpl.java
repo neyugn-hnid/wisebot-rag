@@ -26,6 +26,7 @@ import vandinh.wisebot.userservice.service.UserService;
 import vandinh.wisebot.userservice.util.AppUtils;
 
 import java.util.Optional;
+import java.util.UUID;
 
 
 @Service
@@ -51,7 +52,7 @@ public class UserServiceImpl implements UserService {
 
     @Transactional
     @Override
-    public UserResponse getUserById(Long id) {
+    public UserResponse getUserById(UUID id) {
         UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User not found with id: " + id));
@@ -60,13 +61,13 @@ public class UserServiceImpl implements UserService {
 
     @Transactional
     @Override
-    public UserResponse getProfile(Long id) {
+    public UserResponse getProfile(UUID id) {
         return getUserById(id);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateUser(UserUpdateRequest request, Long id) {
+    public void updateUser(UserUpdateRequest request, UUID id) {
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
@@ -82,7 +83,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateEmail(EmailUpdateRequest request, Long id) {
+    public void updateEmail(EmailUpdateRequest request, UUID id) {
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
@@ -94,7 +95,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void changeStatus(ChangeStatusRequest request, Long id) {
+    public void changeStatus(ChangeStatusRequest request, UUID id) {
         UserEntity user = getUserEntity(id);
         user.setStatus(request.getNewStatus());
         userRepository.save(user);
@@ -102,7 +103,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void changePassword(ChangePasswordRequest request, Long id) {
+    public void changePassword(ChangePasswordRequest request, UUID id) {
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
@@ -117,7 +118,7 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
     }
 
-    private UserEntity getUserEntity(Long id) {
+    private UserEntity getUserEntity(UUID id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
     }

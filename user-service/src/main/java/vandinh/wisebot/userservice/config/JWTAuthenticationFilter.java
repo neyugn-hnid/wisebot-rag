@@ -21,6 +21,7 @@ import vandinh.wisebot.userservice.service.UserServiceDetail;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.UUID;
 
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 
@@ -65,7 +66,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
         try {
-            Long userId = jwtService.extractUserId(token, TokenType.ACCESS_TOKEN);
+            UUID userId = jwtService.extractUserId(token, TokenType.ACCESS_TOKEN);
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails user = serviceDetail.loadUserById(userId);
 

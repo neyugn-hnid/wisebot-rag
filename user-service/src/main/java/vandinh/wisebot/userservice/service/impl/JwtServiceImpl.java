@@ -22,6 +22,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 import static vandinh.wisebot.userservice.common.enums.TokenType.ACCESS_TOKEN;
@@ -43,19 +44,19 @@ public class JwtServiceImpl implements JwtService {
     private String refreshKey;
 
     @Override
-    public String generateAccessToken(Long userId, String email, List<String> authorities) {
+    public String generateAccessToken(UUID userId, String email, List<String> authorities) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", authorities);
-        claims.put("userId", userId);
+        claims.put("userId", userId.toString());
         claims.put("email", email);
         return createAccessToken(claims, userId);
     }
 
     @Override
-    public String generateRefreshToken(Long userId, String email, List<String> authorities) {
+    public String generateRefreshToken(UUID userId, String email, List<String> authorities) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", authorities);
-        claims.put("userId", userId);
+        claims.put("userId", userId.toString());
         claims.put("email", email);
         return createRefreshToken(claims, userId);
     }
@@ -72,8 +73,9 @@ public class JwtServiceImpl implements JwtService {
     }
 
     @Override
-    public Long extractUserId(String token, TokenType type) {
-        return extractClaim(token, type, claims -> claims.get("userId", Long.class));
+    public UUID extractUserId(String token, TokenType type) {
+        String userId = extractClaim(token, type, claims -> claims.get("userId", String.class));
+        return (userId == null || userId.isBlank()) ? null : UUID.fromString(userId);
     }
 
     @Override
@@ -83,7 +85,7 @@ public class JwtServiceImpl implements JwtService {
                 return false;
             }
 
-            Long tokenUserId = extractUserId(token, ACCESS_TOKEN);
+                UUID tokenUserId = extractUserId(token, ACCESS_TOKEN);
             return tokenUserId != null
                     && tokenUserId.equals(userEntity.getId())
                     && !isTokenExpired(token, ACCESS_TOKEN);
@@ -101,7 +103,7 @@ public class JwtServiceImpl implements JwtService {
     }
 
 
-    private String createAccessToken(Map<String, Object> claims, Long userId) {
+    private String createAccessToken(Map<String, Object> claims, UUID userId) {
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(String.valueOf(userId))
@@ -111,7 +113,7 @@ public class JwtServiceImpl implements JwtService {
                 .compact();
     }
 
-    private String createRefreshToken(Map<String, Object> claims, Long userId) {
+    private String createRefreshToken(Map<String, Object> claims, UUID userId) {
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(String.valueOf(userId))

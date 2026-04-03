@@ -6,6 +6,7 @@ import vandinh.wisebot.userservice.entity.UserEntity;
 import vandinh.wisebot.userservice.exception.ResourceNotFoundException;
 import vandinh.wisebot.userservice.repository.UserRepository;
 
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,7 +31,7 @@ public class AppUtils {
         return String.valueOf((int)(Math.random() * 900000) + 100000);
     }
 
-    public static UserEntity getUserEntity(Long id) {
+    public static UserEntity getUserEntity(UUID id) {
         return userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 }
