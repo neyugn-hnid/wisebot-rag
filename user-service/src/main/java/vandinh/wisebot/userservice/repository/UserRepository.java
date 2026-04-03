@@ -9,8 +9,9 @@ import org.springframework.data.repository.query.Param;
 import vandinh.wisebot.userservice.entity.UserEntity;
 
 import java.util.Optional;
+import java.util.UUID;
 
-public interface UserRepository extends JpaRepository<UserEntity, Long> {
+public interface UserRepository extends JpaRepository<UserEntity, UUID> {
     @Query("SELECT u FROM UserEntity u " +
             "WHERE lower(u.fullName) LIKE lower(concat('%', :keyword, '%')) " +
             "OR lower(u.username) LIKE lower(concat('%', :keyword, '%')) " +
@@ -25,7 +26,7 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findByUsername(@Param("username") String username);
 
     @Query("SELECT u FROM UserEntity u LEFT JOIN FETCH u.roles WHERE u.id = :id")
-    Optional<UserEntity> findById(@Param("id") Long id);
+    Optional<UserEntity> findById(@Param("id") UUID id);
     
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);

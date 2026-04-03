@@ -7,13 +7,15 @@ import vandinh.wisebot.userservice.dto.request.UserUpdateRequest;
 import vandinh.wisebot.userservice.dto.response.UserPageResponse;
 import vandinh.wisebot.userservice.dto.response.UserResponse;
 
+import java.util.UUID;
+
 public interface UserService {
     UserPageResponse getAllUser(String keyword, String sort, int page, int size);
-    UserResponse getUserById(Long id);
-    UserResponse getProfile(Long id);
-    void updateUser(UserUpdateRequest request, Long id);
-    void updateEmail(EmailUpdateRequest request, Long id);
-    void changeStatus(ChangeStatusRequest request, Long id);
-    void changePassword(ChangePasswordRequest request, Long id);
+    UserResponse getUserById(UUID id);
+    UserResponse getProfile(UUID id);
+    void updateUser(UserUpdateRequest request, UUID id);
+    void updateEmail(EmailUpdateRequest request, UUID id);
+    void changeStatus(ChangeStatusRequest request, UUID id);
+    void changePassword(ChangePasswordRequest request, UUID id);
 
 }
