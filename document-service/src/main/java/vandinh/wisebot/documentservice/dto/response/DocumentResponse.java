@@ -2,6 +2,7 @@ package vandinh.wisebot.documentservice.dto.response;
 
 import lombok.Builder;
 import lombok.Data;
+import vandinh.wisebot.documentservice.common.enums.DocumentStatus;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -10,9 +11,11 @@ import java.util.UUID;
 @Builder
 public class DocumentResponse {
     private UUID id;
+    private UUID knowledgeBaseId;
     private String filename;
     private String contentType;
     private Long size;
-    private String storageKey;
+    private String storagePath;
+    private DocumentStatus status;
     private LocalDateTime createdAt;
 }
