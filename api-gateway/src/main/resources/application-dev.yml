@@ -1,0 +1,54 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins: "*"
+                allowedMethods: "*"
+                allowedHeaders: "*"
+
+          routes:
+            # Public auth routes (no JWT required)
+            - id: user-service-public
+              uri: ${USER_SERVICE_URL:http://localhost:8080}
+              predicates:
+                - Path=/api/auth/**
+              filters:
+                - StripPrefix=1
+
+            # User service (protected)
+            - id: user-service
+              uri: ${USER_SERVICE_URL:http://localhost:8080}
+              predicates:
+                - Path=/api/user/**,/api/users/**
+              filters:
+                - StripPrefix=1
+                - JwtAuthenticationFilter
+
+            # Document service (protected)
+            - id: document-service
+              uri: ${DOCUMENT_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/knowledge-bases/**,/api/documents/**
+              filters:
+                - StripPrefix=1
+                - JwtAuthenticationFilter
+
+jwt:
+  secret: ${JWT_SECRET:VYW20sDO+am1aOTsq/4Tn48CZ6oEV13ooo51rDrz7AI=}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

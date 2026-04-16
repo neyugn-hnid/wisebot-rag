@@ -1,22 +1,112 @@
 server:
   port: 8080
-  compression:
-    enabled: true
-    mime-types: application/json
 
 spring:
   application:
     name: user-service
-  profiles:
-    active: @spring.profiles.active@
 
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: jdbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:5432}/wisebot_user_database
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        cache:
+          use_second_level_cache: false
+
+  # FLYWAY (QUAN TRỌNG)
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    clean-disabled: true
+    out-of-order: false
+
+  # REDIS
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 6000
+      repositories:
+        enabled: false
+
+  cache:
+    type: redis
+    redis:
+      cache-null-values: false
+
+  # DEVTOOLS
+  devtools:
+    add-properties: true
+
+# JWT CONFIG
+jwt:
+  expiryMinutes: ${JWT_EXPIRY_MINUTES:60}
+  expiryDay: ${JWT_EXPIRY_DAY:14}
+  accessKey: ${JWT_ACCESS_KEY:VYW20sDO+am1aOTsq/4Tn48CZ6oEV13ooo51rDrz7AI=}
+  refreshKey: ${JWT_REFRESH_KEY:UYDDaHfHJxiTtOfyGkRbae6KlWwufFFvxA04gh/9uZI=}
+
+# SWAGGER / OPENAPI
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+openapi:
+  service:
+    api-docs: user-service
+    server: ${BACKEND_HOST:http://localhost:${server.port}}
+    title: User Service API
+    description: API documentation for User Service
+    version: 1.0.0
+
+# ACTUATOR (monitoring)
 management:
   endpoints:
     web:
       exposure:
-        include: '*'
+        include: health,info,metrics
 
+# LOGGING
 logging:
   level:
     root: INFO
-    web: INFO
+    org.springframework: INFO
+    org.hibernate.SQL: DEBUG
+
+app:
+  redis:
+    jwt-blacklist:
+      enabled: true
+      prefix: "jwt:bl:"
+    rate-limit:
+      enabled: true
+      limit: 100
+      window-seconds: 60
+      prefix: "rate:ip:"
+    audit:
+      enabled: false
+      db-enabled: false
+      list-key: audit:logs
+      max-length: 10000
+      batch-size: 200
+      poll-interval-ms: 1000
+    cache:
+      enabled: true
+      default-ttl: 10m
+      ttl-by-cache:
+        user-by-id: 5m

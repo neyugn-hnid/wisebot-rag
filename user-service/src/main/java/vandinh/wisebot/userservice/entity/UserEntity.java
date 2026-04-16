@@ -23,8 +23,8 @@ import java.util.*;
 public class UserEntity implements UserDetails, Serializable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @ManyToOne
     @JoinColumn(name = "tenant_id")
@@ -36,7 +36,7 @@ public class UserEntity implements UserDetails, Serializable {
     @Column(nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false, length = 50)
     private String password;
 
     @Column(name = "full_name", length = 150)
@@ -62,15 +62,13 @@ public class UserEntity implements UserDetails, Serializable {
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
 
-    @Column(name = "created_at")
-    @Temporal(TemporalType.TIMESTAMP)
     @CreationTimestamp
-    private Date createdAt;
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
-    @Temporal(TemporalType.TIMESTAMP)
     @UpdateTimestamp
-    private Date updatedAt;
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @ManyToMany
     @JoinTable(
@@ -82,7 +80,9 @@ public class UserEntity implements UserDetails, Serializable {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of((GrantedAuthority) () -> "ROLE_" + getRoles());
+        return roles.stream()
+                .map(role -> (GrantedAuthority) () -> "ROLE_" + role.getName().name())
+                .toList();
     }
 
     @Override

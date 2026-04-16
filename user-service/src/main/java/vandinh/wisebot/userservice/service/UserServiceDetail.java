@@ -9,8 +9,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -19,8 +21,9 @@ public class UserServiceDetail implements UserDetailsService {
     private final UserRepository userRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Optional<UserEntity> user = userRepository.findByUsername(username);
+        Optional<UserEntity> user = userRepository.findByUsernameWithRoles(username);
 
         if (user.isEmpty()) {
             user = userRepository.findByUsername(username);
@@ -33,5 +36,17 @@ public class UserServiceDetail implements UserDetailsService {
 
         log.info("User found in the database: {}", username);
         return userEntity;
+    }
+
+    @Transactional(readOnly = true)
+    public UserDetails loadUserById(UUID userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.error("User not found with id: {}", userId);
+                    return new UsernameNotFoundException("User not found");
+                });
+
+        log.info("User found with id: {}", userId);
+        return user;
     }
 }

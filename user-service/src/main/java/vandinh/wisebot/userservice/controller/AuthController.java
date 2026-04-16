@@ -6,6 +6,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,9 +16,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vandinh.wisebot.userservice.common.response.ApiResponse;
 import vandinh.wisebot.userservice.common.response.TokenResponse;
+import vandinh.wisebot.userservice.dto.request.InviteRequest;
 import vandinh.wisebot.userservice.dto.request.LoginRequest;
 import vandinh.wisebot.userservice.dto.request.RegisterRequest;
+import vandinh.wisebot.userservice.entity.UserEntity;
 import vandinh.wisebot.userservice.service.AuthService;
+
+import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 
 @RestController
 @RequestMapping("/auth")
@@ -27,7 +34,7 @@ public class AuthController {
 
     @Operation(summary = "Login", description = "Get access token and refresh token by username/email and password")
     @PostMapping("/login")
-    public TokenResponse login(@RequestBody LoginRequest request) {
+    public TokenResponse login(@RequestBody @Valid LoginRequest request) {
         log.info("Login request with payload: {}", request);
         return authService.login(request);
     }
@@ -42,6 +49,20 @@ public class AuthController {
                 .message("User registered successfully")
                 .data(null)
                 .build();
+    }
+
+    @Operation(summary = "Logout", description = "Revoke access token by adding it to Redis blacklist")
+    @PostMapping("/logout")
+    public ApiResponse logout(@RequestHeader(value = AUTHORIZATION, required = false) String authorizationHeader) {
+        return authService.logout(authorizationHeader);
+    }
+
+    @Operation(summary = "Invite user", description = "Create invite token for a user to join tenant")
+    @PostMapping("/invite")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse invite(@RequestBody @Valid InviteRequest request, Authentication authentication) {
+        UserEntity user = (UserEntity) authentication.getPrincipal();
+        return authService.inviteUser(user.getTenant().getId(), request.getEmail());
     }
 
 }
