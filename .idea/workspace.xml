@@ -75,6 +75,7 @@
     "RunOnceActivity.git.unshallow": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "Spring Boot.ApiGatewayApplication.executor": "Run",
+    "Spring Boot.ChatServiceApplication.executor": "Run",
     "Spring Boot.DocumentServiceApplication.executor": "Run",
     "Spring Boot.UserServiceApplication.executor": "Run",
     "git-widget-placeholder": "develop",
@@ -107,11 +108,19 @@
       </set>
     </option>
   </component>
-  <component name="RunManager" selected="Spring Boot.ApiGatewayApplication">
+  <component name="RunManager" selected="Spring Boot.ChatServiceApplication">
     <configuration name="ApiGatewayApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
       <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
       <module name="api-gateway" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="vandinh.wisebot.apigateway.ApiGatewayApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ChatServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
+      <module name="chat-service" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="vandinh.wisebot.chatservice.ChatServiceApplication" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
