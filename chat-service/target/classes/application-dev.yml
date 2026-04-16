@@ -20,4 +20,3 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: true
-    schemas: chat_service
