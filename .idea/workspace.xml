@@ -27,7 +27,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="main" />
+        <entry key="$PROJECT_DIR$" value="develop" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -78,7 +78,7 @@
     "Spring Boot.ChatServiceApplication.executor": "Run",
     "Spring Boot.DocumentServiceApplication.executor": "Run",
     "Spring Boot.UserServiceApplication.executor": "Run",
-    "git-widget-placeholder": "feature/widget-service",
+    "git-widget-placeholder": "feature/billing-service",
     "jdk.selected.JAVA_MODULE": "17",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "C:/Users/VanDinh/OneDrive/Máy tính/wisebot-rag",
@@ -113,6 +113,14 @@
       <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
       <module name="api-gateway" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="vandinh.wisebot.apigateway.ApiGatewayApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="BillingServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
+      <module name="billing-service" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="vandinh.wisebot.billingservice.BillingServiceApplication" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
