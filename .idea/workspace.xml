@@ -5,6 +5,121 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9395e225-b2fc-43f8-8b76-11165b432eb5" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/chat-service/.mvn/wrapper/maven-wrapper.properties" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/mvnw" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/mvnw.cmd" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/pom.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/ChatServiceApplication.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/common/response/ApiResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/common/response/ErrorResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/AiClientProperties.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/AppConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/EmbeddingClientProperties.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/SecurityConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/WebSocketConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/ChatController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/ChatRealtimeController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/request/AskRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/request/CreateSessionRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/request/MessageFeedbackRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/request/RealtimeAskRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/request/SendMessageRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/response/AskResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/response/ChatMessageCitationResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/response/ChatMessageResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/response/ChatSessionResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/response/MessageFeedbackResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/response/RealtimeEventResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/entity/ChatMessage.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/entity/ChatMessageCitation.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/entity/ChatMessageFeedback.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/entity/ChatSession.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/exception/GlobalExceptionHandling.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/exception/InvalidDataException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/exception/ResourceNotFoundException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/repository/ChatMessageCitationRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/repository/ChatMessageFeedbackRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/repository/ChatMessageRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/repository/ChatSessionRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/security/GatewayHeaderAuthFilter.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/security/WebSocketAuthChannelInterceptor.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/security/WebSocketUserHandshakeInterceptor.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/ChatService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/RealtimeChatService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/client/AiClient.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/client/EmbeddingSearchClient.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/impl/ChatServiceImpl.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/resources/application-dev.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/resources/application-prod.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/resources/application-test.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/resources/application.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/resources/db/migration/V1__init.sql" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/test/java/vandinh/wisebot/chatservice/ChatServiceApplicationTests.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/application-dev.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/application-prod.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/application-test.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/application.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/db/migration/V1__init.sql" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/ChatServiceApplication.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/common/response/ApiResponse$ApiResponseBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/common/response/ApiResponse.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/common/response/ErrorResponse.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/config/AiClientProperties.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/config/AppConfig.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/config/EmbeddingClientProperties.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/config/SecurityConfig.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/config/WebSocketConfig.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/controller/ChatController.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/controller/ChatRealtimeController.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/request/AskRequest.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/request/CreateSessionRequest.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/request/MessageFeedbackRequest.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/request/RealtimeAskRequest.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/request/SendMessageRequest.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/response/AskResponse$AskResponseBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/response/AskResponse.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/response/ChatMessageCitationResponse$ChatMessageCitationResponseBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/response/ChatMessageCitationResponse.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/response/ChatMessageResponse$ChatMessageResponseBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/response/ChatMessageResponse.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/response/ChatSessionResponse$ChatSessionResponseBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/response/ChatSessionResponse.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/response/MessageFeedbackResponse$MessageFeedbackResponseBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/response/MessageFeedbackResponse.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/response/RealtimeEventResponse$RealtimeEventResponseBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/dto/response/RealtimeEventResponse.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/entity/ChatMessage$ChatMessageBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/entity/ChatMessage.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/entity/ChatMessageCitation$ChatMessageCitationBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/entity/ChatMessageCitation.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/entity/ChatMessageFeedback$ChatMessageFeedbackBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/entity/ChatMessageFeedback.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/entity/ChatSession$ChatSessionBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/entity/ChatSession.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/exception/GlobalExceptionHandling.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/exception/InvalidDataException.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/exception/ResourceNotFoundException.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/repository/ChatMessageCitationRepository.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/repository/ChatMessageFeedbackRepository.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/repository/ChatMessageRepository.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/repository/ChatSessionRepository.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/security/GatewayHeaderAuthFilter.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/security/WebSocketAuthChannelInterceptor.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/security/WebSocketUserHandshakeInterceptor.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/service/ChatService.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/service/RealtimeChatService.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/service/client/AiClient$3.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/service/client/AiClient.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/service/client/EmbeddingSearchClient.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/classes/vandinh/wisebot/chatservice/service/impl/ChatServiceImpl.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/createdFiles.lst" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/inputFiles.lst" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/target/test-classes/vandinh/wisebot/chatservice/ChatServiceApplicationTests.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -77,9 +192,10 @@
     "RunOnceActivity.git.unshallow": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "Spring Boot.ApiGatewayApplication.executor": "Run",
+    "Spring Boot.ChatServiceApplication.executor": "Run",
     "Spring Boot.DocumentServiceApplication.executor": "Run",
     "Spring Boot.UserServiceApplication.executor": "Run",
-    "git-widget-placeholder": "feature/ai-service",
+    "git-widget-placeholder": "feature/chat-service",
     "jdk.selected.JAVA_MODULE": "17",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "C:/Users/VanDinh/OneDrive/Máy tính/wisebot-rag",
@@ -109,11 +225,19 @@
       </set>
     </option>
   </component>
-  <component name="RunManager" selected="Spring Boot.ApiGatewayApplication">
+  <component name="RunManager" selected="Spring Boot.ChatServiceApplication">
     <configuration name="ApiGatewayApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
       <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
       <module name="api-gateway" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="vandinh.wisebot.apigateway.ApiGatewayApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ChatServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
+      <module name="chat-service" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="vandinh.wisebot.chatservice.ChatServiceApplication" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
