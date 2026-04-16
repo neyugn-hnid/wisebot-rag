@@ -44,6 +44,41 @@ spring:
                 - StripPrefix=1
                 - JwtAuthenticationFilter
 
+            # Chat service REST (protected)
+            - id: chat-service
+              uri: ${CHAT_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/chat/**
+              filters:
+                - StripPrefix=2
+                - JwtAuthenticationFilter
+
+            # Chat service WebSocket (protected)
+            - id: chat-service-ws
+              uri: ${CHAT_WS_URL:ws://localhost:8083}
+              predicates:
+                - Path=/ws/chat/**
+              filters:
+                - JwtAuthenticationFilter
+
+            # Widget service (protected)
+            - id: widget-service
+              uri: ${WIDGET_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/widget/**
+              filters:
+                - StripPrefix=2
+                - JwtAuthenticationFilter
+
+            # Billing service (protected)
+            - id: billing-service
+              uri: ${BILLING_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/billing/**
+              filters:
+                - StripPrefix=2
+                - JwtAuthenticationFilter
+
 jwt:
   secret: ${JWT_SECRET:VYW20sDO+am1aOTsq/4Tn48CZ6oEV13ooo51rDrz7AI=}
 
