@@ -27,7 +27,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="develop" />
+        <entry key="$PROJECT_DIR$" value="main" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -78,7 +78,7 @@
     "Spring Boot.ChatServiceApplication.executor": "Run",
     "Spring Boot.DocumentServiceApplication.executor": "Run",
     "Spring Boot.UserServiceApplication.executor": "Run",
-    "git-widget-placeholder": "develop",
+    "git-widget-placeholder": "feature/widget-service",
     "jdk.selected.JAVA_MODULE": "17",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "C:/Users/VanDinh/OneDrive/Máy tính/wisebot-rag",
@@ -141,11 +141,20 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="WidgetServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
+      <module name="widget-service" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="vandinh.wisebot.widgetservice.WidgetServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-2653e85de345-6d6dccd035ac-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.31033.139" />
+        <option value="bundled-jdk-9f38398b9061-39b83d9b5494-intellij.indexing.shared.core-IU-241.19416.15" />
+        <option value="bundled-js-predefined-1d06a55b98c1-0b3e54e931b4-JavaScript-IU-241.19416.15" />
       </set>
     </attachedChunks>
   </component>
@@ -166,6 +175,7 @@
       <workItem from="1775406283958" duration="901000" />
       <workItem from="1775441646011" duration="9050000" />
       <workItem from="1776318235216" duration="609000" />
+      <workItem from="1776325731450" duration="485000" />
     </task>
     <servers />
   </component>
