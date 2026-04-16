@@ -5,90 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9395e225-b2fc-43f8-8b76-11165b432eb5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.github/skills/audit-redis-queue/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/auth-jwt-redis/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/auth-service-flow/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/common-response-enums/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/doc/document.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/document-entity-metadata/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/document-repo-service-layer/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/document-service-skeleton/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/document-storage-config/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/document-upload-controller/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/dto-validation-patterns/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/entity-jpa-modeling/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/exception-auth-entrypoint/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/jwt-service-claims/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/mapper-manual-page/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/redis-cache-config/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/redis-feature-properties/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/redis-rate-limit-audit/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/repository-jpa-patterns/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/rest-controller-apiresponse/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/security-filter-chain/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/service-repo-layer/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/springboot-service-skeleton/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/tenant-invite-flow/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/user-service-crud-cache/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/userdetails-service/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.github/skills/util-app-utils/SKILL.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/.gitattributes" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/.mvn/wrapper/maven-wrapper.properties" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/mvnw" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/mvnw.cmd" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/pom.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/DocumentServiceApplication.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/common/enums/DocumentStatus.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/common/enums/EmbeddingStatus.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/common/response/ApiResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/common/response/ErrorResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/config/AppConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/config/ChunkingProperties.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/config/EmbeddingProperties.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/config/StorageProperties.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/controller/DocumentController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/controller/KnowledgeBaseController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/dto/request/EmbeddingRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/dto/request/KnowledgeBaseRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/dto/response/DocumentChunkResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/dto/response/DocumentResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/dto/response/DocumentUploadResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/dto/response/EmbeddingResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/dto/response/KnowledgeBaseResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/entity/Document.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/entity/DocumentChunk.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/entity/KnowledgeBase.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/exception/GlobalExceptionHandling.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/exception/InvalidDataException.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/exception/ResourceNotFoundException.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/repository/DocumentChunkRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/repository/DocumentRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/repository/KnowledgeBaseRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/service/DocumentService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/service/KnowledgeBaseService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/service/embedding/EmbeddingClient.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/service/impl/DocumentServiceImpl.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/service/impl/KnowledgeBaseServiceImpl.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/service/storage/FileSystemStorageService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/service/storage/StorageService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/service/text/TextChunker.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/service/text/TextExtractor.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/java/vandinh/wisebot/documentservice/service/text/TikaTextExtractor.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/resources/application-dev.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/resources/application-prod.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/resources/application-test.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/resources/application.properties" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/resources/application.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/resources/db/migration/V1__init.sql" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/main/resources/db/migration/V2__knowledge_base_and_chunks.sql" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/document-service/src/test/java/vandinh/wisebot/documentservice/DocumentServiceApplicationTests.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.yml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -162,7 +79,7 @@
     &quot;Spring Boot.ApiGatewayApplication.executor&quot;: &quot;Run&quot;,
     &quot;Spring Boot.DocumentServiceApplication.executor&quot;: &quot;Run&quot;,
     &quot;Spring Boot.UserServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;feature/document-service&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;feature/embedding-service&quot;,
     &quot;jdk.selected.JAVA_MODULE&quot;: &quot;17&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;C:/Users/VanDinh/OneDrive/Máy tính/wisebot-rag&quot;,
@@ -171,6 +88,9 @@
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
     &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
@@ -189,7 +109,7 @@
       </set>
     </option>
   </component>
-  <component name="RunManager" selected="Spring Boot.UserServiceApplication">
+  <component name="RunManager" selected="Spring Boot.ApiGatewayApplication">
     <configuration name="ApiGatewayApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
       <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
       <module name="api-gateway" />
@@ -218,8 +138,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-9f38398b9061-39b83d9b5494-intellij.indexing.shared.core-IU-241.19416.15" />
-        <option value="bundled-js-predefined-1d06a55b98c1-0b3e54e931b4-JavaScript-IU-241.19416.15" />
+        <option value="bundled-python-sdk-2653e85de345-6d6dccd035ac-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.31033.139" />
       </set>
     </attachedChunks>
   </component>
@@ -239,6 +158,7 @@
       <workItem from="1775404024018" duration="1097000" />
       <workItem from="1775406283958" duration="901000" />
       <workItem from="1775441646011" duration="9050000" />
+      <workItem from="1776318235216" duration="609000" />
     </task>
     <servers />
   </component>
