@@ -1,0 +1,44 @@
+server:
+  port: 8084
+  compression:
+    enabled: true
+    mime-types: application/json
+
+spring:
+  application:
+    name: chat-service
+  profiles:
+    active: @spring.profiles.active@
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+
+logging:
+  level:
+    root: INFO
+    web: INFO
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+integration:
+  embedding:
+    base-url: ${EMBEDDING_BASE_URL:http://localhost:8001}
+    search-path: /v1/search
+    service-token: ${EMBEDDING_SERVICE_TOKEN:}
+  ai:
+    base-url: ${AI_BASE_URL:http://localhost:8002}
+    ask-path: /v1/rag/ask
+    stream-path: /v1/rag/stream
+    service-token: ${AI_SERVICE_TOKEN:}
+
+realtime:
+  websocket-endpoint: /ws/chat
+  app-prefix: /app
+  topic-prefix: /topic
