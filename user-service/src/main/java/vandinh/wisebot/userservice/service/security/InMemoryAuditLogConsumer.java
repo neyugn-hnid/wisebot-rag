@@ -1,34 +1,30 @@
-package vandinh.wisebot.userservice.service.redis;
+package vandinh.wisebot.userservice.service.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import vandinh.wisebot.userservice.config.RedisFeatureProperties;
+import vandinh.wisebot.userservice.config.AppFeatureProperties;
 import vandinh.wisebot.userservice.entity.AuditLog;
 import vandinh.wisebot.userservice.repository.AuditLogRepository;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j(topic = "AUDIT_LOG_CONSUMER")
-public class RedisAuditLogConsumer {
+public class InMemoryAuditLogConsumer {
 
-    private final StringRedisTemplate stringRedisTemplate;
-    private final ObjectMapper objectMapper;
-    private final RedisFeatureProperties properties;
+    private final InMemoryAuditBuffer auditBuffer;
+    private final AppFeatureProperties properties;
     private final AuditLogRepository auditLogRepository;
 
-    @Scheduled(fixedDelayString = "${app.redis.audit.poll-interval-ms:1000}")
+    @Scheduled(fixedDelayString = "${app.features.audit.poll-interval-ms:1000}")
     @Transactional
     public void drainQueue() {
         if (!properties.getAudit().isEnabled() || !properties.getAudit().isDbEnabled()) {
@@ -40,22 +36,14 @@ public class RedisAuditLogConsumer {
             return;
         }
 
-        List<AuditLog> batch = new ArrayList<>(batchSize);
-        String listKey = properties.getAudit().getListKey();
-
-        for (int i = 0; i < batchSize; i++) {
-            String payload = stringRedisTemplate.opsForList().rightPop(listKey);
-            if (payload == null) {
-                break;
-            }
-
-            try {
-                AuditLogEntry entry = objectMapper.readValue(payload, AuditLogEntry.class);
-                batch.add(map(entry));
-            } catch (Exception e) {
-                log.warn("Failed to parse audit log entry", e);
-            }
+        List<AuditLogEntry> entries = auditBuffer.pollBatch(batchSize);
+        if (entries.isEmpty()) {
+            return;
         }
+
+        List<AuditLog> batch = entries.stream()
+                .map(this::map)
+                .toList();
 
         if (!batch.isEmpty()) {
             auditLogRepository.saveAll(batch);
@@ -68,6 +56,7 @@ public class RedisAuditLogConsumer {
             try {
                 userId = UUID.fromString(entry.getUserId());
             } catch (IllegalArgumentException ignored) {
+                log.debug("Invalid audit user id: {}", entry.getUserId());
             }
         }
 
@@ -76,6 +65,7 @@ public class RedisAuditLogConsumer {
             try {
                 createdAt = LocalDateTime.ofInstant(Instant.parse(entry.getTimestamp()), ZoneId.systemDefault());
             } catch (Exception ignored) {
+                log.debug("Invalid audit timestamp: {}", entry.getTimestamp());
             }
         }
         if (createdAt == null) {

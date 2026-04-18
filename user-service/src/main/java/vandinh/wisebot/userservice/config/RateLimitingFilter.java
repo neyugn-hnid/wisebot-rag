@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 import vandinh.wisebot.userservice.common.response.ErrorResponse;
-import vandinh.wisebot.userservice.service.redis.RateLimiterService;
+import vandinh.wisebot.userservice.service.security.RateLimiterService;
 
 import java.io.IOException;
 import java.util.Date;
@@ -22,7 +22,7 @@ import java.util.Date;
 public class RateLimitingFilter extends OncePerRequestFilter {
 
     private final RateLimiterService rateLimiterService;
-    private final RedisFeatureProperties properties;
+    private final AppFeatureProperties properties;
     private final ObjectMapper objectMapper;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 

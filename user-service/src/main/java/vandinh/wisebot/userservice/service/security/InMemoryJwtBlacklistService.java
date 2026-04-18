@@ -1,38 +1,36 @@
-package vandinh.wisebot.userservice.service.redis;
+package vandinh.wisebot.userservice.service.security;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import vandinh.wisebot.userservice.config.RedisFeatureProperties;
+import vandinh.wisebot.userservice.config.AppFeatureProperties;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
-public class RedisJwtBlacklistService implements JwtBlacklistService {
+public class InMemoryJwtBlacklistService implements JwtBlacklistService {
 
-    private final StringRedisTemplate stringRedisTemplate;
-    private final RedisFeatureProperties properties;
+    private final AppFeatureProperties properties;
+    private final Map<String, Instant> blacklist = new ConcurrentHashMap<>();
 
     @Override
     public void blacklist(String token, Date expiry) {
-        if (!properties.getJwtBlacklist().isEnabled()) {
+        if (!properties.getJwtBlacklist().isEnabled() || expiry == null) {
             return;
         }
 
-        long ttlSeconds = Duration.between(Instant.now(), expiry.toInstant()).getSeconds();
-        if (ttlSeconds <= 0) {
+        Instant expiresAt = expiry.toInstant();
+        if (expiresAt.isBefore(Instant.now())) {
             return;
         }
 
-        String key = buildKey(token);
-        stringRedisTemplate.opsForValue().set(key, "1", ttlSeconds, TimeUnit.SECONDS);
+        blacklist.put(buildKey(token), expiresAt);
     }
 
     @Override
@@ -42,7 +40,17 @@ public class RedisJwtBlacklistService implements JwtBlacklistService {
         }
 
         String key = buildKey(token);
-        return Boolean.TRUE.equals(stringRedisTemplate.hasKey(key));
+        Instant expiresAt = blacklist.get(key);
+        if (expiresAt == null) {
+            return false;
+        }
+
+        if (expiresAt.isBefore(Instant.now())) {
+            blacklist.remove(key);
+            return false;
+        }
+
+        return true;
     }
 
     private String buildKey(String token) {
