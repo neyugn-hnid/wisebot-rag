@@ -20,7 +20,7 @@ import vandinh.wisebot.userservice.common.enums.TokenType;
 import vandinh.wisebot.userservice.common.response.ErrorResponse;
 import vandinh.wisebot.userservice.service.JwtService;
 import vandinh.wisebot.userservice.service.UserServiceDetail;
-import vandinh.wisebot.userservice.service.redis.JwtBlacklistService;
+import vandinh.wisebot.userservice.service.security.JwtBlacklistService;
 
 import java.io.IOException;
 import java.util.Date;

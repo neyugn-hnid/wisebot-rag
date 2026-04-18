@@ -51,7 +51,7 @@ public class AuthController {
                 .build();
     }
 
-    @Operation(summary = "Logout", description = "Revoke access token by adding it to Redis blacklist")
+    @Operation(summary = "Logout", description = "Revoke access token by adding it to blacklist")
     @PostMapping("/logout")
     public ApiResponse logout(@RequestHeader(value = AUTHORIZATION, required = false) String authorizationHeader) {
         return authService.logout(authorizationHeader);

@@ -29,7 +29,7 @@ import vandinh.wisebot.userservice.repository.TenantRepository;
 import vandinh.wisebot.userservice.repository.UserRepository;
 import vandinh.wisebot.userservice.service.AuthService;
 import vandinh.wisebot.userservice.service.JwtService;
-import vandinh.wisebot.userservice.service.redis.JwtBlacklistService;
+import vandinh.wisebot.userservice.service.security.JwtBlacklistService;
 import org.springframework.http.HttpStatus;
 
 import java.util.Date;

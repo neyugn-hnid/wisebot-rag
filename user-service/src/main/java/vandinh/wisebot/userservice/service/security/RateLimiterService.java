@@ -1,4 +1,4 @@
-package vandinh.wisebot.userservice.service.redis;
+package vandinh.wisebot.userservice.service.security;
 
 public interface RateLimiterService {
     boolean isAllowed(String clientKey);

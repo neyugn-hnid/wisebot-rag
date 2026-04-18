@@ -1,4 +1,4 @@
-package vandinh.wisebot.userservice.service.redis;
+package vandinh.wisebot.userservice.service.security;
 
 public interface AuditLogService {
     void enqueue(AuditLogEntry entry);
