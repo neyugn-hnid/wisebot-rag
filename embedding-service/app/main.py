@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -25,6 +26,18 @@ from app.security import require_service_auth
 
 
 ollama_client = OllamaClient(settings.ollama_base_url, settings.ollama_embedding_model)
+
+
+async def _embed_texts_to_literals(texts: list[str], target_dimension: int) -> list[str]:
+    semaphore = asyncio.Semaphore(max(1, settings.embed_concurrency))
+
+    async def _embed_one(text: str) -> str:
+        async with semaphore:
+            vector = await ollama_client.embed(text)
+        vector = ensure_dimension(vector, target_dimension)
+        return vector_to_literal(vector)
+
+    return await asyncio.gather(*[_embed_one(text) for text in texts])
 
 
 @asynccontextmanager
@@ -118,11 +131,11 @@ async def _index_chunks(
                 len(chunks),
             )
 
+            literal_vectors = await _embed_texts_to_literals(chunks, target_dimension)
+
             for idx, item in enumerate(chunks):
                 source_chunk_id = uuid.uuid4()
-                vector = await ollama_client.embed(item)
-                vector = ensure_dimension(vector, target_dimension)
-                literal_vector = vector_to_literal(vector)
+                literal_vector = literal_vectors[idx]
 
                 payload = dict(metadata)
                 payload["chunk_index"] = idx
@@ -272,7 +285,11 @@ async def index_file(
             collection_id=collection_id,
             source_document_id=source_document_id,
             chunks=chunks,
-            metadata={"filename": file.filename, "content_type": file.content_type},
+            metadata={
+                "filename": file.filename,
+                "document_name": file.filename,
+                "content_type": file.content_type,
+            },
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to index file: {exc}") from exc
@@ -283,30 +300,72 @@ async def semantic_search(
     payload: SearchRequest,
     _: dict[str, Any] = Depends(require_service_auth),
 ) -> SearchResponse:
+    if not payload.collection_id and not payload.knowledge_base_id:
+        raise HTTPException(status_code=400, detail="Either collection_id or knowledge_base_id is required")
+
     vector = await ollama_client.embed(payload.query)
     vector = ensure_dimension(vector, settings.embedding_dimension)
     literal_vector = vector_to_literal(vector)
 
     if payload.collection_id:
         query = """
-            SELECT id, source_document_id, source_chunk_id, chunk_index, chunk_text, metadata,
+            SELECT e.id, e.source_document_id, e.source_chunk_id, e.chunk_index,
+                   LEFT(e.chunk_text, $5) AS chunk_text, e.metadata,
                    1 - (embedding <=> $3::vector) AS score
-            FROM embedding_service.embeddings
-            WHERE tenant_id = $1 AND collection_id = $2
-            ORDER BY embedding <=> $3::vector
-            LIMIT $4
+            FROM embedding_service.embeddings e
+            WHERE e.tenant_id = $1
+              AND e.collection_id = $2
+              AND 1 - (e.embedding <=> $3::vector) >= $4
+            ORDER BY e.embedding <=> $3::vector
+            LIMIT $6
         """
-        args = [payload.tenant_id, payload.collection_id, literal_vector, payload.top_k]
+        args = [
+            payload.tenant_id,
+            payload.collection_id,
+            literal_vector,
+            settings.min_similarity_score,
+            settings.search_max_chunk_chars,
+            payload.top_k,
+        ]
     else:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            latest_collection_id = await conn.fetchval(
+                """
+                SELECT id
+                FROM embedding_service.embedding_collections
+                WHERE tenant_id = $1
+                  AND knowledge_base_id = $2
+                  AND status = 'ACTIVE'
+                ORDER BY updated_at DESC, created_at DESC
+                LIMIT 1
+                """,
+                payload.tenant_id,
+                payload.knowledge_base_id,
+            )
+
+        if latest_collection_id is None:
+            raise HTTPException(status_code=404, detail="No active collection found for knowledge_base_id")
+
         query = """
-            SELECT id, source_document_id, source_chunk_id, chunk_index, chunk_text, metadata,
-                   1 - (embedding <=> $2::vector) AS score
-            FROM embedding_service.embeddings
-            WHERE tenant_id = $1
-            ORDER BY embedding <=> $2::vector
-            LIMIT $3
+            SELECT e.id, e.source_document_id, e.source_chunk_id, e.chunk_index,
+                   LEFT(e.chunk_text, $5) AS chunk_text, e.metadata,
+                   1 - (e.embedding <=> $3::vector) AS score
+            FROM embedding_service.embeddings e
+            WHERE e.tenant_id = $1
+              AND e.collection_id = $2
+              AND 1 - (e.embedding <=> $3::vector) >= $4
+            ORDER BY e.embedding <=> $3::vector
+            LIMIT $6
         """
-        args = [payload.tenant_id, literal_vector, payload.top_k]
+        args = [
+            payload.tenant_id,
+            latest_collection_id,
+            literal_vector,
+            settings.min_similarity_score,
+            settings.search_max_chunk_chars,
+            payload.top_k,
+        ]
 
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -387,11 +446,20 @@ async def embed_from_document_service(
                 len(payload.chunks),
             )
 
-            for chunk in payload.chunks:
+            chunk_contents = [chunk.content for chunk in payload.chunks]
+            literal_vectors = await _embed_texts_to_literals(chunk_contents, target_dimension)
+
+            for idx, chunk in enumerate(payload.chunks):
                 source_chunk_id = uuid.uuid4()
-                vector = await ollama_client.embed(chunk.content)
-                vector = ensure_dimension(vector, target_dimension)
-                literal_vector = vector_to_literal(vector)
+                literal_vector = literal_vectors[idx]
+                row_metadata: dict[str, Any] = {
+                    "knowledge_base_id": str(payload.knowledge_base_id),
+                    "document_id": str(payload.document_id),
+                }
+                if payload.document_name:
+                    row_metadata["document_name"] = payload.document_name
+                if chunk.page is not None:
+                    row_metadata["page"] = chunk.page
 
                 await conn.execute(
                     """
@@ -406,7 +474,7 @@ async def embed_from_document_service(
                     chunk.index,
                     chunk.content,
                     literal_vector,
-                    {"knowledge_base_id": str(payload.knowledge_base_id)},
+                    row_metadata,
                 )
 
                 results.append(

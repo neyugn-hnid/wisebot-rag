@@ -42,6 +42,7 @@ class SearchRequest(BaseModel):
     query: str = Field(min_length=1)
     top_k: int = Field(default=5, ge=1, le=20)
     collection_id: UUID | None = None
+    knowledge_base_id: UUID | None = None
 
 
 class SearchResult(BaseModel):
@@ -61,11 +62,13 @@ class SearchResponse(BaseModel):
 class EmbedChunkRequest(BaseModel):
     index: int = Field(ge=0)
     content: str = Field(min_length=1)
+    page: int | None = Field(default=None, ge=1)
 
 
 class EmbedRequest(BaseModel):
     knowledge_base_id: UUID = Field(alias="knowledgeBaseId")
     document_id: UUID = Field(alias="documentId")
+    document_name: str | None = Field(default=None, alias="documentName")
     chunks: list[EmbedChunkRequest] = Field(min_length=1)
 
 

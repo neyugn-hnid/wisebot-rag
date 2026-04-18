@@ -9,7 +9,7 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=1)
     top_k: int = Field(default=5, ge=1, le=20)
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
-    collection_id: UUID | None = None
+    collection_id: UUID
     session_id: UUID | None = None
     message_id: UUID | None = None
 

@@ -4,13 +4,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "ai-service"
     app_port: int = 8002
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/wisebot"
+    database_url: str = "postgresql://postgres:password@localhost:5432/wisebot_ai_database"
     ollama_base_url: str = "http://localhost:11434"
-    ollama_llm_model: str = "gemma4"
+    ollama_llm_model: str = "llama3-8b"
     ollama_embedding_model: str = "nomic-embed-text"
     embedding_dimension: int = 1536
     default_top_k: int = 5
     default_temperature: float = 0.2
+    min_similarity_score: float = 0.35
     max_tokens: int = 1024
 
     auth_enabled: bool = True

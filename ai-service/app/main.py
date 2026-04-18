@@ -48,38 +48,40 @@ def _build_prompts(question: str, retrieved_chunks: list[dict]) -> tuple[str, st
     context_text = "\n\n".join(context_lines) if context_lines else "No relevant context found."
 
     system_prompt = (
-        "You are WISEBOT AI assistant. Answer using only provided context when possible. "
-        "If context is insufficient, say that clearly. Keep answer concise, factual, and in Vietnamese. "
-        "When referencing facts from context, cite source numbers like [1], [2]."
+        "You are WISEBOT AI assistant. "
+        "STRICT RULES:"
+        " - ONLY answer using the provided CONTEXT."
+        " - DO NOT use outside knowledge."
+        " - If the answer is not in the context, say:"
+        "   \"Không tìm thấy thông tin trong tài liệu.\""
+        " - DO NOT hallucinate."
+        "Answer in Vietnamese."
+        "Always cite sources like [1], [2]."
     )
 
     user_prompt = f"Question:\n{question}\n\nContext:\n{context_text}\n\nAnswer in Vietnamese with citations."
     return system_prompt, user_prompt
 
 
-async def _retrieve_context(tenant_id: uuid.UUID, vector_literal: str, top_k: int, collection_id: uuid.UUID | None) -> list[dict]:
+async def _retrieve_context(tenant_id: uuid.UUID, vector_literal: str, top_k: int, collection_id: uuid.UUID) -> list[dict]:
     pool = await get_pool()
 
-    if collection_id:
-        sql = """
-            SELECT source_document_id, source_chunk_id, chunk_index, chunk_text,
-                   1 - (embedding <=> $3::vector) AS score
-            FROM embedding_service.embeddings
-            WHERE tenant_id=$1 AND collection_id=$2
-            ORDER BY embedding <=> $3::vector
-            LIMIT $4
-        """
-        args = [tenant_id, collection_id, vector_literal, top_k]
-    else:
-        sql = """
-            SELECT source_document_id, source_chunk_id, chunk_index, chunk_text,
-                   1 - (embedding <=> $2::vector) AS score
-            FROM embedding_service.embeddings
-            WHERE tenant_id=$1
-            ORDER BY embedding <=> $2::vector
-            LIMIT $3
-        """
-        args = [tenant_id, vector_literal, top_k]
+    sql = """
+        SELECT source_document_id, source_chunk_id, chunk_index, chunk_text,
+               1 - (embedding <=> $3::vector) AS score
+        FROM embedding_service.embeddings
+        WHERE tenant_id=$1 AND collection_id=$2
+          AND 1 - (embedding <=> $3::vector) >= $4
+        ORDER BY embedding <=> $3::vector
+        LIMIT $5
+    """
+    args = [
+        tenant_id,
+        collection_id,
+        vector_literal,
+        settings.min_similarity_score,
+        top_k,
+    ]
 
     async with pool.acquire() as conn:
         rows = await conn.fetch(sql, *args)
@@ -135,6 +137,26 @@ async def rag_ask(
             top_k=payload.top_k,
             collection_id=payload.collection_id,
         )
+
+        if not retrieved:
+            answer_text = "Không tìm thấy thông tin trong tài liệu."
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    UPDATE ai_service.ai_rag_requests
+                    SET status='SUCCESS', finished_at=CURRENT_TIMESTAMP
+                    WHERE id=$1
+                    """,
+                    request_id,
+                )
+
+            return AskResponse(
+                request_id=request_id,
+                trace_id=trace_id,
+                answer=answer_text,
+                model_name=settings.ollama_llm_model,
+                citations=[],
+            )
 
         system_prompt, user_prompt = _build_prompts(payload.question, retrieved)
         llm_result = await ollama_client.chat(
@@ -280,6 +302,28 @@ async def rag_ask_stream(
                 collection_id=payload.collection_id,
             )
             retrieved.extend(nonlocal_retrieved)
+
+            if not retrieved:
+                async with pool.acquire() as conn:
+                    await conn.execute(
+                        """
+                        UPDATE ai_service.ai_rag_requests
+                        SET status='SUCCESS', finished_at=CURRENT_TIMESTAMP
+                        WHERE id=$1
+                        """,
+                        request_id,
+                    )
+
+                done_event = {
+                    "type": "DONE",
+                    "request_id": str(request_id),
+                    "trace_id": trace_id,
+                    "answer": "Không tìm thấy thông tin trong tài liệu.",
+                    "model_name": settings.ollama_llm_model,
+                    "citations": [],
+                }
+                yield f"data: {json.dumps(done_event, ensure_ascii=True)}\\n\\n"
+                return
 
             system_prompt, user_prompt = _build_prompts(payload.question, retrieved)
 
