@@ -1,0 +1,5 @@
+export const fetch = window.fetch.bind(window);
+export const Request = window.Request;
+export const Response = window.Response;
+export const Headers = window.Headers;
+export default fetch;
