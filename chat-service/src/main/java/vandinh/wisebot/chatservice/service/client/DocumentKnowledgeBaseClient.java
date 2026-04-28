@@ -42,6 +42,13 @@ public class DocumentKnowledgeBaseClient {
             if (!roles.isEmpty()) {
                 headers.add("X-User-Roles", String.join(",", roles));
             }
+            Object details = authentication.getDetails();
+            if (details instanceof java.util.Map<?, ?> detailMap) {
+                Object tenantId = detailMap.get("tenantId");
+                if (tenantId instanceof String tenantIdStr && !tenantIdStr.isBlank()) {
+                    headers.add("X-Tenant-Id", tenantIdStr);
+                }
+            }
         }
 
         ResponseEntity<ApiResponse> response = restTemplate.exchange(

@@ -2,6 +2,8 @@ package vandinh.wisebot.widgetservice.dto;
 
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class WidgetAppearanceConfig {
     private String primaryColor;
@@ -9,4 +11,7 @@ public class WidgetAppearanceConfig {
     private String iconColor;
     private String selectedIconId;
     private String customIconUrl;
+    private UUID knowledgeBaseId;
+    private Integer topK;
+    private Double temperature;
 }

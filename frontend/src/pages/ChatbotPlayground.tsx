@@ -2,17 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import Logo from '../components/Logo';
-import { 
+import {
   Send, 
   RotateCcw, 
   User, 
   FileText, 
   Link as LinkIcon, 
   Settings as SettingsIcon,
-  ChevronRight,
+  ChevronLeft,
+  PanelLeft,
+  MessageSquare,
+  SquarePen,
   Info,
   X
 } from 'lucide-react';
+import { fetchWithAuth, getStoredAccessToken } from '../lib/auth';
 import { cn } from '../lib/utils';
 
 interface Message {
@@ -35,8 +39,33 @@ interface KnowledgeBaseOption {
 }
 
 interface AskPayloadData {
+  sessionId?: unknown;
+  userMessageId?: unknown;
+  assistantMessageId?: unknown;
   answer?: unknown;
   citations?: unknown;
+}
+
+interface ChatHistoryItem {
+  sessionId: string;
+  title: string;
+  preview: string;
+  updatedAt: string;
+}
+
+const CHAT_SESSION_STORAGE_KEY = 'wisebot_chat_session_id';
+
+interface ChatSessionApi {
+  id?: string;
+  title?: string;
+  lastMessageAt?: string;
+  startedAt?: string;
+}
+
+interface ChatMessageApi {
+  id?: string;
+  role?: string;
+  content?: string;
 }
 
 const INITIAL_MESSAGES: Message[] = [
@@ -54,10 +83,12 @@ export default function ChatbotPlayground() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [temperature, setTemperature] = useState(0.4);
   const [topK, setTopK] = useState(4);
   const [tenantId, setTenantId] = useState('');
   const [sessionId, setSessionId] = useState('');
+  const [chatHistories, setChatHistories] = useState<ChatHistoryItem[]>([]);
   const [knowledgeBaseId, setKnowledgeBaseId] = useState('');
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseOption[]>([]);
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
@@ -76,7 +107,7 @@ export default function ChatbotPlayground() {
 
   useEffect(() => {
     const storedTenantId = window.localStorage.getItem('wisebot_tenant_id') || '';
-    const storedSessionId = window.localStorage.getItem('wisebot_chat_session_id') || '';
+    const storedSessionId = window.localStorage.getItem(CHAT_SESSION_STORAGE_KEY) || '';
     if (storedSessionId) {
       setSessionId(storedSessionId);
     }
@@ -103,21 +134,6 @@ export default function ChatbotPlayground() {
     }
   }, [input]);
 
-  const getAccessToken = () => {
-    return window.localStorage.getItem('wisebot_access_token') ?? window.sessionStorage.getItem('wisebot_access_token');
-  };
-
-  const getAuthHeaders = (): Record<string, string> => {
-    const token = getAccessToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-    return headers;
-  };
-
   const parseJwtPayload = (token: string): Record<string, unknown> | null => {
     try {
       const payloadSegment = token.split('.')[1];
@@ -141,13 +157,15 @@ export default function ChatbotPlayground() {
   };
 
   const createSession = async (currentTenantId: string) => {
-    const token = getAccessToken();
+    const token = getStoredAccessToken();
     const payload = token ? parseJwtPayload(token) : null;
     const userId = typeof payload?.userId === 'string' ? payload.userId : null;
 
-    const response = await fetch('/api/chat/sessions', {
+    const response = await fetchWithAuth('/api/chat/sessions', {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         tenantId: currentTenantId,
         userId,
@@ -168,23 +186,171 @@ export default function ChatbotPlayground() {
     }
 
     setSessionId(newSessionId);
-    window.localStorage.setItem('wisebot_chat_session_id', newSessionId);
+    window.localStorage.setItem(CHAT_SESSION_STORAGE_KEY, newSessionId);
     return newSessionId;
   };
 
   const resolveTenantIdFromToken = () => {
-    const token = getAccessToken();
+    const token = getStoredAccessToken();
     const payload = token ? parseJwtPayload(token) : null;
     return typeof payload?.tenantId === 'string' ? payload.tenantId.trim() : '';
+  };
+
+  const mapCitationSources = (rawCitations: unknown) => {
+    const citationItems = Array.isArray(rawCitations) ? rawCitations : [];
+    return citationItems
+      .map((item) => {
+        if (!item || typeof item !== 'object') {
+          return null;
+        }
+        const citation = item as {
+          sourceDocumentId?: unknown;
+          source_document_id?: unknown;
+          snippet?: unknown;
+        };
+        const snippet = typeof citation.snippet === 'string' ? citation.snippet : '';
+        const sourceDocumentId = typeof citation.sourceDocumentId === 'string'
+          ? citation.sourceDocumentId
+          : typeof citation.source_document_id === 'string'
+            ? citation.source_document_id
+            : '';
+
+        if (!snippet) {
+          return null;
+        }
+
+        return {
+          name: sourceDocumentId ? `Tài liệu ${sourceDocumentId.slice(0, 8)}` : 'Tài liệu',
+          snippet,
+        };
+      })
+      .filter((item): item is { name: string; snippet: string } => item !== null);
+  };
+
+  const deriveHistoryTitle = (session: ChatSessionApi, mappedMessages: Message[]) => {
+    const rawTitle = typeof session.title === 'string' ? session.title.trim() : '';
+    if (rawTitle && rawTitle.toLowerCase() !== 'playground chat') {
+      return rawTitle;
+    }
+
+    const firstUserMessage = mappedMessages.find((message) => message.role === 'user')?.content?.trim();
+    if (firstUserMessage) {
+      return firstUserMessage.slice(0, 40);
+    }
+
+    return rawTitle || 'Phiên chat mới';
+  };
+
+  const fetchLatestAssistantSources = async (messageId: string) => {
+    const response = await fetchWithAuth(`/api/chat/messages/${messageId}/citations`);
+
+    if (!response.ok) {
+      return undefined;
+    }
+
+    const payload = (await response.json()) as ApiResponse<unknown[]>;
+    const sources = mapCitationSources(payload.data);
+    return sources.length > 0 ? sources : undefined;
+  };
+
+  const fetchSessionMessages = async (targetSessionId: string) => {
+    const response = await fetchWithAuth(`/api/chat/sessions/${targetSessionId}/messages`);
+
+    if (!response.ok) {
+      const message = await extractApiMessage(response, 'Không tải được nội dung phiên chat.');
+      throw new Error(message);
+    }
+
+    const payload = (await response.json()) as ApiResponse<ChatMessageApi[]>;
+    const mappedMessages: Message[] = (payload.data || [])
+      .filter((item): item is ChatMessageApi & { id: string; content: string } => Boolean(item?.id && item?.content))
+      .map((item) => ({
+        id: item.id,
+        role: String(item.role).toUpperCase() === 'ASSISTANT' ? 'assistant' : 'user',
+        content: item.content,
+      }));
+
+    const latestAssistantIndex = [...mappedMessages].reverse().findIndex((message) => message.role === 'assistant');
+    if (latestAssistantIndex >= 0) {
+      const messageIndex = mappedMessages.length - 1 - latestAssistantIndex;
+      const latestAssistant = mappedMessages[messageIndex];
+      const sources = await fetchLatestAssistantSources(latestAssistant.id);
+      if (sources?.length) {
+        mappedMessages[messageIndex] = {
+          ...latestAssistant,
+          sources,
+        };
+      }
+    }
+
+    return mappedMessages;
+  };
+
+  const loadSessionMessages = async (targetSessionId: string) => {
+    const mappedMessages = await fetchSessionMessages(targetSessionId);
+    setSessionId(targetSessionId);
+    setMessages(mappedMessages.length > 0 ? mappedMessages : INITIAL_MESSAGES);
+    window.localStorage.setItem(CHAT_SESSION_STORAGE_KEY, targetSessionId);
+  };
+
+  const loadChatHistories = async (currentTenantId: string, preferredSessionId?: string) => {
+    const response = await fetchWithAuth(`/api/chat/sessions?tenantId=${encodeURIComponent(currentTenantId)}`);
+
+    if (!response.ok) {
+      const message = await extractApiMessage(response, 'Không tải được lịch sử phiên chat.');
+      throw new Error(message);
+    }
+
+    const payload = (await response.json()) as ApiResponse<ChatSessionApi[]>;
+    const sessions = payload.data || [];
+
+    const historyItems = await Promise.all(
+      sessions.map(async (session) => {
+        const targetSessionId = typeof session.id === 'string' ? session.id : '';
+        if (!targetSessionId) {
+          return null;
+        }
+
+        try {
+          const mappedMessages = await fetchSessionMessages(targetSessionId);
+          const lastMessage = mappedMessages[mappedMessages.length - 1];
+          return {
+            sessionId: targetSessionId,
+            title: deriveHistoryTitle(session, mappedMessages),
+            preview: lastMessage?.content?.slice(0, 72).trim() || '',
+            updatedAt: session.lastMessageAt || session.startedAt || new Date().toISOString(),
+          } satisfies ChatHistoryItem;
+        } catch {
+          return {
+            sessionId: targetSessionId,
+            title: typeof session.title === 'string' && session.title.trim() ? session.title.trim() : 'Phiên chat',
+            preview: '',
+            updatedAt: session.lastMessageAt || session.startedAt || new Date().toISOString(),
+          } satisfies ChatHistoryItem;
+        }
+      })
+    );
+
+    const nextHistories = historyItems.filter((item): item is ChatHistoryItem => item !== null);
+    setChatHistories(nextHistories);
+
+    if (preferredSessionId && nextHistories.some((item) => item.sessionId === preferredSessionId)) {
+      await loadSessionMessages(preferredSessionId);
+      return;
+    }
+
+    if (!nextHistories.some((item) => item.sessionId === sessionId)) {
+      setSessionId('');
+      setMessages(INITIAL_MESSAGES);
+      window.localStorage.removeItem(CHAT_SESSION_STORAGE_KEY);
+    }
   };
 
   const loadKnowledgeBases = async () => {
     setIsLoadingKnowledgeBases(true);
     try {
       const resolvedTenantId = resolveTenantIdFromToken();
-      const response = await fetch('/api/knowledge-bases', {
-        headers: getAuthHeaders(),
-      });
+      const response = await fetchWithAuth('/api/knowledge-bases');
 
       if (!response.ok) {
         const message = await extractApiMessage(response, 'Không tải được danh sách kho tri thức.');
@@ -224,6 +390,7 @@ export default function ChatbotPlayground() {
     const resolvedTenantId = resolveTenantIdFromToken();
     if (!resolvedTenantId) {
       setKnowledgeBases([]);
+      setChatHistories([]);
       return;
     }
     if (tenantId !== resolvedTenantId) {
@@ -232,7 +399,22 @@ export default function ChatbotPlayground() {
       return;
     }
     void loadKnowledgeBases();
+    void loadChatHistories(resolvedTenantId, sessionId || undefined);
   }, [tenantId]);
+
+  const handleStartNewChat = () => {
+    setSessionId('');
+    setMessages(INITIAL_MESSAGES);
+    window.localStorage.removeItem(CHAT_SESSION_STORAGE_KEY);
+    showToast('Đã tạo phiên chat mới.', 'success');
+  };
+
+  const handleSelectHistory = (history: ChatHistoryItem) => {
+    void loadSessionMessages(history.sessionId).catch((error) => {
+      const message = error instanceof Error ? error.message : 'Không tải được phiên chat.';
+      showToast(message, 'error');
+    });
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
@@ -249,21 +431,24 @@ export default function ChatbotPlayground() {
     }
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: `temp-user-${Date.now()}`,
       role: 'user',
       content: input.trim()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const nextUserMessages = [...messages, userMessage];
+    setMessages(nextUserMessages);
     setInput('');
     setIsTyping(true);
 
     try {
       const activeSessionId = sessionId.trim() || (await createSession(resolvedTenantId));
 
-      const response = await fetch(`/api/chat/sessions/${activeSessionId}/ask`, {
+      const response = await fetchWithAuth(`/api/chat/sessions/${activeSessionId}/ask`, {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           question: userMessage.content,
           topK,
@@ -283,45 +468,26 @@ export default function ChatbotPlayground() {
       const answer = typeof rawAnswer === 'string' && rawAnswer.trim()
         ? rawAnswer
         : 'Không có phản hồi từ hệ thống.';
-
-      const rawCitations = responseData?.citations ?? payload?.citations;
-      const citationItems = Array.isArray(rawCitations) ? rawCitations : [];
-      const sources = citationItems
-        .map((item) => {
-          if (!item || typeof item !== 'object') {
-            return null;
-          }
-          const citation = item as {
-            sourceDocumentId?: unknown;
-            source_document_id?: unknown;
-            snippet?: unknown;
-          };
-          const snippet = typeof citation.snippet === 'string' ? citation.snippet : '';
-          const sourceDocumentId = typeof citation.sourceDocumentId === 'string'
-            ? citation.sourceDocumentId
-            : typeof citation.source_document_id === 'string'
-              ? citation.source_document_id
-              : '';
-
-          if (!snippet) {
-            return null;
-          }
-
-          return {
-            name: sourceDocumentId ? `Tài liệu ${sourceDocumentId.slice(0, 8)}` : 'Tài liệu',
-            snippet,
-          };
-        })
-        .filter((item): item is { name: string; snippet: string } => item !== null);
+      const userMessageId = typeof responseData?.userMessageId === 'string' ? responseData.userMessageId : userMessage.id;
+      const assistantMessageId = typeof responseData?.assistantMessageId === 'string' ? responseData.assistantMessageId : `temp-assistant-${Date.now() + 1}`;
+      const sources = mapCitationSources(responseData?.citations ?? payload?.citations);
 
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: assistantMessageId,
         role: 'assistant',
         content: answer,
         sources: sources.length > 0 ? sources : undefined,
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      const persistedUserMessage = {
+        ...userMessage,
+        id: userMessageId,
+      };
+      const nextMessages = [...messages, persistedUserMessage, assistantMessage];
+      setMessages(nextMessages);
+      setSessionId(activeSessionId);
+      window.localStorage.setItem(CHAT_SESSION_STORAGE_KEY, activeSessionId);
+      void loadChatHistories(resolvedTenantId, activeSessionId);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể kết nối đến máy chủ.';
       showToast(message, 'error');
@@ -331,7 +497,7 @@ export default function ChatbotPlayground() {
   };
 
   const handleClearChat = () => {
-    setMessages(INITIAL_MESSAGES);
+    handleStartNewChat();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -345,12 +511,37 @@ export default function ChatbotPlayground() {
 
   return (
     <div className="-m-4 lg:-m-8 h-[calc(100vh-64px)] flex flex-col overflow-hidden bg-[#000000] relative w-[calc(100%+32px)] lg:w-[calc(100%+64px)]">
+      {showHistory && (
+        <button
+          type="button"
+          aria-label="Đóng lịch sử phiên chat"
+          className="lg:hidden absolute inset-0 bg-black/60 z-20"
+          onClick={() => setShowHistory(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="p-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between bg-[#000000] z-20">
         <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => setShowHistory((prev) => !prev)}
+            className="p-2 rounded-xl text-[#a1a4a5] hover:text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.06)] transition-colors"
+            aria-label="Mở lịch sử phiên chat"
+          >
+            <PanelLeft size={18} />
+          </button>
           <span className="font-semibold text-[#f0f0f0] hidden sm:inline">{t('playground.title')}</span>
         </div>
         <div className="flex items-center gap-4">
+          <button
+            onClick={handleStartNewChat}
+            className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-[#f0f0f0] bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.12)] transition-colors"
+            type="button"
+          >
+            <SquarePen size={15} />
+            <span className="hidden sm:inline">Chat mới</span>
+          </button>
           <button 
             onClick={() => setShowSettings(!showSettings)}
             className="lg:hidden p-2 text-[#a1a4a5] hover:text-[#f0f0f0] transition-colors"
@@ -367,6 +558,85 @@ export default function ChatbotPlayground() {
       </div>
 
       <div className="flex-1 flex overflow-hidden">
+        <div
+          className={cn(
+            "absolute inset-y-0 left-0 z-30 w-72 border-r border-[rgba(255,255,255,0.12)] bg-[#050505] transition-transform duration-300 lg:relative lg:translate-x-0",
+            showHistory ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <div className="flex h-full flex-col">
+            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-4 py-4">
+              <div>
+                <p className="text-sm font-semibold text-[#f0f0f0]">Lịch sử chat</p>
+                <p className="text-[11px] text-[#7f8487]">Chọn lại các phiên gần đây</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHistory(false)}
+                className="rounded-lg p-2 text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#f0f0f0] transition-colors"
+                aria-label="Ẩn lịch sử phiên chat"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            </div>
+
+            <div className="border-b border-[rgba(255,255,255,0.08)] p-3">
+              <button
+                type="button"
+                onClick={handleStartNewChat}
+                className="flex w-full items-center gap-3 rounded-2xl border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-left text-sm font-medium text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.08)]"
+              >
+                <SquarePen size={16} />
+                Phiên chat mới
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 scrollbar-hide">
+              {chatHistories.length > 0 ? (
+                <div className="space-y-2">
+                  {chatHistories.map((history) => {
+                    const isActive = history.sessionId === sessionId;
+                    return (
+                      <button
+                        key={history.sessionId}
+                        type="button"
+                        onClick={() => handleSelectHistory(history)}
+                        className={cn(
+                          "w-full rounded-2xl border px-4 py-3 text-left transition-all",
+                          isActive
+                            ? "border-[#3b9eff]/50 bg-[#0c1622]"
+                            : "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.06)]"
+                        )}
+                      >
+                        <div className="mb-2 flex items-start gap-3">
+                          <MessageSquare size={15} className={cn("mt-0.5 shrink-0", isActive ? "text-[#3b9eff]" : "text-[#7f8487]")} />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-[#f0f0f0]">{history.title}</p>
+                            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-[#8d9295]">
+                              {history.preview || 'Chưa có nội dung xem trước'}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-[#6f7578]">
+                          {new Date(history.updatedAt).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center px-6 text-center text-[#7f8487]">
+                  <MessageSquare size={24} className="mb-3 opacity-40" />
+                  <p className="text-sm font-medium text-[#c9cdcf]">Chưa có lịch sử phiên chat</p>
+                  <p className="mt-1 text-[11px] leading-relaxed">
+                    Các phiên đã nhắn sẽ xuất hiện tại đây để bạn mở lại nhanh.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Chat Window */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-[rgba(255,255,255,0.3)]">
           <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide" ref={chatContainerRef}>
@@ -503,17 +773,6 @@ export default function ChatbotPlayground() {
             
             <div className="space-y-6">
               <div className="space-y-3">
-                <label className="text-xs font-semibold text-[#f0f0f0]">Tenant ID</label>
-                <input
-                  type="text"
-                  value={tenantId}
-                  readOnly
-                  placeholder="Lấy từ access token"
-                  className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] px-3 py-2 rounded-[12px] text-[10px] text-[#a1a4a5]"
-                />
-              </div>
-
-              <div className="space-y-3">
                 <label className="text-xs font-semibold text-[#f0f0f0]">Knowledge Base ID</label>
                 <select
                   value={knowledgeBaseId}
@@ -546,29 +805,6 @@ export default function ChatbotPlayground() {
                     </>
                   )}
                 </select>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-[#f0f0f0]">Phiên chat</label>
-                  <button
-                    onClick={() => {
-                      setSessionId('');
-                      window.localStorage.removeItem('wisebot_chat_session_id');
-                      showToast('Đã tạo phiên chat mới.', 'success');
-                    }}
-                    className="text-[10px] font-semibold text-[#3b9eff] hover:underline"
-                    type="button"
-                  >
-                    Tạo phiên mới
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={sessionId || 'Chưa có'}
-                  readOnly
-                  className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] px-3 py-2 rounded-[12px] text-[10px] text-[#a1a4a5]"
-                />
               </div>
 
               <div className="space-y-3">

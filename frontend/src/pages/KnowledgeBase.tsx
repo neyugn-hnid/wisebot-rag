@@ -27,6 +27,7 @@ import {
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '../contexts/ToastContext';
+import { fetchWithAuth } from '../lib/auth';
 
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -111,19 +112,6 @@ export default function KnowledgeBase() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const getAccessToken = () => {
-    return window.localStorage.getItem('wisebot_access_token') ?? window.sessionStorage.getItem('wisebot_access_token');
-  };
-
-  const getAuthHeaders = (): Record<string, string> => {
-    const token = getAccessToken();
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-    return headers;
-  };
-
   const extractApiMessage = async (response: Response, fallbackMessage: string) => {
     try {
       const payload = (await response.json()) as { message?: string; error?: string };
@@ -186,11 +174,7 @@ export default function KnowledgeBase() {
   const loadKnowledgeBases = async () => {
     setIsLoadingKb(true);
     try {
-      const response = await fetch('/api/knowledge-bases', {
-        headers: {
-          ...getAuthHeaders(),
-        },
-      });
+      const response = await fetchWithAuth('/api/knowledge-bases');
 
       if (!response.ok) {
         const message = await extractApiMessage(response, 'Không tải được danh sách kho tri thức.');
@@ -203,11 +187,7 @@ export default function KnowledgeBase() {
       const countsEntries = await Promise.all(
         knowledgeBases.map(async (kb) => {
           try {
-            const docsRes = await fetch(`/api/knowledge-bases/${kb.id}/documents`, {
-              headers: {
-                ...getAuthHeaders(),
-              },
-            });
+            const docsRes = await fetchWithAuth(`/api/knowledge-bases/${kb.id}/documents`);
             if (!docsRes.ok) {
               return [kb.id, 0] as const;
             }
@@ -255,11 +235,7 @@ export default function KnowledgeBase() {
 
     setIsLoadingUploads(true);
     try {
-      const response = await fetch(`/api/knowledge-bases/${knowledgeBaseId}/documents`, {
-        headers: {
-          ...getAuthHeaders(),
-        },
-      });
+      const response = await fetchWithAuth(`/api/knowledge-bases/${knowledgeBaseId}/documents`);
 
       if (!response.ok) {
         const message = await extractApiMessage(response, 'Không tải được danh sách tài liệu.');
@@ -360,11 +336,7 @@ export default function KnowledgeBase() {
             content: file.previewContent,
           });
         } else {
-          const response = await fetch(`/api/documents/${file.id}/preview`, {
-            headers: {
-              ...getAuthHeaders(),
-            },
-          });
+          const response = await fetchWithAuth(`/api/documents/${file.id}/preview`);
           if (!response.ok) {
             const message = await extractApiMessage(response, 'Không tải được nội dung xem trước.');
             throw new Error(message);
@@ -460,11 +432,8 @@ export default function KnowledgeBase() {
 
   const handleResyncUpload = async (uploadId: string) => {
     try {
-      const response = await fetch(`/api/documents/${uploadId}/reprocess`, {
+      const response = await fetchWithAuth(`/api/documents/${uploadId}/reprocess`, {
         method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-        },
       });
       if (!response.ok) {
         const message = await extractApiMessage(response, 'Đồng bộ lại tài liệu thất bại.');
@@ -531,11 +500,8 @@ export default function KnowledgeBase() {
     if (confirmModal.type === 'delete_upload') {
       if (confirmModal.targetUploadId) {
         try {
-          const response = await fetch(`/api/documents/${confirmModal.targetUploadId}`, {
+          const response = await fetchWithAuth(`/api/documents/${confirmModal.targetUploadId}`, {
             method: 'DELETE',
-            headers: {
-              ...getAuthHeaders(),
-            },
           });
           if (!response.ok) {
             const message = await extractApiMessage(response, 'Xóa tài liệu thất bại.');
@@ -553,12 +519,9 @@ export default function KnowledgeBase() {
         if (confirmModal.targetKbId) {
           try {
             const deletingSelected = selectedKbForUpload === confirmModal.targetKbId;
-            const response = await fetch(`/api/knowledge-bases/${confirmModal.targetKbId}`, {
+            const response = await fetchWithAuth(`/api/knowledge-bases/${confirmModal.targetKbId}`, {
               method: 'DELETE',
-              headers: {
-                ...getAuthHeaders(),
-              },
-          });
+            });
             if (!response.ok) {
               const message = await extractApiMessage(response, 'Xóa kho tri thức thất bại.');
               throw new Error(message);
@@ -605,11 +568,10 @@ export default function KnowledgeBase() {
       };
 
       if (formMode === 'create') {
-        const response = await fetch('/api/knowledge-bases', {
+        const response = await fetchWithAuth('/api/knowledge-bases', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...getAuthHeaders(),
           },
           body: JSON.stringify(requestBody),
         });
@@ -624,11 +586,10 @@ export default function KnowledgeBase() {
           await loadDocumentsByKb(payload.data.id);
         }
       } else if (editingKbId) {
-        const response = await fetch(`/api/knowledge-bases/${editingKbId}`, {
+        const response = await fetchWithAuth(`/api/knowledge-bases/${editingKbId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            ...getAuthHeaders(),
           },
           body: JSON.stringify(requestBody),
         });
@@ -665,11 +626,8 @@ export default function KnowledgeBase() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`/api/knowledge-bases/${selectedKbForUpload}/documents`, {
+      const response = await fetchWithAuth(`/api/knowledge-bases/${selectedKbForUpload}/documents`, {
         method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-        },
         body: formData,
       });
 

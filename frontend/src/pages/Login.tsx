@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { useRole } from '../contexts/RoleContext';
+import { storeTokens } from '../lib/auth';
 import Logo from '../components/Logo';
 import { 
   Mail, 
@@ -68,13 +69,10 @@ export default function Login() {
         throw new Error('Email hoặc mật khẩu không đúng.');
       }
 
-      const storage = rememberMe ? window.localStorage : window.sessionStorage;
-      const oppositeStorage = rememberMe ? window.sessionStorage : window.localStorage;
-
-      oppositeStorage.removeItem('wisebot_access_token');
-      oppositeStorage.removeItem('wisebot_refresh_token');
-      storage.setItem('wisebot_access_token', data.accessToken);
-      storage.setItem('wisebot_refresh_token', data.refreshToken);
+      storeTokens({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+      }, rememberMe ? 'local' : 'session');
       syncFromAccessToken(data.accessToken);
 
       showToast(t('toast.login_success'), 'success');

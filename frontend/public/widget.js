@@ -13,12 +13,15 @@
   var scriptUrl = new URL(currentScript.src, window.location.href);
   var apiBase = currentScript.getAttribute('data-api-base') || scriptUrl.origin;
   var apiUrl = apiBase.replace(/\/$/, '') + '/api/widget/public/widgets/code/' + encodeURIComponent(widgetCode);
-  var sessionStorageKey = 'wisebot_widget_session_' + widgetCode;
+  var widgetSessionStorageKey = 'wisebot_widget_analytics_session_v2_' + widgetCode;
+  var chatSessionStorageKey = 'wisebot_chat_session_v2_' + widgetCode;
   var state = {
     config: null,
-    sessionId: window.localStorage.getItem(sessionStorageKey) || '',
+    widgetSessionId: window.localStorage.getItem(widgetSessionStorageKey) || '',
+    chatSessionId: window.localStorage.getItem(chatSessionStorageKey) || '',
     isOpen: false,
     messages: [],
+    isReplying: false,
   };
 
   var defaults = {
@@ -79,38 +82,91 @@
     });
   }
 
-  function ensureSession(widget) {
-    if (state.sessionId) {
-      return Promise.resolve(state.sessionId);
-    }
-
+  function getVisitorId() {
     var visitorId = window.localStorage.getItem('wisebot_widget_visitor_id');
     if (!visitorId) {
       visitorId = 'visitor_' + Math.random().toString(36).slice(2, 12);
       window.localStorage.setItem('wisebot_widget_visitor_id', visitorId);
     }
+    return visitorId;
+  }
+
+  function ensureWidgetSession(widget) {
+    if (state.widgetSessionId) {
+      return Promise.resolve(state.widgetSessionId);
+    }
 
     return postJson(apiUrl + '/sessions', {
-      tenantId: widget.tenantId || widget.id,
-      visitorId: visitorId,
+      tenantId: widget.tenantId,
+      visitorId: getVisitorId(),
       sourceUrl: window.location.href,
       referrerUrl: document.referrer || null,
       userAgent: navigator.userAgent,
     }).then(function (payload) {
-      state.sessionId = payload && payload.data && payload.data.id ? payload.data.id : '';
-      if (state.sessionId) {
-        window.localStorage.setItem(sessionStorageKey, state.sessionId);
+      state.widgetSessionId = payload && payload.data && payload.data.id ? payload.data.id : '';
+      if (state.widgetSessionId) {
+        window.localStorage.setItem(widgetSessionStorageKey, state.widgetSessionId);
       }
-      return state.sessionId;
+      return state.widgetSessionId;
     }).catch(function () {
       return '';
     });
   }
 
+  function ensureChatSession(widget) {
+    if (state.chatSessionId) {
+      return Promise.resolve(state.chatSessionId);
+    }
+
+    return postJson(apiBase.replace(/\/$/, '') + '/api/chat/public/widgets/' + encodeURIComponent(widget.id) + '/sessions', {
+      tenantId: widget.tenantId,
+      visitorId: getVisitorId(),
+      title: 'Website Widget Chat',
+    }).then(function (payload) {
+      state.chatSessionId = payload && payload.data && payload.data.id ? payload.data.id : '';
+      if (state.chatSessionId) {
+        window.localStorage.setItem(chatSessionStorageKey, state.chatSessionId);
+      }
+      return state.chatSessionId;
+    }).catch(function () {
+      return '';
+    });
+  }
+
+  function askAssistant(widget, question) {
+    state.isReplying = true;
+    render();
+    return ensureChatSession(widget).then(function (sessionId) {
+      if (!sessionId) {
+        throw new Error('Missing widget chat session');
+      }
+
+      return postJson(apiBase.replace(/\/$/, '') + '/api/chat/public/sessions/' + encodeURIComponent(sessionId) + '/ask', {
+        tenantId: widget.tenantId,
+        widgetId: widget.id,
+        question: question,
+        knowledgeBaseId: widget.appearanceConfig && widget.appearanceConfig.knowledgeBaseId ? widget.appearanceConfig.knowledgeBaseId : null,
+        topK: widget.appearanceConfig && widget.appearanceConfig.topK ? widget.appearanceConfig.topK : 5,
+        temperature: widget.appearanceConfig && widget.appearanceConfig.temperature != null ? widget.appearanceConfig.temperature : 0.2,
+      });
+    }).then(function (payload) {
+      var answer = payload && payload.data && payload.data.answer ? payload.data.answer : 'I could not generate a response.';
+      state.messages.push({ role: 'bot', content: answer });
+      state.isReplying = false;
+      render();
+      trackEvent(widget, 'ANSWER_RECEIVED', { sourceUrl: window.location.href });
+    }).catch(function (error) {
+      state.messages.push({ role: 'bot', content: 'The assistant is temporarily unavailable. Please try again.' });
+      state.isReplying = false;
+      render();
+      console.error('[WiseBot] Ask failed.', error);
+    });
+  }
+
   function trackEvent(widget, eventType, extraPayload) {
-    ensureSession(widget).then(function (sessionId) {
+    ensureWidgetSession(widget).then(function (sessionId) {
       return postJson(apiUrl + '/events', {
-        tenantId: widget.tenantId || widget.id,
+        tenantId: widget.tenantId,
         sessionId: sessionId || null,
         eventType: eventType,
         payload: JSON.stringify(extraPayload || {}),
@@ -193,6 +249,10 @@
       }
       body.appendChild(msg);
     });
+    if (state.isReplying) {
+      var thinking = createEl('div', 'wisebot-msg bot', 'Thinking...');
+      body.appendChild(thinking);
+    }
 
     var inputWrap = createEl('div', 'wisebot-input-wrap', null);
     var inputRow = createEl('div', 'wisebot-input-row', null);
@@ -204,13 +264,14 @@
 
     function submitMessage() {
       var value = input.value.trim();
-      if (!value) {
+      if (!value || state.isReplying) {
         return;
       }
       state.messages.push({ role: 'user', content: value });
       input.value = '';
       render();
       trackEvent(widget, 'MESSAGE_SENT', { message: value, sourceUrl: window.location.href });
+      askAssistant(widget, value);
     }
 
     send.addEventListener('click', submitMessage);

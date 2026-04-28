@@ -12,22 +12,27 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import vandinh.wisebot.userservice.common.enums.RoleName;
 import vandinh.wisebot.userservice.common.enums.UserStatus;
+import vandinh.wisebot.userservice.dto.request.AdminUserUpdateRequest;
 import vandinh.wisebot.userservice.dto.request.ChangePasswordRequest;
 import vandinh.wisebot.userservice.dto.request.ChangeStatusRequest;
 import vandinh.wisebot.userservice.dto.request.EmailUpdateRequest;
 import vandinh.wisebot.userservice.dto.request.UserUpdateRequest;
+import vandinh.wisebot.userservice.entity.Role;
 import vandinh.wisebot.userservice.dto.response.UserPageResponse;
 import vandinh.wisebot.userservice.dto.response.UserResponse;
 import vandinh.wisebot.userservice.entity.UserEntity;
 import vandinh.wisebot.userservice.exception.InvalidDataException;
 import vandinh.wisebot.userservice.exception.ResourceNotFoundException;
 import vandinh.wisebot.userservice.mapper.UserMapper;
+import vandinh.wisebot.userservice.repository.RoleRepository;
 import vandinh.wisebot.userservice.repository.UserRepository;
 import vandinh.wisebot.userservice.service.UserService;
 import vandinh.wisebot.userservice.util.AppUtils;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 
@@ -38,6 +43,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final RoleRepository roleRepository;
 
     @Override
     public UserPageResponse getAllUser(String keyword, String sort, int page, int size) {
@@ -67,6 +73,49 @@ public class UserServiceImpl implements UserService {
     @Cacheable(cacheNames = "user-by-id", key = "#id")
     public UserResponse getProfile(UUID id) {
         return getUserById(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(cacheNames = "user-by-id", key = "#id")
+    public void adminUpdateUser(AdminUserUpdateRequest request, UUID id) {
+        UserEntity user = getUserEntity(id);
+
+        if (StringUtils.hasText(request.getFullName())) {
+            user.setFullName(request.getFullName().trim());
+        }
+
+        if (StringUtils.hasText(request.getPhone())) {
+            user.setPhone(request.getPhone().trim());
+        }
+
+        if (StringUtils.hasText(request.getEmail())) {
+            String normalizedEmail = request.getEmail().trim();
+            Optional<UserEntity> existingUser = userRepository.findByEmail(normalizedEmail);
+            if (existingUser.isPresent() && !existingUser.get().getId().equals(id)) {
+                throw new InvalidDataException("Email đã tồn tại");
+            }
+            user.setEmail(normalizedEmail);
+        }
+
+        if (request.getStatus() != null) {
+            user.setStatus(request.getStatus());
+        }
+
+        if (StringUtils.hasText(request.getRole())) {
+            RoleName roleName;
+            try {
+                roleName = RoleName.valueOf(request.getRole().trim().toUpperCase());
+            } catch (IllegalArgumentException exception) {
+                throw new InvalidDataException("Vai trò không hợp lệ");
+            }
+
+            Role role = roleRepository.findByName(roleName)
+                    .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
+            user.setRoles(Set.of(role));
+        }
+
+        userRepository.save(user);
     }
 
     @Override
@@ -124,6 +173,18 @@ public class UserServiceImpl implements UserService {
         }
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(cacheNames = "user-by-id", key = "#id")
+    public void deleteUser(UUID id, UUID actorId) {
+        if (id.equals(actorId)) {
+            throw new InvalidDataException("Không thể tự xóa chính mình");
+        }
+
+        UserEntity user = getUserEntity(id);
+        userRepository.delete(user);
     }
 
     private UserEntity getUserEntity(UUID id) {

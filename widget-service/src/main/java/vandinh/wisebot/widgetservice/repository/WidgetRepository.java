@@ -8,4 +8,6 @@ import java.util.UUID;
 
 public interface WidgetRepository extends JpaRepository<Widget, UUID> {
     List<Widget> findAllByTenantIdOrderByCreatedAtDesc(UUID tenantId);
+
+    java.util.Optional<Widget> findByCode(String code);
 }

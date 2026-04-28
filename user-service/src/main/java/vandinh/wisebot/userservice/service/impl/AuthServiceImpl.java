@@ -17,6 +17,7 @@ import vandinh.wisebot.userservice.common.enums.InviteStatus;
 import vandinh.wisebot.userservice.common.response.ApiResponse;
 import vandinh.wisebot.userservice.common.response.TokenResponse;
 import vandinh.wisebot.userservice.dto.request.LoginRequest;
+import vandinh.wisebot.userservice.dto.request.RefreshTokenRequest;
 import vandinh.wisebot.userservice.dto.request.RegisterRequest;
 import vandinh.wisebot.userservice.entity.Role;
 import vandinh.wisebot.userservice.entity.Tenant;
@@ -39,6 +40,8 @@ import java.util.Map;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+
+import static vandinh.wisebot.userservice.common.enums.TokenType.REFRESH_TOKEN;
 
 @Service
 @RequiredArgsConstructor
@@ -101,6 +104,39 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("Lỗi hệ thống khi xác thực", e);
         } catch (DisabledException e) {
             throw new DisabledException("Tài khoản đã bị vô hiệu hóa");
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TokenResponse refreshToken(RefreshTokenRequest request) {
+        try {
+            UUID userId = jwtService.extractUserId(request.getRefreshToken(), REFRESH_TOKEN);
+            String email = jwtService.extractEmail(request.getRefreshToken(), REFRESH_TOKEN);
+
+            if (userId == null || email == null || email.isBlank()) {
+                throw new BadCredentialsException("Refresh token không hợp lệ");
+            }
+
+            UserEntity user = userRepository.findById(userId)
+                    .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng"));
+
+            if (!user.getEmail().equalsIgnoreCase(email)) {
+                throw new BadCredentialsException("Refresh token không hợp lệ");
+            }
+
+            List<String> authorities = user.getRoles()
+                    .stream()
+                    .map(role -> role.getName().name())
+                    .toList();
+
+            UUID tenantId = user.getTenant() != null ? user.getTenant().getId() : null;
+            return TokenResponse.builder()
+                    .accessToken(jwtService.generateAccessToken(user.getId(), tenantId, user.getEmail(), authorities))
+                    .refreshToken(jwtService.generateRefreshToken(user.getId(), tenantId, user.getEmail(), authorities))
+                    .build();
+        } catch (Exception exception) {
+            throw new BadCredentialsException("Refresh token không hợp lệ");
         }
     }
 

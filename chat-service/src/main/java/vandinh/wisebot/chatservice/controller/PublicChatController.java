@@ -3,6 +3,7 @@ package vandinh.wisebot.chatservice.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 import vandinh.wisebot.chatservice.common.response.ApiResponse;
 import vandinh.wisebot.chatservice.dto.request.AskRequest;
 import vandinh.wisebot.chatservice.dto.request.CreateSessionRequest;
+import vandinh.wisebot.chatservice.dto.request.PublicWidgetAskRequest;
+import vandinh.wisebot.chatservice.dto.request.PublicWidgetSessionRequest;
 import vandinh.wisebot.chatservice.service.ChatService;
 
 import java.util.List;
@@ -28,31 +31,40 @@ public class PublicChatController {
     private final ChatService chatService;
 
     @PostMapping("/widgets/{widgetId}/sessions")
-    public ApiResponse createSession(@PathVariable UUID widgetId, @Valid @RequestBody CreateSessionRequest request) {
-        request.setWidgetId(widgetId);
-        if (request.getChannel() == null || request.getChannel().isBlank()) {
-            request.setChannel("WIDGET");
-        }
+    public ApiResponse createSession(@PathVariable UUID widgetId, @Valid @RequestBody PublicWidgetSessionRequest request) {
+        CreateSessionRequest sessionRequest = new CreateSessionRequest();
+        sessionRequest.setTenantId(request.getTenantId());
+        sessionRequest.setWidgetId(widgetId);
+        sessionRequest.setChannel("WIDGET");
+        sessionRequest.setTitle(request.getTitle() == null || request.getTitle().isBlank() ? "Widget Chat" : request.getTitle());
 
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
                 .message("Session created")
-                .data(chatService.createSession(request))
+                .data(chatService.createSession(sessionRequest))
                 .build();
     }
 
-    @PostMapping("/widgets/{widgetId}/sessions/{sessionId}/ask")
-    public ApiResponse ask(
-            @PathVariable UUID widgetId,
-            @PathVariable UUID sessionId,
-            @Valid @RequestBody AskRequest request,
-            @RequestBody CreateSessionRequest ignored) {
-        throw new UnsupportedOperationException();
-    }
-
     @PostMapping("/sessions/{sessionId}/ask")
-    public ApiResponse askPublic(@PathVariable UUID sessionId, @Valid @RequestBody AskRequest request) {
-        throw new UnsupportedOperationException();
+    public ApiResponse askPublic(@PathVariable UUID sessionId, @Valid @RequestBody PublicWidgetAskRequest request) {
+        Authentication previous = SecurityContextHolder.getContext().getAuthentication();
+        try {
+            SecurityContextHolder.getContext().setAuthentication(buildWidgetAuthentication(request.getTenantId(), request.getWidgetId()));
+
+            AskRequest askRequest = new AskRequest();
+            askRequest.setQuestion(request.getQuestion());
+            askRequest.setTopK(request.getTopK());
+            askRequest.setTemperature(request.getTemperature());
+            askRequest.setKnowledgeBaseId(request.getKnowledgeBaseId());
+
+            return ApiResponse.builder()
+                    .status(HttpStatus.OK.value())
+                    .message("Answered")
+                    .data(chatService.ask(sessionId, askRequest))
+                    .build();
+        } finally {
+            SecurityContextHolder.getContext().setAuthentication(previous);
+        }
     }
 
     private UsernamePasswordAuthenticationToken buildWidgetAuthentication(UUID tenantId, UUID widgetId) {

@@ -18,6 +18,7 @@ import vandinh.wisebot.userservice.common.response.ApiResponse;
 import vandinh.wisebot.userservice.common.response.TokenResponse;
 import vandinh.wisebot.userservice.dto.request.InviteRequest;
 import vandinh.wisebot.userservice.dto.request.LoginRequest;
+import vandinh.wisebot.userservice.dto.request.RefreshTokenRequest;
 import vandinh.wisebot.userservice.dto.request.RegisterRequest;
 import vandinh.wisebot.userservice.entity.UserEntity;
 import vandinh.wisebot.userservice.service.AuthService;
@@ -37,6 +38,12 @@ public class AuthController {
     public TokenResponse login(@RequestBody @Valid LoginRequest request) {
         log.info("Login request with payload: {}", request);
         return authService.login(request);
+    }
+
+    @Operation(summary = "Refresh token", description = "Get new access token and refresh token by refresh token")
+    @PostMapping("/refresh")
+    public TokenResponse refresh(@RequestBody @Valid RefreshTokenRequest request) {
+        return authService.refreshToken(request);
     }
 
     @Operation(summary = "Register", description = "Create new account")

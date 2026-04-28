@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { fetchWithAuth, getStoredAccessToken } from '../lib/auth';
 
 import { CustomRobotLogo } from '../components/Logo';
 
@@ -45,6 +46,44 @@ const BOT_ICONS = [
   { id: 'user', icon: User },
 ];
 
+interface ApiResponse<T> {
+  data?: T;
+  message?: string;
+  error?: string;
+}
+
+interface WidgetRecord {
+  id: string;
+  tenantId: string;
+  name: string;
+  code: string;
+  status: string;
+  welcomeMessage?: string | null;
+  appearanceConfig?: WidgetSettings | null;
+  createdAt?: string;
+}
+
+interface WidgetSettings {
+  primaryColor?: string;
+  botName?: string;
+  welcomeMsg?: string;
+  selectedIconId?: string;
+  iconColor?: string;
+  customIconUrl?: string | null;
+  position?: 'right' | 'left';
+  knowledgeBaseId?: string;
+  topK?: number;
+  temperature?: number;
+}
+
+interface KnowledgeBaseOption {
+  id: string;
+  name: string;
+  tenantId?: string;
+}
+
+const WIDGET_SETTINGS_STORAGE_KEY = 'wisebot_widget_settings';
+
 export default function WidgetCustomization() {
   const { t } = useLanguage();
   const { showToast } = useToast();
@@ -58,21 +97,206 @@ export default function WidgetCustomization() {
   const [welcomeMsg, setWelcomeMsg] = useState('Hello! How can I help you today?');
   const [iconColor, setIconColor] = useState('#ffffff');
   const [customIconUrl, setCustomIconUrl] = useState<string | null>(null);
+  const [knowledgeBaseId, setKnowledgeBaseId] = useState('');
+  const [topK, setTopK] = useState(5);
+  const [temperature, setTemperature] = useState(0.2);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [widget, setWidget] = useState<WidgetRecord | null>(null);
+  const [isLoadingWidget, setIsLoadingWidget] = useState(false);
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseOption[]>([]);
+  const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasHydratedLocalSettings = useRef(false);
 
   const SelectedIcon = BOT_ICONS.find(i => i.id === selectedIconId)?.icon || Bot;
+  const widgetScriptSrc = typeof window !== 'undefined' ? `${window.location.origin}/widget.js` : 'https://cdn.wisebot.ai/widget.js';
+  const widgetApiBase = typeof window !== 'undefined' ? window.location.origin : 'https://app.wisebot.ai';
+
+  const widgetScript = widget?.code
+    ? `<script src="${widgetScriptSrc}" data-id="${widget.code}" data-api-base="${widgetApiBase}" async></script>`
+    : '<!-- Publish widget to generate embed code -->';
+
+  const parseJwtPayload = (token: string): Record<string, unknown> | null => {
+    try {
+      const payloadSegment = token.split('.')[1];
+      if (!payloadSegment) return null;
+      const normalized = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+      const json = atob(padded);
+      return JSON.parse(json) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  };
+
+  const resolveTenantIdFromToken = () => {
+    const token = getStoredAccessToken();
+    const payload = token ? parseJwtPayload(token) : null;
+    return typeof payload?.tenantId === 'string' ? payload.tenantId.trim() : '';
+  };
+
+  const resolveUserIdFromToken = () => {
+    const token = getStoredAccessToken();
+    const payload = token ? parseJwtPayload(token) : null;
+    return typeof payload?.userId === 'string' ? payload.userId.trim() : '';
+  };
+
+  const extractApiMessage = async (response: Response, fallbackMessage: string) => {
+    try {
+      const payload = (await response.json()) as { message?: string; error?: string };
+      return payload.message || payload.error || fallbackMessage;
+    } catch {
+      return fallbackMessage;
+    }
+  };
+
+  const generateWidgetCode = () => {
+    return `wb_${Math.random().toString(36).slice(2, 10)}`;
+  };
+
+  useEffect(() => {
+    try {
+      const savedSettings = window.localStorage.getItem(WIDGET_SETTINGS_STORAGE_KEY);
+      if (!savedSettings) {
+        return;
+      }
+
+      const parsed = JSON.parse(savedSettings) as WidgetSettings;
+      hasHydratedLocalSettings.current = true;
+      if (parsed.primaryColor) setPrimaryColor(parsed.primaryColor);
+      if (parsed.botName) setBotName(parsed.botName);
+      if (parsed.welcomeMsg) setWelcomeMsg(parsed.welcomeMsg);
+      if (parsed.selectedIconId) setSelectedIconId(parsed.selectedIconId);
+      if (parsed.iconColor) setIconColor(parsed.iconColor);
+      if (parsed.customIconUrl !== undefined) setCustomIconUrl(parsed.customIconUrl);
+      if (parsed.position) setPosition(parsed.position);
+      if (parsed.knowledgeBaseId) setKnowledgeBaseId(parsed.knowledgeBaseId);
+      if (typeof parsed.topK === 'number') setTopK(parsed.topK);
+      if (typeof parsed.temperature === 'number') setTemperature(parsed.temperature);
+    } catch {
+      window.localStorage.removeItem(WIDGET_SETTINGS_STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    const loadKnowledgeBases = async () => {
+      const tenantId = resolveTenantIdFromToken();
+      if (!tenantId) {
+        return;
+      }
+
+      setIsLoadingKnowledgeBases(true);
+      try {
+        const response = await fetchWithAuth('/api/knowledge-bases', {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const message = await extractApiMessage(response, 'Không tải được danh sách kho tri thức.');
+          throw new Error(message);
+        }
+
+        const payload = (await response.json()) as ApiResponse<KnowledgeBaseOption[]>;
+        const allItems = payload.data || [];
+        const tenantItems = allItems.filter((item) => item.tenantId === tenantId);
+        const scopedItems = tenantItems.length > 0 ? tenantItems : allItems;
+        setKnowledgeBases(scopedItems);
+
+        if (!knowledgeBaseId && scopedItems.length === 1) {
+          setKnowledgeBaseId(scopedItems[0].id);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Không tải được danh sách kho tri thức.';
+        showToast(message, 'error');
+      } finally {
+        setIsLoadingKnowledgeBases(false);
+      }
+    };
+
+    void loadKnowledgeBases();
+  }, [showToast]);
+
+  useEffect(() => {
+    const loadWidget = async () => {
+      const tenantId = resolveTenantIdFromToken();
+      if (!tenantId) {
+        return;
+      }
+
+      setIsLoadingWidget(true);
+      try {
+        const response = await fetchWithAuth(`/api/widget/widgets?tenantId=${encodeURIComponent(tenantId)}`, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const message = await extractApiMessage(response, 'Không tải được widget.');
+          throw new Error(message);
+        }
+
+        const payload = (await response.json()) as ApiResponse<WidgetRecord[]>;
+        const existingWidget = payload.data?.[0] ?? null;
+        setWidget(existingWidget);
+
+        if (existingWidget) {
+          if (!hasHydratedLocalSettings.current) {
+            setBotName(existingWidget.name || 'WiseBot Assistant');
+            setWelcomeMsg(existingWidget.welcomeMessage || 'Hello! How can I help you today?');
+            if (existingWidget.appearanceConfig?.primaryColor) {
+              setPrimaryColor(existingWidget.appearanceConfig.primaryColor);
+            }
+            if (existingWidget.appearanceConfig?.position === 'left' || existingWidget.appearanceConfig?.position === 'right') {
+              setPosition(existingWidget.appearanceConfig.position);
+            }
+            if (existingWidget.appearanceConfig?.iconColor) {
+              setIconColor(existingWidget.appearanceConfig.iconColor);
+            }
+            if (existingWidget.appearanceConfig?.selectedIconId) {
+              setSelectedIconId(existingWidget.appearanceConfig.selectedIconId);
+            }
+            if (existingWidget.appearanceConfig?.customIconUrl !== undefined) {
+              setCustomIconUrl(existingWidget.appearanceConfig.customIconUrl);
+            }
+            if (existingWidget.appearanceConfig?.knowledgeBaseId) {
+              setKnowledgeBaseId(existingWidget.appearanceConfig.knowledgeBaseId);
+            }
+            if (typeof existingWidget.appearanceConfig?.topK === 'number') {
+              setTopK(existingWidget.appearanceConfig.topK);
+            }
+            if (typeof existingWidget.appearanceConfig?.temperature === 'number') {
+              setTemperature(existingWidget.appearanceConfig.temperature);
+            }
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Không tải được widget.';
+        showToast(message, 'error');
+      } finally {
+        setIsLoadingWidget(false);
+      }
+    };
+
+    void loadWidget();
+  }, [showToast]);
 
   const handleCopyCode = () => {
-    const code = `<script src="https://cdn.wisebot.ai/widget.js" data-id="wb_8293472" async></script>`;
-    navigator.clipboard.writeText(code);
+    if (!widget?.code) {
+      showToast('Hãy publish widget trước để tạo embed code.', 'error');
+      return;
+    }
+
+    navigator.clipboard.writeText(widgetScript);
     setIsCopied(true);
     showToast(t('widget.code_copied') || 'Code copied to clipboard!', 'success');
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     setIsPublishing(true);
     
     // Save settings to localStorage to persist for Demo page
@@ -83,15 +307,95 @@ export default function WidgetCustomization() {
       selectedIconId,
       iconColor,
       customIconUrl,
-      position
+      position,
+      knowledgeBaseId,
+      topK,
+      temperature,
     };
-    localStorage.setItem('wisebot_widget_settings', JSON.stringify(settings));
+    localStorage.setItem(WIDGET_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const tenantId = resolveTenantIdFromToken();
+      if (!tenantId) {
+        throw new Error('Không lấy được tenantId từ access token.');
+      }
+
+      let activeWidget = widget;
+      if (!activeWidget) {
+        const createResponse = await fetchWithAuth('/api/widget/widgets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tenantId,
+            name: botName.trim() || 'WiseBot Assistant',
+            code: generateWidgetCode(),
+            welcomeMessage: welcomeMsg.trim(),
+            createdBy: resolveUserIdFromToken() || null,
+            appearanceConfig: {
+              primaryColor,
+              position,
+              iconColor,
+              selectedIconId,
+              customIconUrl,
+              knowledgeBaseId: knowledgeBaseId || null,
+              topK,
+              temperature,
+            },
+          }),
+        });
+
+        if (!createResponse.ok) {
+          const message = await extractApiMessage(createResponse, 'Không thể tạo widget.');
+          throw new Error(message);
+        }
+
+        const createPayload = (await createResponse.json()) as ApiResponse<WidgetRecord>;
+        activeWidget = createPayload.data ?? null;
+        if (!activeWidget) {
+          throw new Error('Không nhận được dữ liệu widget từ máy chủ.');
+        }
+        setWidget(activeWidget);
+      } else {
+        const updateResponse = await fetchWithAuth(`/api/widget/widgets/${activeWidget.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: botName.trim() || 'WiseBot Assistant',
+            welcomeMessage: welcomeMsg.trim(),
+            appearanceConfig: {
+              primaryColor,
+              position,
+              iconColor,
+              selectedIconId,
+              customIconUrl,
+              knowledgeBaseId: knowledgeBaseId || null,
+              topK,
+              temperature,
+            },
+          }),
+        });
+
+        if (!updateResponse.ok) {
+          const message = await extractApiMessage(updateResponse, 'Không thể cập nhật widget.');
+          throw new Error(message);
+        }
+
+        const updatePayload = (await updateResponse.json()) as ApiResponse<WidgetRecord>;
+        activeWidget = updatePayload.data ?? activeWidget;
+        setWidget(activeWidget);
+      }
+
       setIsPublishing(false);
       showToast(t('widget.publish_success') || 'Changes published successfully!', 'success');
-    }, 1500);
+    } catch (error) {
+      setIsPublishing(false);
+      const message = error instanceof Error ? error.message : 'Không thể publish widget.';
+      showToast(message, 'error');
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,6 +508,46 @@ export default function WidgetCustomization() {
                   rows={2}
                   className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none"
                 />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-[#f0f0f0]">Knowledge Base</label>
+                <select
+                  value={knowledgeBaseId}
+                  onChange={(e) => setKnowledgeBaseId(e.target.value)}
+                  className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                >
+                  <option value="">{isLoadingKnowledgeBases ? 'Loading knowledge bases...' : 'Select knowledge base'}</option>
+                  {knowledgeBases.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#f0f0f0]">Top K</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={topK}
+                    onChange={(e) => setTopK(Math.max(1, Number(e.target.value) || 1))}
+                    className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#f0f0f0]">Temperature</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    value={temperature}
+                    onChange={(e) => setTemperature(Math.min(1, Math.max(0, Number(e.target.value) || 0)))}
+                    className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.bot_icon') || 'Bot Icon'}</label>
@@ -370,7 +714,7 @@ export default function WidgetCustomization() {
                 </div>
                 <div className="relative group">
                   <pre className="bg-slate-900 text-[rgba(255,255,255,0.3)] p-4 rounded-[16px] text-[10px] font-mono overflow-x-auto border border-slate-800 leading-relaxed">
-                    {`<script src="https://cdn.wisebot.ai/widget.js" \n data-id="wb_8293472" \n async></script>`}
+                    {widgetScript}
                   </pre>
                   <button 
                     onClick={handleCopyCode}
@@ -385,19 +729,35 @@ export default function WidgetCustomization() {
                 >
                   {isCopied ? t('widget.code_copied') : t('widget.copy_code')}
                 </button>
+                <p className="text-[11px] text-[#a1a4a5]">
+                  {isLoadingWidget
+                    ? 'Đang tải widget hiện có...'
+                    : widget?.id
+                      ? `Widget ID: ${widget.id}`
+                      : 'Chưa có widget trên backend. Publish để tạo mới.'}
+                </p>
               </section>
 
               <section className="space-y-4 pt-4">
                 <div className="flex items-center gap-2 text-xs font-semibold text-[#a1a4a5]">
                   <Sparkles size={14} /> {t('widget.view_demo')}
                 </div>
-                <Link 
-                  to="/demo"
-                  className="w-full py-3 bg-[rgba(59,158,255,0.05)] text-[#3b9eff] text-xs font-bold rounded-[16px] hover:bg-[rgba(59,158,255,0.1)] transition-all flex items-center justify-center gap-2"
-                >
-                  <Monitor size={16} />
-                  {t('widget.view_demo')}
-                </Link>
+                <div className="grid gap-3">
+                  <Link 
+                    to="/demo"
+                    className="w-full py-3 bg-[rgba(59,158,255,0.05)] text-[#3b9eff] text-xs font-bold rounded-[16px] hover:bg-[rgba(59,158,255,0.1)] transition-all flex items-center justify-center gap-2"
+                  >
+                    <Monitor size={16} />
+                    {t('widget.view_demo')}
+                  </Link>
+                  <Link 
+                    to="/widget-test"
+                    className="w-full py-3 bg-[rgba(16,185,129,0.08)] text-[#34d399] text-xs font-bold rounded-[16px] hover:bg-[rgba(16,185,129,0.14)] transition-all flex items-center justify-center gap-2"
+                  >
+                    <Sparkles size={16} />
+                    Test Public Embed
+                  </Link>
+                </div>
               </section>
             </div>
           )}

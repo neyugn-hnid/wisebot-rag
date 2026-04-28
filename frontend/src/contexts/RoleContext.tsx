@@ -1,4 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import {
+  AUTH_CLEARED_EVENT,
+  AUTH_TOKEN_REFRESHED_EVENT,
+  clearStoredAuth,
+  fetchWithAuth,
+  getStoredAccessToken,
+} from '../lib/auth';
 
 type Role = 'ADMIN' | 'OWNER' | 'USER';
 
@@ -13,13 +20,6 @@ interface RoleContextType {
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
-
-const ACCESS_TOKEN_KEY = 'wisebot_access_token';
-const REFRESH_TOKEN_KEY = 'wisebot_refresh_token';
-
-function getAccessTokenFromStorage(): string | null {
-  return window.localStorage.getItem(ACCESS_TOKEN_KEY) ?? window.sessionStorage.getItem(ACCESS_TOKEN_KEY);
-}
 
 function decodeBase64Url(input: string): string {
   const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
@@ -63,7 +63,7 @@ export const RoleProvider = ({ children }: { children: React.ReactNode }) => {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const token = getAccessTokenFromStorage();
+    const token = getStoredAccessToken();
     if (!token) {
       setRole('USER');
       setIsAuthenticated(false);
@@ -74,6 +74,28 @@ export const RoleProvider = ({ children }: { children: React.ReactNode }) => {
     setRole(parseRoleFromToken(token));
     setIsAuthenticated(true);
     setIsReady(true);
+
+    const handleTokenRefreshed = (event: Event) => {
+      const customEvent = event as CustomEvent<{ accessToken?: string }>;
+      const nextToken = customEvent.detail?.accessToken;
+      if (nextToken) {
+        syncFromAccessToken(nextToken);
+      }
+    };
+
+    const handleAuthCleared = () => {
+      setRole('USER');
+      setIsAuthenticated(false);
+      setIsReady(true);
+    };
+
+    window.addEventListener(AUTH_TOKEN_REFRESHED_EVENT, handleTokenRefreshed as EventListener);
+    window.addEventListener(AUTH_CLEARED_EVENT, handleAuthCleared);
+
+    return () => {
+      window.removeEventListener(AUTH_TOKEN_REFRESHED_EVENT, handleTokenRefreshed as EventListener);
+      window.removeEventListener(AUTH_CLEARED_EVENT, handleAuthCleared);
+    };
   }, []);
 
   const syncFromAccessToken = (token: string) => {
@@ -83,25 +105,19 @@ export const RoleProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const clearAuth = () => {
-    window.localStorage.removeItem(ACCESS_TOKEN_KEY);
-    window.localStorage.removeItem(REFRESH_TOKEN_KEY);
-    window.sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-    window.sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    clearStoredAuth();
     setRole('USER');
     setIsAuthenticated(false);
     setIsReady(true);
   };
 
   const logout = async () => {
-    const accessToken = getAccessTokenFromStorage();
+    const accessToken = getStoredAccessToken();
 
     try {
       if (accessToken) {
-        await fetch('/api/auth/logout', {
+        await fetchWithAuth('/api/auth/logout', {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
         });
       }
     } finally {

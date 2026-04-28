@@ -13,6 +13,7 @@ import vandinh.wisebot.userservice.common.response.ApiResponse;
 import vandinh.wisebot.userservice.dto.request.ChangePasswordRequest;
 import vandinh.wisebot.userservice.dto.request.ChangeStatusRequest;
 import vandinh.wisebot.userservice.dto.request.EmailUpdateRequest;
+import vandinh.wisebot.userservice.dto.request.AdminUserUpdateRequest;
 import vandinh.wisebot.userservice.dto.request.UserUpdateRequest;
 import vandinh.wisebot.userservice.entity.UserEntity;
 import vandinh.wisebot.userservice.service.UserService;
@@ -53,9 +54,20 @@ public class UserController {
                 .build();
     }
 
+    @Operation(summary = "Admin update user", description = "API update user by admin")
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
+    public ApiResponse adminUpdateUser(@PathVariable UUID id, @RequestBody @Valid AdminUserUpdateRequest request) {
+        userService.adminUpdateUser(request, id);
+        return ApiResponse.builder()
+                .status(HttpStatus.NO_CONTENT.value())
+                .message("User updated successfully")
+                .build();
+    }
+
     @Operation(summary = "Get profile", description = "API retrieve profile of user")
     @GetMapping("/profile")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_USER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_OWNER','ROLE_USER')")
     public ApiResponse getProfile(Authentication authentication) {
         UserEntity user = (UserEntity) authentication.getPrincipal();
         log.info("Get profile of userId: {}", user.getId());
@@ -114,6 +126,18 @@ public class UserController {
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
                 .message("Password changed successfully")
+                .build();
+    }
+
+    @Operation(summary = "Delete user", description = "API delete user by admin")
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
+    public ApiResponse deleteUser(@PathVariable UUID id, Authentication authentication) {
+        UserEntity user = (UserEntity) authentication.getPrincipal();
+        userService.deleteUser(id, user.getId());
+        return ApiResponse.builder()
+                .status(HttpStatus.NO_CONTENT.value())
+                .message("User deleted successfully")
                 .build();
     }
 
