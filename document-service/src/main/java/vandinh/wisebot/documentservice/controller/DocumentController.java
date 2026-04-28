@@ -38,7 +38,7 @@ public class DocumentController {
         DocumentUploadResponse response = documentService.upload(knowledgeBaseId, file);
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Uploaded successfully")
+            .message("Tải tệp lên thành công")
                 .data(response)
                 .build();
     }
@@ -47,7 +47,7 @@ public class DocumentController {
     public ApiResponse uploadBulk(@PathVariable UUID knowledgeBaseId, @RequestParam("files") List<MultipartFile> files) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Uploaded successfully")
+            .message("Tải nhiều tệp lên thành công")
                 .data(documentService.uploadBulk(knowledgeBaseId, files))
                 .build();
     }
@@ -56,7 +56,7 @@ public class DocumentController {
     public ApiResponse listByKnowledgeBase(@PathVariable UUID knowledgeBaseId) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Documents")
+            .message("Danh sách tài liệu")
                 .data(documentService.listByKnowledgeBase(knowledgeBaseId))
                 .build();
     }
@@ -65,7 +65,7 @@ public class DocumentController {
     public ApiResponse getMetadata(@PathVariable UUID id) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Document metadata")
+            .message("Thông tin tài liệu")
                 .data(documentService.getMetadata(id))
                 .build();
     }
@@ -74,7 +74,7 @@ public class DocumentController {
     public ApiResponse getStatus(@PathVariable UUID id) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Document status")
+            .message("Trạng thái tài liệu")
                 .data(documentService.getStatus(id))
                 .build();
     }
@@ -83,7 +83,7 @@ public class DocumentController {
     public ApiResponse reprocess(@PathVariable UUID id) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Document reprocessed")
+            .message("Đồng bộ lại tài liệu thành công")
                 .data(documentService.reprocess(id))
                 .build();
     }
@@ -93,7 +93,7 @@ public class DocumentController {
         documentService.delete(id);
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
-                .message("Deleted successfully")
+            .message("Xóa tài liệu thành công")
                 .build();
     }
 
@@ -101,7 +101,7 @@ public class DocumentController {
     public ApiResponse preview(@PathVariable UUID id) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Document preview")
+            .message("Nội dung xem trước tài liệu")
                 .data(documentService.getPreview(id))
                 .build();
     }
@@ -111,7 +111,7 @@ public class DocumentController {
         List<DocumentChunkResponse> chunks = documentService.getChunks(id);
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Document chunks")
+            .message("Danh sách đoạn tài liệu")
                 .data(chunks)
                 .build();
     }
@@ -120,7 +120,7 @@ public class DocumentController {
     public ApiResponse search(@PathVariable UUID knowledgeBaseId, @RequestParam("q") String query) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Search results")
+            .message("Kết quả tìm kiếm")
                 .data(documentService.search(knowledgeBaseId, query))
                 .build();
     }
@@ -131,7 +131,7 @@ public class DocumentController {
         if (!documentService.isStorageEnabled()) {
             ApiResponse response = ApiResponse.builder()
                     .status(HttpStatus.NOT_IMPLEMENTED.value())
-                    .message("Storage is disabled. Only metadata is stored.")
+                    .message("Lưu trữ tệp đang tắt. Chỉ lưu metadata.")
                     .data(documentService.getMetadata(id))
                     .build();
             return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(response);

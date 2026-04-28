@@ -9,6 +9,7 @@ import java.util.UUID;
 @Data
 @Builder
 public class EmbeddingRequest {
+    private UUID tenantId;
     private UUID knowledgeBaseId;
     private UUID documentId;
     private List<EmbeddingChunk> chunks;

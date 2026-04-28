@@ -64,8 +64,10 @@ public class AuthServiceImpl implements AuthService {
             log.info("Login success for account {}", request.getUsername());
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            UserEntity user = userRepository.findByUsername(authentication.getName())
-                    .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+            if (!(authentication.getPrincipal() instanceof UserEntity user)) {
+                throw new UsernameNotFoundException("Không tìm thấy người dùng");
+            }
+
             user.setLoginProvider(LoginProvider.LOCAL);
             user.setLastLogin(LocalDateTime.now());
             userRepository.save(user);
@@ -76,8 +78,9 @@ public class AuthServiceImpl implements AuthService {
                     .toList();
 
             UUID userId = user.getId();
-            String accessToken = jwtService.generateAccessToken(userId, user.getEmail(), authorities);
-            String refreshToken = jwtService.generateRefreshToken(userId, user.getEmail(), authorities);
+            UUID tenantId = user.getTenant() != null ? user.getTenant().getId() : null;
+            String accessToken = jwtService.generateAccessToken(userId, tenantId, user.getEmail(), authorities);
+            String refreshToken = jwtService.generateRefreshToken(userId, tenantId, user.getEmail(), authorities);
 
             return TokenResponse.builder()
                     .accessToken(accessToken)
@@ -86,52 +89,49 @@ public class AuthServiceImpl implements AuthService {
 
         } catch (BadCredentialsException e) {
             log.warn("Password incorrect for user: {}", request.getUsername());
-            throw new BadCredentialsException("Wrong account or password");
+            throw new BadCredentialsException("Sai tài khoản hoặc mật khẩu");
 
         } catch (InternalAuthenticationServiceException e) {
             log.warn("User does not exist: {}", request.getUsername());
 
             if (e.getCause() instanceof UsernameNotFoundException) {
-                throw new BadCredentialsException("Wrong account or password");
+                throw new BadCredentialsException("Sai tài khoản hoặc mật khẩu");
             }
 
-            throw new RuntimeException("System error during authentication", e);
+            throw new RuntimeException("Lỗi hệ thống khi xác thực", e);
         } catch (DisabledException e) {
-            throw new DisabledException("Account is disabled");
+            throw new DisabledException("Tài khoản đã bị vô hiệu hóa");
         }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void register(RegisterRequest request) {
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new InvalidDataException("Username already exists");
-        }
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new InvalidDataException("Email already exists");
+            throw new InvalidDataException("Email đã tồn tại");
         }
 
         if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new InvalidDataException("Password and Confirm Password do not match");
+            throw new InvalidDataException("Mật khẩu và xác nhận mật khẩu không khớp");
         }
 
         Role role = roleRepository.findByName(RoleName.USER)
-                .orElseThrow(() -> new RuntimeException("Role not found"));
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy vai trò"));
 
         Tenant tenant;
         if (request.getInviteToken() != null && !request.getInviteToken().isBlank()) {
             TenantInvite invite = tenantInviteRepository
                     .findByTokenAndStatus(request.getInviteToken(), InviteStatus.PENDING)
-                    .orElseThrow(() -> new InvalidDataException("Invite is invalid"));
+                    .orElseThrow(() -> new InvalidDataException("Lời mời không hợp lệ"));
 
             if (invite.getExpiresAt() != null && invite.getExpiresAt().isBefore(LocalDateTime.now())) {
                 invite.setStatus(InviteStatus.EXPIRED);
                 tenantInviteRepository.save(invite);
-                throw new InvalidDataException("Invite has expired");
+                throw new InvalidDataException("Lời mời đã hết hạn");
             }
 
             if (invite.getEmail() != null && !invite.getEmail().equalsIgnoreCase(request.getEmail())) {
-                throw new InvalidDataException("Invite email does not match");
+                throw new InvalidDataException("Email lời mời không khớp");
             }
 
             tenant = invite.getTenant();
@@ -145,10 +145,11 @@ public class AuthServiceImpl implements AuthService {
             tenant = tenantRepository.save(tenant);
         }
 
+        String generatedUsername = generateUniqueUsername(request.getEmail());
 
         UserEntity user = UserEntity.builder()
                 .fullName(request.getFullName())
-                .username(request.getUsername())
+                .username(generatedUsername)
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .status(UserStatus.ACTIVE)
@@ -159,12 +160,36 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
     }
 
+    private String generateUniqueUsername(String email) {
+        String localPart = email == null ? "" : email.split("@")[0];
+        String sanitized = localPart
+                .replaceAll("[^a-zA-Z0-9_]", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^_+|_+$", "");
+
+        String base = sanitized.isBlank() ? "user" : sanitized;
+        if (base.length() > 40) {
+            base = base.substring(0, 40);
+        }
+
+        String candidate = base;
+        int counter = 1;
+        while (userRepository.existsByUsername(candidate)) {
+            String suffix = "_" + counter++;
+            int maxBaseLength = Math.max(1, 40 - suffix.length());
+            String shortenedBase = base.length() > maxBaseLength ? base.substring(0, maxBaseLength) : base;
+            candidate = shortenedBase + suffix;
+        }
+
+        return candidate;
+    }
+
     @Override
     public ApiResponse logout(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             return ApiResponse.builder()
                     .status(HttpStatus.BAD_REQUEST.value())
-                    .message("Missing Authorization header")
+                    .message("Thiếu Authorization header")
                     .build();
         }
 
@@ -175,35 +200,35 @@ public class AuthServiceImpl implements AuthService {
         } catch (Exception ex) {
             return ApiResponse.builder()
                     .status(HttpStatus.UNAUTHORIZED.value())
-                    .message("Invalid or expired token")
+                .message("Token không hợp lệ hoặc đã hết hạn")
                     .build();
         }
 
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Logged out successfully")
+            .message("Đăng xuất thành công")
                 .build();
     }
 
     @Override
     public ApiResponse inviteUser(UUID tenantId, String email) {
         if (tenantId == null) {
-            throw new InvalidDataException("Tenant is required");
+            throw new InvalidDataException("Thiếu tenant");
         }
         if (email == null || email.isBlank()) {
-            throw new InvalidDataException("Email is required");
+            throw new InvalidDataException("Thiếu email");
         }
 
         if (userRepository.existsByEmail(email)) {
-            throw new InvalidDataException("Email already exists");
+            throw new InvalidDataException("Email đã tồn tại");
         }
 
         if (tenantInviteRepository.existsByTenant_IdAndEmailAndStatus(tenantId, email, InviteStatus.PENDING)) {
-            throw new InvalidDataException("Invite already sent");
+            throw new InvalidDataException("Lời mời đã được gửi");
         }
 
         Tenant tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new InvalidDataException("Tenant not found"));
+                .orElseThrow(() -> new InvalidDataException("Không tìm thấy tenant"));
 
         TenantInvite invite = new TenantInvite();
         invite.setTenant(tenant);
@@ -215,7 +240,7 @@ public class AuthServiceImpl implements AuthService {
 
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Invite created")
+            .message("Tạo lời mời thành công")
                 .data(Map.of(
                         "token", invite.getToken(),
                         "expiresAt", invite.getExpiresAt()

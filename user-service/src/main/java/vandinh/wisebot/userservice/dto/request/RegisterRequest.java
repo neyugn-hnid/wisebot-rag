@@ -11,22 +11,20 @@ import java.io.Serializable;
 @Data
 @ToString
 public class RegisterRequest implements Serializable {
-    @NotBlank(message = "fullName must be not blank")
+    @NotBlank(message = "Họ tên không được để trống")
     private String fullName;
 
-    @NotBlank(message = "username must be not blank")
-    @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "username must be alphanumeric with underscores")
     private String username;
 
-    @NotBlank(message = "email must be not blank")
-    @Email(message = "email must be a valid email address")
-    @Pattern(regexp = "^[a-zA-Z0-9._%+-]+@gmail\\.com$", message = "email must be a valid Gmail address")
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không đúng định dạng")
+    @Pattern(regexp = "^[a-zA-Z0-9._%+-]+@gmail\\.com$", message = "Email phải là địa chỉ Gmail hợp lệ")
     private String email;
 
-    @NotBlank(message = "password must be not blank")
+    @NotBlank(message = "Mật khẩu không được để trống")
     private String password;
     
-    @NotBlank(message = "confirmPassword must be not blank")
+    @NotBlank(message = "Xác nhận mật khẩu không được để trống")
     private String confirmPassword;
     private Boolean isEmailVerified;
     private String inviteToken;

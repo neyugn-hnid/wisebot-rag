@@ -23,6 +23,7 @@ import vandinh.wisebot.chatservice.repository.ChatMessageRepository;
 import vandinh.wisebot.chatservice.repository.ChatSessionRepository;
 import vandinh.wisebot.chatservice.service.ChatService;
 import vandinh.wisebot.chatservice.service.client.AiClient;
+import vandinh.wisebot.chatservice.service.client.DocumentKnowledgeBaseClient;
 import vandinh.wisebot.chatservice.service.client.EmbeddingSearchClient;
 
 import java.time.LocalDateTime;
@@ -43,6 +44,7 @@ public class ChatServiceImpl implements ChatService {
     private final ChatMessageFeedbackRepository feedbackRepository;
     private final EmbeddingSearchClient embeddingSearchClient;
     private final AiClient aiClient;
+    private final DocumentKnowledgeBaseClient documentKnowledgeBaseClient;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -54,7 +56,6 @@ public class ChatServiceImpl implements ChatService {
                 .channel(request.getChannel() == null ? "WEB" : request.getChannel())
                 .title(request.getTitle())
                 .status("OPEN")
-                .metadata("{}")
                 .build();
         return mapSession(sessionRepository.save(entity));
     }
@@ -107,10 +108,13 @@ public class ChatServiceImpl implements ChatService {
             .build();
         userMessage = messageRepository.save(userMessage);
 
+        UUID knowledgeBaseId = resolveKnowledgeBaseId(session, request.getKnowledgeBaseId());
+
         Map<String, Object> searchPayload = new HashMap<>();
         searchPayload.put("tenant_id", session.getTenantId());
         searchPayload.put("query", request.getQuestion());
         searchPayload.put("top_k", request.getTopK());
+        searchPayload.put("knowledge_base_id", knowledgeBaseId);
         Map<String, Object> searchResult = embeddingSearchClient.search(searchPayload);
 
         Map<String, Object> aiPayload = new HashMap<>();
@@ -120,6 +124,7 @@ public class ChatServiceImpl implements ChatService {
         aiPayload.put("question", request.getQuestion());
         aiPayload.put("top_k", request.getTopK());
         aiPayload.put("temperature", request.getTemperature());
+        aiPayload.put("knowledge_base_id", knowledgeBaseId);
         Map<String, Object> aiResult = aiClient.ask(aiPayload);
 
         String answer = (String) aiResult.getOrDefault("answer", "");
@@ -190,6 +195,8 @@ public class ChatServiceImpl implements ChatService {
                 .build();
         userMessage = messageRepository.save(userMessage);
 
+        UUID knowledgeBaseId = resolveKnowledgeBaseId(session, request.getKnowledgeBaseId());
+
         Map<String, Object> aiPayload = new HashMap<>();
         aiPayload.put("tenant_id", session.getTenantId());
         aiPayload.put("session_id", sessionId);
@@ -197,6 +204,7 @@ public class ChatServiceImpl implements ChatService {
         aiPayload.put("question", request.getQuestion());
         aiPayload.put("top_k", request.getTopK());
         aiPayload.put("temperature", request.getTemperature());
+        aiPayload.put("knowledge_base_id", knowledgeBaseId);
 
         StringBuilder streamedAnswer = new StringBuilder();
         Map<String, Object> donePayload = new HashMap<>();
@@ -384,5 +392,25 @@ public class ChatServiceImpl implements ChatService {
             return null;
         }
         return UUID.fromString(raw.toString());
+    }
+
+    private UUID resolveKnowledgeBaseId(ChatSession session, UUID requestedKnowledgeBaseId) {
+        if (requestedKnowledgeBaseId != null) {
+            return requestedKnowledgeBaseId;
+        }
+
+        List<DocumentKnowledgeBaseClient.KnowledgeBaseItem> knowledgeBases = documentKnowledgeBaseClient.listKnowledgeBases()
+                .stream()
+                .filter(item -> session.getTenantId().equals(item.tenantId()))
+                .toList();
+
+        if (knowledgeBases.isEmpty()) {
+            throw new IllegalArgumentException("No knowledge base found for tenant " + session.getTenantId());
+        }
+        if (knowledgeBases.size() > 1) {
+            throw new IllegalArgumentException("Multiple knowledge bases found for tenant " + session.getTenantId() + "; knowledgeBaseId is required");
+        }
+
+        return knowledgeBases.get(0).id();
     }
 }

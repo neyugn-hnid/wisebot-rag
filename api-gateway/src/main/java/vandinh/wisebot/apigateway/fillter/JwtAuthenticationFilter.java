@@ -77,6 +77,26 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
                     return unauthorized(exchange, "Token expired");
                 }
                 log.debug("JWT token validated for path: {}", path);
+                
+                String userId = claims.get("userId", String.class);
+                String tenantId = claims.get("tenantId", String.class);
+                Object roleObj = claims.get("role");
+                String roles = "";
+                if (roleObj instanceof java.util.List) {
+                    roles = String.join(",", (java.util.List<String>) roleObj);
+                } else if (roleObj instanceof String) {
+                    roles = (String) roleObj;
+                }
+
+                org.springframework.http.server.reactive.ServerHttpRequest mutatedRequest = exchange.getRequest()
+                        .mutate()
+                        .header("X-User-Id", userId)
+                        .header("X-Tenant-Id", tenantId == null ? "" : tenantId)
+                        .header("X-User-Roles", roles)
+                        .build();
+                
+                ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
+                return chain.filter(mutatedExchange);
             } catch (ExpiredJwtException e) {
                 log.warn("JWT expired for path {}: {}", path, e.getMessage());
                 return unauthorized(exchange, "Token expired");
@@ -87,8 +107,6 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
                 log.error("JWT filter error for path {}: {}", path, e.getMessage());
                 return unauthorized(exchange, "Token validation error");
             }
-
-            return chain.filter(exchange);
         };
     }
 

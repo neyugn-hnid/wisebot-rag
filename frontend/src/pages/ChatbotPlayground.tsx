@@ -22,6 +22,23 @@ interface Message {
   sources?: { name: string; snippet: string }[];
 }
 
+interface ApiResponse<T> {
+  data?: T;
+  message?: string;
+  error?: string;
+}
+
+interface KnowledgeBaseOption {
+  id: string;
+  name: string;
+  tenantId?: string;
+}
+
+interface AskPayloadData {
+  answer?: unknown;
+  citations?: unknown;
+}
+
 const INITIAL_MESSAGES: Message[] = [
   {
     id: '1',
@@ -37,8 +54,13 @@ export default function ChatbotPlayground() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [temperature, setTemperature] = useState(0.7);
-  const [topK, setTopK] = useState(40);
+  const [temperature, setTemperature] = useState(0.4);
+  const [topK, setTopK] = useState(4);
+  const [tenantId, setTenantId] = useState('');
+  const [sessionId, setSessionId] = useState('');
+  const [knowledgeBaseId, setKnowledgeBaseId] = useState('');
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseOption[]>([]);
+  const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -52,6 +74,27 @@ export default function ChatbotPlayground() {
     scrollToBottom();
   }, [messages, isTyping]);
 
+  useEffect(() => {
+    const storedTenantId = window.localStorage.getItem('wisebot_tenant_id') || '';
+    const storedSessionId = window.localStorage.getItem('wisebot_chat_session_id') || '';
+    if (storedSessionId) {
+      setSessionId(storedSessionId);
+    }
+
+    const storedKBId = window.localStorage.getItem('wisebot_kb_id') || '';
+    if (storedKBId) {
+      setKnowledgeBaseId(storedKBId);
+    }
+
+    const jwtTenantId = resolveTenantIdFromToken();
+    if (jwtTenantId) {
+      setTenantId(jwtTenantId);
+      window.localStorage.setItem('wisebot_tenant_id', jwtTenantId);
+    } else if (storedTenantId) {
+      setTenantId(storedTenantId);
+    }
+  }, []);
+
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -60,8 +103,150 @@ export default function ChatbotPlayground() {
     }
   }, [input]);
 
-  const handleSend = () => {
+  const getAccessToken = () => {
+    return window.localStorage.getItem('wisebot_access_token') ?? window.sessionStorage.getItem('wisebot_access_token');
+  };
+
+  const getAuthHeaders = (): Record<string, string> => {
+    const token = getAccessToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
+  const parseJwtPayload = (token: string): Record<string, unknown> | null => {
+    try {
+      const payloadSegment = token.split('.')[1];
+      if (!payloadSegment) return null;
+      const normalized = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+      const json = atob(padded);
+      return JSON.parse(json) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  };
+
+  const extractApiMessage = async (response: Response, fallbackMessage: string) => {
+    try {
+      const payload = (await response.json()) as { message?: string; error?: string };
+      return payload.message || payload.error || fallbackMessage;
+    } catch {
+      return fallbackMessage;
+    }
+  };
+
+  const createSession = async (currentTenantId: string) => {
+    const token = getAccessToken();
+    const payload = token ? parseJwtPayload(token) : null;
+    const userId = typeof payload?.userId === 'string' ? payload.userId : null;
+
+    const response = await fetch('/api/chat/sessions', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        tenantId: currentTenantId,
+        userId,
+        channel: 'WEB',
+        title: 'Playground Chat',
+      }),
+    });
+
+    if (!response.ok) {
+      const message = await extractApiMessage(response, 'Không thể tạo phiên chat.');
+      throw new Error(message);
+    }
+
+    const payloadResponse = (await response.json()) as { data?: { id?: string } };
+    const newSessionId = payloadResponse?.data?.id;
+    if (!newSessionId) {
+      throw new Error('Không thể tạo phiên chat.');
+    }
+
+    setSessionId(newSessionId);
+    window.localStorage.setItem('wisebot_chat_session_id', newSessionId);
+    return newSessionId;
+  };
+
+  const resolveTenantIdFromToken = () => {
+    const token = getAccessToken();
+    const payload = token ? parseJwtPayload(token) : null;
+    return typeof payload?.tenantId === 'string' ? payload.tenantId.trim() : '';
+  };
+
+  const loadKnowledgeBases = async () => {
+    setIsLoadingKnowledgeBases(true);
+    try {
+      const resolvedTenantId = resolveTenantIdFromToken();
+      const response = await fetch('/api/knowledge-bases', {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        const message = await extractApiMessage(response, 'Không tải được danh sách kho tri thức.');
+        throw new Error(message);
+      }
+
+      const payload = (await response.json()) as ApiResponse<KnowledgeBaseOption[]>;
+      const allKnowledgeBases = payload.data || [];
+      const filteredByTenant = resolvedTenantId
+        ? allKnowledgeBases.filter((item) => item.tenantId === resolvedTenantId)
+        : allKnowledgeBases;
+      const tenantScoped = filteredByTenant.length > 0 ? filteredByTenant : allKnowledgeBases;
+
+      setKnowledgeBases(tenantScoped);
+
+      if (tenantScoped.length === 1) {
+        setKnowledgeBaseId(tenantScoped[0].id);
+        window.localStorage.setItem('wisebot_kb_id', tenantScoped[0].id);
+        return;
+      }
+
+      const currentStillExists = tenantScoped.some((item) => item.id === knowledgeBaseId.trim());
+      if (!currentStillExists) {
+        setKnowledgeBaseId('');
+        window.localStorage.removeItem('wisebot_kb_id');
+      }
+    } catch (error) {
+      setKnowledgeBases([]);
+      const message = error instanceof Error ? error.message : 'Không tải được danh sách kho tri thức.';
+      showToast(message, 'error');
+    } finally {
+      setIsLoadingKnowledgeBases(false);
+    }
+  };
+
+  useEffect(() => {
+    const resolvedTenantId = resolveTenantIdFromToken();
+    if (!resolvedTenantId) {
+      setKnowledgeBases([]);
+      return;
+    }
+    if (tenantId !== resolvedTenantId) {
+      setTenantId(resolvedTenantId);
+      window.localStorage.setItem('wisebot_tenant_id', resolvedTenantId);
+      return;
+    }
+    void loadKnowledgeBases();
+  }, [tenantId]);
+
+  const handleSend = async () => {
     if (!input.trim() || isTyping) return;
+
+    const resolvedTenantId = resolveTenantIdFromToken();
+    if (!resolvedTenantId) {
+      showToast('Không lấy được tenantId từ access token.', 'error');
+      return;
+    }
+
+    if (knowledgeBases.length > 1 && !knowledgeBaseId.trim()) {
+      showToast('Vui lòng chọn knowledge base trước khi gửi câu hỏi.', 'error');
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -73,20 +258,76 @@ export default function ChatbotPlayground() {
     setInput('');
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const activeSessionId = sessionId.trim() || (await createSession(resolvedTenantId));
+
+      const response = await fetch(`/api/chat/sessions/${activeSessionId}/ask`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          question: userMessage.content,
+          topK,
+          temperature,
+          knowledgeBaseId: knowledgeBaseId.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const message = await extractApiMessage(response, 'Không thể gửi câu hỏi.');
+        throw new Error(message);
+      }
+
+      const payload = (await response.json()) as { data?: AskPayloadData; answer?: unknown; citations?: unknown };
+      const responseData = payload?.data;
+      const rawAnswer = responseData?.answer ?? payload?.answer;
+      const answer = typeof rawAnswer === 'string' && rawAnswer.trim()
+        ? rawAnswer
+        : 'Không có phản hồi từ hệ thống.';
+
+      const rawCitations = responseData?.citations ?? payload?.citations;
+      const citationItems = Array.isArray(rawCitations) ? rawCitations : [];
+      const sources = citationItems
+        .map((item) => {
+          if (!item || typeof item !== 'object') {
+            return null;
+          }
+          const citation = item as {
+            sourceDocumentId?: unknown;
+            source_document_id?: unknown;
+            snippet?: unknown;
+          };
+          const snippet = typeof citation.snippet === 'string' ? citation.snippet : '';
+          const sourceDocumentId = typeof citation.sourceDocumentId === 'string'
+            ? citation.sourceDocumentId
+            : typeof citation.source_document_id === 'string'
+              ? citation.source_document_id
+              : '';
+
+          if (!snippet) {
+            return null;
+          }
+
+          return {
+            name: sourceDocumentId ? `Tài liệu ${sourceDocumentId.slice(0, 8)}` : 'Tài liệu',
+            snippet,
+          };
+        })
+        .filter((item): item is { name: string; snippet: string } => item !== null);
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "I've analyzed your request based on the connected documents. Here's what I found: Our platform supports multiple integration methods including React SDK, direct API calls, and pre-built widgets. You can find more details in the integration guide.",
-        sources: [
-          { name: 'Integration_Guide.pdf', snippet: '...the React SDK provides a set of hooks and components to easily embed the chat widget...' },
-          { name: 'API_Reference.docx', snippet: '...all endpoints are secured with Bearer token authentication and support CORS...' }
-        ]
+        content: answer,
+        sources: sources.length > 0 ? sources : undefined,
       };
+
       setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể kết nối đến máy chủ.';
+      showToast(message, 'error');
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleClearChat = () => {
@@ -262,6 +503,75 @@ export default function ChatbotPlayground() {
             
             <div className="space-y-6">
               <div className="space-y-3">
+                <label className="text-xs font-semibold text-[#f0f0f0]">Tenant ID</label>
+                <input
+                  type="text"
+                  value={tenantId}
+                  readOnly
+                  placeholder="Lấy từ access token"
+                  className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] px-3 py-2 rounded-[12px] text-[10px] text-[#a1a4a5]"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-xs font-semibold text-[#f0f0f0]">Knowledge Base ID</label>
+                <select
+                  value={knowledgeBaseId}
+                  onChange={(e) => setKnowledgeBaseId(e.target.value)}
+                  disabled={isLoadingKnowledgeBases || knowledgeBases.length === 0 || knowledgeBases.length === 1}
+                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] px-3 py-2 rounded-[12px] text-xs text-[#f0f0f0] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:text-[#a1a4a5] disabled:cursor-not-allowed"
+                >
+                  {isLoadingKnowledgeBases ? (
+                    <option value="" className="text-black">
+                      Đang tải knowledge base...
+                    </option>
+                  ) : knowledgeBases.length === 0 ? (
+                    <option value="" className="text-black">
+                      Không có knowledge base
+                    </option>
+                  ) : knowledgeBases.length === 1 ? (
+                    <option value={knowledgeBases[0].id} className="text-black">
+                      {knowledgeBases[0].name}
+                    </option>
+                  ) : (
+                    <>
+                      <option value="" className="text-black">
+                        Chọn knowledge base
+                      </option>
+                      {knowledgeBases.map((kb) => (
+                        <option key={kb.id} value={kb.id} className="text-black">
+                          {kb.name}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[#f0f0f0]">Phiên chat</label>
+                  <button
+                    onClick={() => {
+                      setSessionId('');
+                      window.localStorage.removeItem('wisebot_chat_session_id');
+                      showToast('Đã tạo phiên chat mới.', 'success');
+                    }}
+                    className="text-[10px] font-semibold text-[#3b9eff] hover:underline"
+                    type="button"
+                  >
+                    Tạo phiên mới
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={sessionId || 'Chưa có'}
+                  readOnly
+                  className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] px-3 py-2 rounded-[12px] text-[10px] text-[#a1a4a5]"
+                />
+              </div>
+
+              <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-semibold text-[#f0f0f0]">{t('playground.temp')}</label>
                   <span className="text-xs font-semibold text-[#3b9eff]">{temperature}</span>
@@ -285,7 +595,7 @@ export default function ChatbotPlayground() {
                 <input 
                   type="range" 
                   min="1" 
-                  max="100" 
+                  max="20" 
                   value={topK}
                   onChange={(e) => setTopK(parseInt(e.target.value))}
                   className="w-full h-1.5 bg-slate-200 rounded-[12px] appearance-none cursor-pointer accent-primary"
@@ -295,6 +605,12 @@ export default function ChatbotPlayground() {
               <button 
                 onClick={() => {
                   setShowSettings(false);
+                  if (tenantId.trim()) {
+                    window.localStorage.setItem('wisebot_tenant_id', tenantId.trim());
+                  }
+                  if (knowledgeBaseId.trim()) {
+                    window.localStorage.setItem('wisebot_kb_id', knowledgeBaseId.trim());
+                  }
                   showToast(t('playground.save_success') || 'Configuration saved successfully!', 'success');
                 }}
                 className="w-full py-2.5 bg-[#ffffff] text-[#000000] text-xs font-bold rounded-[12px] hover:bg-gray-200 transition-colors"

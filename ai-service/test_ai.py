@@ -16,8 +16,8 @@ async def test_ask():
     token = create_service_token()
     headers = {"Authorization": f"Bearer {token}"}
     
-    tenant_id = str(uuid4())
-    collection_id = str(uuid4()) # Mặc định dummy, có thể sẽ không trả về citations nếu collection_id không có data
+    tenant_id = "49241082-3e2a-43a8-b736-14ec13eb51c5"
+    collection_id = "0d91df7a-f900-46e2-9339-9a2dbb3680b6"
     
     payload = {
         "tenant_id": tenant_id,

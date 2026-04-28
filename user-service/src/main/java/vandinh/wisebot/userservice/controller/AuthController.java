@@ -46,7 +46,7 @@ public class AuthController {
         authService.register(request);
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("User registered successfully")
+            .message("Đăng ký tài khoản thành công")
                 .data(null)
                 .build();
     }

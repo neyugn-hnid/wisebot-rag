@@ -30,6 +30,11 @@ public class GlobalExceptionHandling {
         return buildErrorResponse(request, HttpStatus.BAD_REQUEST, HttpStatus.BAD_REQUEST.getReasonPhrase(), e.getMessage());
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ErrorResponse handleIllegalArgumentException(IllegalArgumentException e, WebRequest request) {
+        return buildErrorResponse(request, HttpStatus.BAD_REQUEST, HttpStatus.BAD_REQUEST.getReasonPhrase(), e.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ErrorResponse handleException(Exception e, WebRequest request) {
         return buildErrorResponse(request, HttpStatus.INTERNAL_SERVER_ERROR,

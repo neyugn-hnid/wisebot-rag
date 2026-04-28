@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.UUID;
 
 public interface KnowledgeBaseService {
-    KnowledgeBaseResponse create(KnowledgeBaseRequest request);
-    KnowledgeBaseResponse getById(UUID id);
-    List<KnowledgeBaseResponse> listAll();
-    KnowledgeBaseResponse update(UUID id, KnowledgeBaseRequest request);
-    void delete(UUID id);
+    KnowledgeBaseResponse create(KnowledgeBaseRequest request, UUID tenantId);
+    KnowledgeBaseResponse getById(UUID id, UUID tenantId);
+    List<KnowledgeBaseResponse> listAll(UUID tenantId);
+    KnowledgeBaseResponse update(UUID id, KnowledgeBaseRequest request, UUID tenantId);
+    void delete(UUID id, UUID tenantId);
 }

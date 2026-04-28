@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { RoleProvider } from './contexts/RoleContext';
+import { RoleProvider, useRole } from './contexts/RoleContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -25,6 +25,26 @@ import Billing from './pages/Billing';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 
+type AppRole = 'ADMIN' | 'OWNER' | 'USER';
+
+function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: AppRole[] }) {
+  const { isAuthenticated, isReady, role } = useRole();
+
+  if (!isReady) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <LanguageProvider>
@@ -42,19 +62,19 @@ function App() {
               <Route path="/reset-password" element={<ResetPassword />} />
 
               {/* Dashboard Routes */}
-              <Route path="/dashboard" element={<DashboardLayout><Dashboard /></DashboardLayout>} />
-              <Route path="/activity" element={<DashboardLayout><ActivityLog /></DashboardLayout>} />
+              <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/activity" element={<ProtectedRoute><DashboardLayout><ActivityLog /></DashboardLayout></ProtectedRoute>} />
               <Route path="/demo" element={<Demo />} />
-              <Route path="/knowledge-base" element={<DashboardLayout><KnowledgeBase /></DashboardLayout>} />
-              <Route path="/playground" element={<DashboardLayout><ChatbotPlayground /></DashboardLayout>} />
-              <Route path="/customization" element={<DashboardLayout><WidgetCustomization /></DashboardLayout>} />
-              <Route path="/analytics" element={<DashboardLayout><Analytics /></DashboardLayout>} />
-              <Route path="/team" element={<DashboardLayout><TeamManagement /></DashboardLayout>} />
-              <Route path="/users" element={<DashboardLayout><UserManagement /></DashboardLayout>} />
-              <Route path="/api-keys" element={<DashboardLayout><APIKeys /></DashboardLayout>} />
-              <Route path="/billing" element={<DashboardLayout><Billing /></DashboardLayout>} />
-              <Route path="/settings" element={<DashboardLayout><Settings /></DashboardLayout>} />
-              <Route path="/profile" element={<DashboardLayout><Profile /></DashboardLayout>} />
+              <Route path="/knowledge-base" element={<ProtectedRoute><DashboardLayout><KnowledgeBase /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/playground" element={<ProtectedRoute><DashboardLayout><ChatbotPlayground /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/customization" element={<ProtectedRoute><DashboardLayout><WidgetCustomization /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/analytics" element={<ProtectedRoute allowedRoles={['ADMIN']}><DashboardLayout><Analytics /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/team" element={<ProtectedRoute><DashboardLayout><TeamManagement /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/users" element={<ProtectedRoute allowedRoles={['ADMIN']}><DashboardLayout><UserManagement /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/api-keys" element={<ProtectedRoute><DashboardLayout><APIKeys /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/billing" element={<ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><DashboardLayout><Settings /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />

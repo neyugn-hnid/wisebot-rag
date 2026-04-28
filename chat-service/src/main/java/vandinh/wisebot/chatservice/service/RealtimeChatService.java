@@ -30,6 +30,7 @@ public class RealtimeChatService {
             askRequest.setQuestion(request.getQuestion());
             askRequest.setTopK(request.getTopK());
             askRequest.setTemperature(request.getTemperature());
+            askRequest.setKnowledgeBaseId(request.getKnowledgeBaseId());
 
             AskResponse response = chatService.askStreaming(
                     sessionId,

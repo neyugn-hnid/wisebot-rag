@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { cn } from '../lib/utils';
 import { 
@@ -31,42 +31,54 @@ import { useToast } from '../contexts/ToastContext';
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
-const initialSources = [
-  { 
-    name: 'Product Documentation', 
-    desc: 'Internal user guides and API references for the core platform.', 
-    status: 'synced', 
-    count: '45 Docs', 
-    time: '2h ago',
-    icon: FileText,
-    color: 'emerald'
-  },
-  { 
-    name: 'Customer Support FAQ', 
-    desc: 'Shared library of common support responses and knowledge articles.', 
-    status: 'live sync', 
-    count: '122 Articles', 
-    time: '5m ago',
-    icon: MessageSquare,
-    color: 'blue'
-  },
-  { 
-    name: 'Technical Specifications', 
-    desc: 'Manuals for engineering teams and detailed hardware specs.', 
-    status: 'idle', 
-    count: '15 Manuals', 
-    time: '1d ago',
-    icon: Terminal,
-    color: 'amber'
-  },
-];
+type ApiResponse<T> = {
+  status: number;
+  message: string;
+  data: T;
+};
 
-const recentUploads = [
-  { name: 'User_Guide_v2.pdf', type: 'PDF', status: 'Completed', size: '2.4 MB', date: 'Jun 12, 2024', color: 'text-[#ff0000]', previewContent: null },
-  { name: 'Release_Notes_June.docx', type: 'DOCX', status: 'Processing', size: '850 KB', date: 'Jun 14, 2024', color: 'text-blue-500', previewContent: null },
-  { name: 'System_Logs.txt', type: 'TXT', status: 'Failed', size: '12 KB', date: 'Jun 14, 2024', color: 'text-[#a1a4a5]', previewContent: '2024-06-14 10:00:01 INFO: System started\n2024-06-14 10:05:22 ERROR: Connection timeout\n2024-06-14 10:10:45 WARN: High memory usage detected' },
-  { name: 'API_Ref_v4.pdf', type: 'PDF', status: 'Completed', size: '4.1 MB', date: 'May 28, 2024', color: 'text-[#ff0000]', previewContent: null },
-];
+type KnowledgeBaseApi = {
+  id: string;
+  name: string;
+  description?: string;
+  tenantId?: string;
+  createdAt?: string;
+};
+
+type DocumentApi = {
+  id: string;
+  filename: string;
+  contentType?: string;
+  status: 'UPLOADED' | 'PROCESSED' | 'FAILED';
+  size?: number;
+  createdAt?: string;
+};
+
+type SourceItem = {
+  id: string;
+  name: string;
+  desc: string;
+  status: 'synced' | 'live sync' | 'idle';
+  count: string;
+  time: string;
+  icon: typeof FileText;
+  color: string;
+};
+
+type UploadItem = {
+  id: string;
+  name: string;
+  type: string;
+  status: 'Completed' | 'Processing' | 'Failed';
+  size: string;
+  date: string;
+  color: string;
+  previewContent: string | null;
+  fileObject?: File;
+};
+
+const initialSources: SourceItem[] = [];
+const recentUploads: UploadItem[] = [];
 
 export default function KnowledgeBase() {
   const { t } = useLanguage();
@@ -74,14 +86,16 @@ export default function KnowledgeBase() {
   const [currentView, setCurrentView] = useState<'overview' | 'manage'>('overview');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
-  const [editingKbOriginalName, setEditingKbOriginalName] = useState('');
+  const [editingKbId, setEditingKbId] = useState<string | null>(null);
 
-  const [sources, setSources] = useState(initialSources);
-  const [uploads, setUploads] = useState(recentUploads);
-  const [selectedKbForUpload, setSelectedKbForUpload] = useState(initialSources[0]?.name || '');
+  const [sources, setSources] = useState<SourceItem[]>(initialSources);
+  const [uploads, setUploads] = useState<UploadItem[]>(recentUploads);
+  const [selectedKbForUpload, setSelectedKbForUpload] = useState('');
+  const [isLoadingKb, setIsLoadingKb] = useState(false);
+  const [isLoadingUploads, setIsLoadingUploads] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedUpload, setSelectedUpload] = useState<any>(null);
+  const [selectedUpload, setSelectedUpload] = useState<UploadItem | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewData, setPreviewData] = useState<{ 
     name: string; 
@@ -97,11 +111,205 @@ export default function KnowledgeBase() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleRefreshUploads = () => {
+  const getAccessToken = () => {
+    return window.localStorage.getItem('wisebot_access_token') ?? window.sessionStorage.getItem('wisebot_access_token');
+  };
+
+  const getAuthHeaders = (): Record<string, string> => {
+    const token = getAccessToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
+  const extractApiMessage = async (response: Response, fallbackMessage: string) => {
+    try {
+      const payload = (await response.json()) as { message?: string; error?: string };
+      return payload.message || payload.error || fallbackMessage;
+    } catch {
+      return fallbackMessage;
+    }
+  };
+
+  const formatTimeAgo = (value?: string) => {
+    if (!value) {
+      return 'Just now';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return 'Just now';
+    }
+
+    const diffMs = Date.now() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}h ago`;
+    const diffDay = Math.floor(diffHour / 24);
+    return `${diffDay}d ago`;
+  };
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes || bytes <= 0) {
+      return '0 KB';
+    }
+    const mb = bytes / (1024 * 1024);
+    if (mb >= 1) {
+      return `${mb.toFixed(2)} MB`;
+    }
+    return `${(bytes / 1024).toFixed(2)} KB`;
+  };
+
+  const mapDocumentType = (filename: string, contentType?: string) => {
+    if (contentType?.includes('pdf') || filename.toLowerCase().endsWith('.pdf')) {
+      return 'PDF';
+    }
+    if (contentType?.includes('word') || filename.toLowerCase().endsWith('.docx')) {
+      return 'DOCX';
+    }
+    if (contentType?.includes('text') || filename.toLowerCase().endsWith('.txt')) {
+      return 'TXT';
+    }
+    return filename.split('.').pop()?.toUpperCase() || 'FILE';
+  };
+
+  const mapDocumentStatus = (status: DocumentApi['status']): UploadItem['status'] => {
+    if (status === 'PROCESSED') return 'Completed';
+    if (status === 'FAILED') return 'Failed';
+    return 'Processing';
+  };
+
+  const loadKnowledgeBases = async () => {
+    setIsLoadingKb(true);
+    try {
+      const response = await fetch('/api/knowledge-bases', {
+        headers: {
+          ...getAuthHeaders(),
+        },
+      });
+
+      if (!response.ok) {
+        const message = await extractApiMessage(response, 'Không tải được danh sách kho tri thức.');
+        throw new Error(message);
+      }
+
+      const payload = (await response.json()) as ApiResponse<KnowledgeBaseApi[]>;
+      const knowledgeBases = payload.data || [];
+
+      const countsEntries = await Promise.all(
+        knowledgeBases.map(async (kb) => {
+          try {
+            const docsRes = await fetch(`/api/knowledge-bases/${kb.id}/documents`, {
+              headers: {
+                ...getAuthHeaders(),
+              },
+            });
+            if (!docsRes.ok) {
+              return [kb.id, 0] as const;
+            }
+            const docsPayload = (await docsRes.json()) as ApiResponse<DocumentApi[]>;
+            return [kb.id, docsPayload.data?.length || 0] as const;
+          } catch {
+            return [kb.id, 0] as const;
+          }
+        })
+      );
+
+      const countMap = new Map(countsEntries);
+
+      const mapped: SourceItem[] = knowledgeBases.map((kb) => ({
+        id: kb.id,
+        name: kb.name,
+        desc: kb.description || 'No description',
+        status: 'synced',
+        count: `${countMap.get(kb.id) || 0} Docs`,
+        time: formatTimeAgo(kb.createdAt),
+        icon: FileText,
+        color: 'blue',
+      }));
+
+      setSources(mapped);
+
+      if (!mapped.some((item) => item.id === selectedKbForUpload)) {
+        setSelectedKbForUpload(mapped[0]?.id || '');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không tải được danh sách kho tri thức.';
+      showToast(message, 'error');
+      setSources([]);
+      setSelectedKbForUpload('');
+    } finally {
+      setIsLoadingKb(false);
+    }
+  };
+
+  const loadDocumentsByKb = async (knowledgeBaseId: string) => {
+    if (!knowledgeBaseId) {
+      setUploads([]);
+      return;
+    }
+
+    setIsLoadingUploads(true);
+    try {
+      const response = await fetch(`/api/knowledge-bases/${knowledgeBaseId}/documents`, {
+        headers: {
+          ...getAuthHeaders(),
+        },
+      });
+
+      if (!response.ok) {
+        const message = await extractApiMessage(response, 'Không tải được danh sách tài liệu.');
+        throw new Error(message);
+      }
+
+      const payload = (await response.json()) as ApiResponse<DocumentApi[]>;
+      const mapped: UploadItem[] = (payload.data || []).map((doc) => {
+        const type = mapDocumentType(doc.filename, doc.contentType);
+        const status = mapDocumentStatus(doc.status);
+        return {
+          id: doc.id,
+          name: doc.filename,
+          type,
+          status,
+          size: formatFileSize(doc.size),
+          date: doc.createdAt
+            ? new Date(doc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : 'N/A',
+          color: type === 'PDF' ? 'text-[#ff0000]' : type === 'DOCX' ? 'text-blue-500' : 'text-[#a1a4a5]',
+          previewContent: null,
+        };
+      });
+
+      setUploads(mapped);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không tải được danh sách tài liệu.';
+      showToast(message, 'error');
+      setUploads([]);
+    } finally {
+      setIsLoadingUploads(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadKnowledgeBases();
+  }, []);
+
+  useEffect(() => {
+    void loadDocumentsByKb(selectedKbForUpload);
+  }, [selectedKbForUpload]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [uploads.length]);
+
+  const handleRefreshUploads = async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
+    await loadDocumentsByKb(selectedKbForUpload);
+    setIsRefreshing(false);
   };
 
   const totalPages = Math.ceil(uploads.length / itemsPerPage);
@@ -115,8 +323,7 @@ export default function KnowledgeBase() {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
 
-  const openDeleteUploadConfirmation = (idx: number) => {
-    const upload = uploads[idx];
+  const openDeleteUploadConfirmation = (upload: UploadItem) => {
     setConfirmModal({
       isOpen: true,
       type: 'delete_upload',
@@ -130,26 +337,45 @@ export default function KnowledgeBase() {
           </span>
         </>
       ),
-      targetIndex: idx
+      targetUploadId: upload.id,
+      targetName: upload.name,
     });
   };
 
-  const handleViewDetails = (upload: any) => {
+  const handleViewDetails = (upload: UploadItem) => {
     setSelectedUpload(upload);
     setIsDetailsModalOpen(true);
   };
 
-  const handlePreview = async (file: any) => {
+  const handlePreview = async (file: UploadItem) => {
     setIsPreviewLoading(true);
     setIsPreviewModalOpen(true);
     
     try {
       if (file.type === 'TXT') {
-        setPreviewData({
-          name: file.name,
-          type: file.type,
-          content: file.previewContent || 'No content available.'
-        });
+        if (file.previewContent) {
+          setPreviewData({
+            name: file.name,
+            type: file.type,
+            content: file.previewContent,
+          });
+        } else {
+          const response = await fetch(`/api/documents/${file.id}/preview`, {
+            headers: {
+              ...getAuthHeaders(),
+            },
+          });
+          if (!response.ok) {
+            const message = await extractApiMessage(response, 'Không tải được nội dung xem trước.');
+            throw new Error(message);
+          }
+          const payload = (await response.json()) as ApiResponse<string>;
+          setPreviewData({
+            name: file.name,
+            type: file.type,
+            content: payload.data || 'No content available.',
+          });
+        }
       } else if (file.type === 'PDF') {
         if (file.fileObject) {
           const arrayBuffer = await file.fileObject.arrayBuffer();
@@ -213,10 +439,11 @@ export default function KnowledgeBase() {
       }
     } catch (error) {
       console.error('Preview error:', error);
+      const message = error instanceof Error ? error.message : 'Lỗi tải nội dung xem trước.';
       setPreviewData({
         name: file.name,
         type: file.type,
-        content: 'Error loading preview.'
+        content: message
       });
     } finally {
       setIsPreviewLoading(false);
@@ -231,17 +458,24 @@ export default function KnowledgeBase() {
     setPreviewData(null);
   };
 
-  const handleResyncUpload = (idx: number) => {
-    setUploads(prev => prev.map((u, i) => 
-      i === idx ? { ...u, status: 'Processing', color: 'text-blue-500' } : u
-    ));
-
-    setTimeout(() => {
-      setUploads(prev => prev.map((u, i) => 
-        i === idx ? { ...u, status: 'Completed', color: 'text-emerald-500' } : u
-      ));
+  const handleResyncUpload = async (uploadId: string) => {
+    try {
+      const response = await fetch(`/api/documents/${uploadId}/reprocess`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+        },
+      });
+      if (!response.ok) {
+        const message = await extractApiMessage(response, 'Đồng bộ lại tài liệu thất bại.');
+        throw new Error(message);
+      }
+      await loadDocumentsByKb(selectedKbForUpload);
       showToast(t('status.completed'), 'success');
-    }, 2000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Đồng bộ lại tài liệu thất bại.';
+      showToast(message, 'error');
+    }
   };
   
   // Form state
@@ -253,165 +487,203 @@ export default function KnowledgeBase() {
     type: 'delete' | 'edit' | 'delete_upload';
     title: string;
     message: React.ReactNode;
+    targetKbId?: string;
     targetName?: string;
-    targetIndex?: number;
+    targetUploadId?: string;
   }>({ isOpen: false, type: 'delete', title: '', message: '' });
 
   const openCreateModal = () => {
     setFormMode('create');
+    setEditingKbId(null);
     setKbName('');
     setKbDesc('');
     setIsCreateModalOpen(true);
   };
 
-  const openEditModal = (source: any) => {
+  const openEditModal = (source: SourceItem) => {
     setFormMode('edit');
-    setEditingKbOriginalName(source.name);
+    setEditingKbId(source.id);
     setKbName(source.name);
     setKbDesc(source.desc);
     setIsCreateModalOpen(true);
   };
 
-  const handleDeleteClick = (name: string) => {
+  const handleDeleteClick = (source: SourceItem) => {
     setConfirmModal({
       isOpen: true,
       type: 'delete',
       title: t('kb.confirm.delete.title'),
       message: (
         <>
-          {t('kb.confirm.delete.msg')} <span className="font-bold text-[#f0f0f0]">"{name}"</span>?
+          {t('kb.confirm.delete.msg')} <span className="font-bold text-[#f0f0f0]">"{source.name}"</span>?
           <br />
           <span className="text-[#ff0000] font-medium mt-2 block">
             {t('kb.confirm.delete.undone')}
           </span>
         </>
       ),
-      targetName: name
+      targetKbId: source.id,
+      targetName: source.name,
     });
   };
 
-  const executeDelete = () => {
+  const executeDelete = async () => {
     if (confirmModal.type === 'delete_upload') {
-      const idxToDelete = confirmModal.targetIndex;
-      if (idxToDelete !== undefined) {
-        setUploads(prev => prev.filter((_, i) => i !== idxToDelete));
-        showToast(t('toast.kb_deleted'), 'success');
+      if (confirmModal.targetUploadId) {
+        try {
+          const response = await fetch(`/api/documents/${confirmModal.targetUploadId}`, {
+            method: 'DELETE',
+            headers: {
+              ...getAuthHeaders(),
+            },
+          });
+          if (!response.ok) {
+            const message = await extractApiMessage(response, 'Xóa tài liệu thất bại.');
+            throw new Error(message);
+          }
+          await loadDocumentsByKb(selectedKbForUpload);
+          await loadKnowledgeBases();
+          showToast(t('toast.kb_deleted'), 'success');
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Xóa tài liệu thất bại.';
+          showToast(message, 'error');
+        }
       }
-    } else {
-      const nameToDelete = confirmModal.targetName;
-      if (nameToDelete) {
-        setSources(prev => prev.filter(s => s.name !== nameToDelete));
-        showToast(t('toast.kb_deleted'), 'success');
-        if (selectedKbForUpload === nameToDelete) {
-          const remaining = sources.filter(s => s.name !== nameToDelete);
-          setSelectedKbForUpload(remaining.length > 0 ? remaining[0].name : '');
+      } else {
+        if (confirmModal.targetKbId) {
+          try {
+            const deletingSelected = selectedKbForUpload === confirmModal.targetKbId;
+            const response = await fetch(`/api/knowledge-bases/${confirmModal.targetKbId}`, {
+              method: 'DELETE',
+              headers: {
+                ...getAuthHeaders(),
+              },
+          });
+            if (!response.ok) {
+              const message = await extractApiMessage(response, 'Xóa kho tri thức thất bại.');
+              throw new Error(message);
+            }
+            await loadKnowledgeBases();
+            if (deletingSelected) {
+              setSelectedKbForUpload('');
+              setUploads([]);
+            }
+            showToast(t('toast.kb_deleted'), 'success');
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Xóa kho tri thức thất bại.';
+            showToast(message, 'error');
         }
       }
     }
     setConfirmModal(prev => ({ ...prev, isOpen: false }));
   };
 
-  const handleSaveClick = () => {
+  const handleSaveClick = async () => {
     if (!kbName.trim()) return;
     if (formMode === 'edit') {
+      const editingName = sources.find((s) => s.id === editingKbId)?.name || kbName;
       setConfirmModal({
         isOpen: true,
         type: 'edit',
         title: t('kb.confirm.edit.title'),
         message: (
           <>
-            {t('kb.confirm.edit.msg')} <span className="font-bold text-[#f0f0f0]">"{editingKbOriginalName}"</span>?
+            {t('kb.confirm.edit.msg')} <span className="font-bold text-[#f0f0f0]">"{editingName}"</span>?
           </>
         ),
       });
     } else {
-      executeSave();
+      await executeSave();
     }
   };
 
-  const executeSave = () => {
-    if (formMode === 'create') {
-      const newSource = {
-        name: kbName,
-        desc: kbDesc || 'Newly created knowledge base.',
-        status: 'idle',
-        count: '0 Docs',
-        time: 'Just now',
-        icon: FileText,
-        color: 'blue'
+  const executeSave = async () => {
+    try {
+      const requestBody = {
+        name: kbName.trim(),
+        description: kbDesc.trim(),
       };
-      setSources([newSource, ...sources]);
-      setSelectedKbForUpload(newSource.name);
-      showToast(t('toast.kb_created'), 'success');
-    } else {
-      setSources(prev => prev.map(s => {
-        if (s.name === editingKbOriginalName) {
-          return {
-            ...s,
-            name: kbName,
-            desc: kbDesc,
-            icon: FileText
-          };
+
+      if (formMode === 'create') {
+        const response = await fetch('/api/knowledge-bases', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify(requestBody),
+        });
+        if (!response.ok) {
+          const message = await extractApiMessage(response, 'Tạo kho tri thức thất bại.');
+          throw new Error(message);
         }
-        return s;
-      }));
-      showToast(t('toast.kb_created'), 'success'); // Reusing created for simplicity or I could add updated
-      if (selectedKbForUpload === editingKbOriginalName) {
-        setSelectedKbForUpload(kbName);
+        const payload = (await response.json()) as ApiResponse<KnowledgeBaseApi>;
+        await loadKnowledgeBases();
+        if (payload.data?.id) {
+          setSelectedKbForUpload(payload.data.id);
+          await loadDocumentsByKb(payload.data.id);
+        }
+      } else if (editingKbId) {
+        const response = await fetch(`/api/knowledge-bases/${editingKbId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify(requestBody),
+        });
+        if (!response.ok) {
+          const message = await extractApiMessage(response, 'Cập nhật kho tri thức thất bại.');
+          throw new Error(message);
+        }
+        await loadKnowledgeBases();
       }
+
+      showToast(
+        formMode === 'create' ? t('toast.kb_created') : (t('toast.kb_updated') || 'Knowledge base updated successfully!'),
+        'success'
+      );
+      setIsCreateModalOpen(false);
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Lưu kho tri thức thất bại.';
+      showToast(message, 'error');
     }
-    
-    setIsCreateModalOpen(false);
-    setConfirmModal(prev => ({ ...prev, isOpen: false }));
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    if (!selectedKbForUpload) {
+      showToast('Please select a knowledge base first.', 'error');
+      return;
+    }
+
     const file = files[0];
-    const reader = new FileReader();
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
 
-    const processFile = (previewContent: string | null = null) => {
-      const newUpload = {
-        name: file.name,
-        type: file.name.split('.').pop()?.toUpperCase() || 'UNKNOWN',
-        status: 'Processing',
-        size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        color: file.name.toLowerCase().endsWith('.pdf') ? 'text-[#ff0000]' : 
-               file.name.toLowerCase().endsWith('.docx') ? 'text-blue-500' : 'text-[#a1a4a5]',
-        previewContent,
-        fileObject: file // Store the file object for later preview
-      };
+      const response = await fetch(`/api/knowledge-bases/${selectedKbForUpload}/documents`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+        },
+        body: formData,
+      });
 
-      setUploads(prev => [newUpload, ...prev]);
-      showToast(t('toast.kb_created'), 'success');
-      
-      // Simulate processing -> completed
-      setTimeout(() => {
-        setUploads(prev => prev.map(u => 
-          u.name === file.name && u.status === 'Processing' ? { ...u, status: 'Completed', color: u.type === 'PDF' ? 'text-[#ff0000]' : u.type === 'DOCX' ? 'text-blue-500' : 'text-emerald-500' } : u
-        ));
-        
-        // Update the doc count for the selected KB
-        setSources(prev => prev.map(s => {
-          if (s.name === selectedKbForUpload) {
-            const currentCount = parseInt(s.count.split(' ')[0]) || 0;
-            return { ...s, count: `${currentCount + 1} Docs`, status: 'synced', time: 'Just now' };
-          }
-          return s;
-        }));
-      }, 2000);
-    };
+      if (!response.ok) {
+        const message = await extractApiMessage(response, 'Tải tệp lên thất bại.');
+        throw new Error(message);
+      }
 
-    if (file.name.toLowerCase().endsWith('.txt')) {
-      reader.onload = (event) => {
-        processFile(event.target?.result as string);
-      };
-      reader.readAsText(file);
-    } else {
-      processFile(null);
+      await loadDocumentsByKb(selectedKbForUpload);
+      await loadKnowledgeBases();
+      showToast(t('toast.file_uploaded') || 'Tải tệp lên thành công!', 'success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tải tệp lên thất bại.';
+      showToast(message, 'error');
     }
 
     // Reset input
@@ -447,14 +719,22 @@ export default function KnowledgeBase() {
 
           <div className="bg-[#000000] rounded-[16px] shadow-md shadow-black/40 border border-[rgba(255,255,255,0.3)] overflow-hidden">
             <div className="p-6 space-y-3">
-              {sources.length === 0 ? (
+              {isLoadingKb ? (
+                Array.from({ length: 3 }).map((_, idx) => (
+                  <div key={`kb-skeleton-${idx}`} className="p-4 border border-[rgba(255,255,255,0.3)] rounded-[16px] animate-pulse">
+                    <div className="h-4 w-1/3 bg-[rgba(255,255,255,0.08)] rounded mb-3"></div>
+                    <div className="h-3 w-2/3 bg-[rgba(255,255,255,0.06)] rounded mb-2"></div>
+                    <div className="h-3 w-1/5 bg-[rgba(255,255,255,0.06)] rounded"></div>
+                  </div>
+                ))
+              ) : sources.length === 0 ? (
                 <div className="text-center py-12">
                   <Database size={48} className="mx-auto text-[rgba(255,255,255,0.3)] mb-4" />
                   <p className="text-[#a1a4a5] font-medium">{t('kb.no_sources')}</p>
                 </div>
               ) : (
                 sources.map(source => (
-                  <div key={source.name} className="flex items-center justify-between p-4 bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] hover:border-primary/30 hover:shadow-md shadow-black/40 transition-all">
+                  <div key={source.id} className="flex items-center justify-between p-4 bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] hover:border-primary/30 hover:shadow-md shadow-black/40 transition-all">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-[12px] bg-[rgba(255,255,255,0.02)] flex items-center justify-center text-[#3b9eff] shrink-0">
                         <source.icon size={24} />
@@ -478,7 +758,7 @@ export default function KnowledgeBase() {
                         <Edit2 size={18} />
                       </button>
                       <button 
-                        onClick={() => handleDeleteClick(source.name)} 
+                        onClick={() => handleDeleteClick(source)} 
                         className="p-2 text-[#ff0000] hover:bg-[#ff0000]/10 rounded-[12px] transition-colors"
                         title="Delete"
                       >
@@ -513,10 +793,38 @@ export default function KnowledgeBase() {
               <button onClick={() => setCurrentView('manage')} className="text-[#3b9eff] text-sm font-semibold hover:underline">{t('dashboard.view_all')}</button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sources.slice(0, 3).map((source) => (
-                <div key={source.name} className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              {isLoadingKb ? (
+                Array.from({ length: 3 }).map((_, idx) => (
+                  <div key={`overview-kb-skeleton-${idx}`} className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] p-5 animate-pulse">
+                    <div className="h-24 bg-[rgba(255,255,255,0.05)] rounded-[12px] mb-4"></div>
+                    <div className="h-4 w-2/3 bg-[rgba(255,255,255,0.08)] rounded mb-2"></div>
+                    <div className="h-3 w-full bg-[rgba(255,255,255,0.06)] rounded mb-1"></div>
+                    <div className="h-3 w-5/6 bg-[rgba(255,255,255,0.06)] rounded"></div>
+                  </div>
+                ))
+              ) : (
+                sources.slice(0, 3).map((source) => (
+                <div key={source.id} className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                   <div className="h-32 bg-[rgba(255,255,255,0.02)] flex items-center justify-center relative">
                     <source.icon size={48} className="text-[#3b9eff]/20 group-hover:scale-110 transition-transform" />
+                    <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openEditModal(source)}
+                        className="p-2 text-[#3b9eff] hover:bg-[rgba(59,158,255,0.08)] rounded-[12px] transition-colors"
+                        title="Edit"
+                        type="button"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(source)}
+                        className="p-2 text-[#ff0000] hover:bg-[#ff0000]/10 rounded-[12px] transition-colors"
+                        title="Delete"
+                        type="button"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                   <div className="p-5">
                     <h4 className="font-bold text-[#f0f0f0] mb-1">{source.name}</h4>
@@ -527,7 +835,7 @@ export default function KnowledgeBase() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )))}
             </div>
           </section>
 
@@ -540,10 +848,14 @@ export default function KnowledgeBase() {
                 <select 
                   value={selectedKbForUpload}
                   onChange={(e) => setSelectedKbForUpload(e.target.value)}
+                  disabled={isLoadingKb || sources.length === 0}
                   className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-sm font-medium outline-none"
                 >
+                  {sources.length === 0 && (
+                    <option value="" className="bg-[#000000] text-[#f0f0f0]">No knowledge base</option>
+                  )}
                   {sources.map(s => (
-                    <option key={s.name} value={s.name} className="bg-[#000000] text-[#f0f0f0]">{s.name}</option>
+                    <option key={s.id} value={s.id} className="bg-[#000000] text-[#f0f0f0]">{s.name}</option>
                   ))}
                 </select>
               </div>
@@ -600,7 +912,24 @@ export default function KnowledgeBase() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[rgba(255,255,255,0.3)]">
-                    {paginatedUploads.map((file, idx) => (
+                    {isLoadingUploads ? (
+                      Array.from({ length: 3 }).map((_, idx) => (
+                        <tr key={`doc-skeleton-${idx}`} className="animate-pulse">
+                          <td className="px-6 py-4"><div className="h-4 w-40 bg-[rgba(255,255,255,0.08)] rounded"></div></td>
+                          <td className="px-6 py-4"><div className="h-4 w-12 bg-[rgba(255,255,255,0.08)] rounded"></div></td>
+                          <td className="px-6 py-4"><div className="h-4 w-24 bg-[rgba(255,255,255,0.08)] rounded"></div></td>
+                          <td className="px-6 py-4"><div className="h-4 w-16 bg-[rgba(255,255,255,0.08)] rounded"></div></td>
+                          <td className="px-6 py-4"><div className="h-4 w-20 bg-[rgba(255,255,255,0.08)] rounded"></div></td>
+                          <td className="px-6 py-4"><div className="h-4 w-16 ml-auto bg-[rgba(255,255,255,0.08)] rounded"></div></td>
+                        </tr>
+                      ))
+                    ) : paginatedUploads.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-8 text-center text-sm text-[#a1a4a5]">
+                          {t('kb.no_sources')}
+                        </td>
+                      </tr>
+                    ) : paginatedUploads.map((file, idx) => (
                       <tr key={`${file.name}-${idx}`} className="hover:bg-[rgba(255,255,255,0.02)]/50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -626,7 +955,7 @@ export default function KnowledgeBase() {
                           <div className="flex items-center justify-end gap-1">
                             {file.status === 'Failed' && (
                               <button 
-                                onClick={() => handleResyncUpload(idx)}
+                                onClick={() => handleResyncUpload(file.id)}
                                 className="p-2 text-[#3b9eff] hover:bg-[rgba(59,158,255,0.05)] rounded-[12px] transition-colors"
                                 title={t('common.retry') || 'Retry Sync'}
                               >
@@ -641,7 +970,7 @@ export default function KnowledgeBase() {
                               <Eye size={18} />
                             </button>
                             <button 
-                              onClick={() => openDeleteUploadConfirmation(idx)}
+                              onClick={() => openDeleteUploadConfirmation(file)}
                               className="p-2 text-[#ff0000] hover:bg-[#ff0000]/10 rounded-[12px] transition-colors"
                               title={t('common.delete')}
                             >

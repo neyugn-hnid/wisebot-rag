@@ -22,8 +22,20 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
     @Query("SELECT DISTINCT u FROM UserEntity u LEFT JOIN FETCH u.roles WHERE u.username = :username")
     Optional<UserEntity> findByUsernameWithRoles(@Param("username") String username);
 
+    @Query("SELECT DISTINCT u FROM UserEntity u LEFT JOIN FETCH u.roles WHERE lower(u.email) = lower(:email)")
+    Optional<UserEntity> findByEmailWithRoles(@Param("email") String email);
+
+    @Query("SELECT DISTINCT u FROM UserEntity u LEFT JOIN FETCH u.roles WHERE lower(u.username) = lower(:identifier) OR lower(u.email) = lower(:identifier)")
+    Optional<UserEntity> findByUsernameOrEmailWithRoles(@Param("identifier") String identifier);
+
     @Query("SELECT u FROM UserEntity u LEFT JOIN FETCH u.roles WHERE u.username = :username")
     Optional<UserEntity> findByUsername(@Param("username") String username);
+
+    @Query("SELECT u FROM UserEntity u LEFT JOIN FETCH u.roles WHERE lower(u.email) = lower(:email)")
+    Optional<UserEntity> findByEmail(@Param("email") String email);
+
+    @Query("SELECT u FROM UserEntity u LEFT JOIN FETCH u.roles WHERE lower(u.username) = lower(:identifier) OR lower(u.email) = lower(:identifier)")
+    Optional<UserEntity> findByUsernameOrEmail(@Param("identifier") String identifier);
 
     @Query("SELECT u FROM UserEntity u LEFT JOIN FETCH u.roles WHERE u.id = :id")
     Optional<UserEntity> findById(@Param("id") UUID id);

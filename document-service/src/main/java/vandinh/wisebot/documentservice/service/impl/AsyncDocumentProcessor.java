@@ -35,7 +35,7 @@ public class AsyncDocumentProcessor {
     private final EmbeddingClient embeddingClient;
 
     @Async
-    public void processDocumentAsync(UUID documentId, UUID knowledgeBaseId, byte[] fileContent) {
+    public void processDocumentAsync(UUID documentId, UUID tenantId, UUID knowledgeBaseId, byte[] fileContent) {
         log.info("Starting async processing for document: {}", documentId);
         
         Document document = documentRepository.findById(documentId).orElse(null);
@@ -69,7 +69,7 @@ public class AsyncDocumentProcessor {
             }
             documentChunkRepository.saveAll(chunkEntities);
 
-            boolean embedded = embedChunks(documentId, knowledgeBaseId, chunkEntities);
+            boolean embedded = embedChunks(documentId, tenantId, knowledgeBaseId, chunkEntities);
             document.setStatus(embedded ? DocumentStatus.PROCESSED : DocumentStatus.FAILED);
             documentRepository.save(document);
             log.info("Finished async processing for document: {}. Status: {}", documentId, document.getStatus());
@@ -82,7 +82,7 @@ public class AsyncDocumentProcessor {
     }
 
     @Async
-    public void reprocessDocumentAsync(UUID documentId, UUID knowledgeBaseId, List<DocumentChunk> chunks) {
+    public void reprocessDocumentAsync(UUID documentId, UUID tenantId, UUID knowledgeBaseId, List<DocumentChunk> chunks) {
         log.info("Starting async reprocessing for document: {}", documentId);
         Document document = documentRepository.findById(documentId).orElse(null);
         if (document == null) {
@@ -91,7 +91,7 @@ public class AsyncDocumentProcessor {
         }
 
         try {
-            boolean embedded = embedChunks(documentId, knowledgeBaseId, chunks);
+            boolean embedded = embedChunks(documentId, tenantId, knowledgeBaseId, chunks);
             document.setStatus(embedded ? DocumentStatus.PROCESSED : DocumentStatus.FAILED);
             documentRepository.save(document);
             log.info("Finished async reprocessing for document: {}. Status: {}", documentId, document.getStatus());
@@ -102,7 +102,7 @@ public class AsyncDocumentProcessor {
         }
     }
 
-    private boolean embedChunks(UUID documentId, UUID knowledgeBaseId, List<DocumentChunk> chunks) {
+    private boolean embedChunks(UUID documentId, UUID tenantId, UUID knowledgeBaseId, List<DocumentChunk> chunks) {
         try {
             List<EmbeddingRequest.EmbeddingChunk> requestChunks = chunks.stream()
                     .map(c -> EmbeddingRequest.EmbeddingChunk.builder()
@@ -112,6 +112,7 @@ public class AsyncDocumentProcessor {
                     .toList();
 
             EmbeddingRequest request = EmbeddingRequest.builder()
+                    .tenantId(tenantId)
                     .knowledgeBaseId(knowledgeBaseId)
                     .documentId(documentId)
                     .chunks(requestChunks)

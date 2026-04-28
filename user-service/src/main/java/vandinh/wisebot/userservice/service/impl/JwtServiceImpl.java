@@ -44,19 +44,25 @@ public class JwtServiceImpl implements JwtService {
     private String refreshKey;
 
     @Override
-    public String generateAccessToken(UUID userId, String email, List<String> authorities) {
+    public String generateAccessToken(UUID userId, UUID tenantId, String email, List<String> authorities) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", authorities);
         claims.put("userId", userId.toString());
+        if (tenantId != null) {
+            claims.put("tenantId", tenantId.toString());
+        }
         claims.put("email", email);
         return createAccessToken(claims, userId);
     }
 
     @Override
-    public String generateRefreshToken(UUID userId, String email, List<String> authorities) {
+    public String generateRefreshToken(UUID userId, UUID tenantId, String email, List<String> authorities) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", authorities);
         claims.put("userId", userId.toString());
+        if (tenantId != null) {
+            claims.put("tenantId", tenantId.toString());
+        }
         claims.put("email", email);
         return createRefreshToken(claims, userId);
     }
