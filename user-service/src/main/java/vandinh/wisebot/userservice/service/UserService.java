@@ -11,13 +11,13 @@ import vandinh.wisebot.userservice.dto.response.UserResponse;
 import java.util.UUID;
 
 public interface UserService {
-    UserPageResponse getAllUser(String keyword, String sort, int page, int size);
+    UserPageResponse getAllUser(String keyword, String role, String status, String sort, int page, int size);
     UserResponse getUserById(UUID id);
     UserResponse getProfile(UUID id);
     void adminUpdateUser(AdminUserUpdateRequest request, UUID id);
     void updateUser(UserUpdateRequest request, UUID id);
     void updateEmail(EmailUpdateRequest request, UUID id);
-    void changeStatus(ChangeStatusRequest request, UUID id);
+    void changeStatus(ChangeStatusRequest request, UUID id, UUID actorId);
     void changePassword(ChangePasswordRequest request, UUID id);
     void deleteUser(UUID id, UUID actorId);
 

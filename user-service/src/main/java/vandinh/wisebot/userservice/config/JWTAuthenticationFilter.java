@@ -81,6 +81,11 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails user = serviceDetail.loadUserById(userId);
 
+                if (!user.isEnabled()) {
+                    writeErrorResponse(response, request.getRequestURI(), "Tài khoản đã bị khóa");
+                    return;
+                }
+
                 if (jwtService.isTokenValid(token, user)) {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());

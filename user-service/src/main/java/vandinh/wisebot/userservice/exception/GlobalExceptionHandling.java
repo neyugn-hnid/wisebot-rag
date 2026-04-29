@@ -4,6 +4,7 @@ import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -51,7 +52,12 @@ public class GlobalExceptionHandling {
     @ExceptionHandler({InternalAuthenticationServiceException.class,
             BadCredentialsException.class})
     public ErrorResponse handleInternalAuthenticationServiceException(Exception e, WebRequest request) {
-        return buildErrorResponse(e, request, UNAUTHORIZED, UNAUTHORIZED.getReasonPhrase(), "Email or password is incorrect");
+        return buildErrorResponse(e, request, UNAUTHORIZED, UNAUTHORIZED.getReasonPhrase(), e.getMessage());
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ErrorResponse handleDisabledException(DisabledException e, WebRequest request) {
+        return buildErrorResponse(e, request, UNAUTHORIZED, UNAUTHORIZED.getReasonPhrase(), e.getMessage());
     }
 
     @ExceptionHandler({ForBiddenException.class, AccessDeniedException.class})

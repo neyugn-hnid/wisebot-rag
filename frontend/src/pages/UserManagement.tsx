@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import {
@@ -12,6 +12,7 @@ import {
   Edit2,
   Trash2,
   Lock,
+  LockOpen,
   Search,
   Filter,
   ArrowUpDown,
@@ -81,6 +82,7 @@ export default function UserManagement() {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [appliedSearchKeyword, setAppliedSearchKeyword] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'owner' | 'user'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'suspended'>('all');
   const [sortOption, setSortOption] = useState<'newest' | 'oldest' | 'name_asc' | 'name_desc'>('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -89,6 +91,7 @@ export default function UserManagement() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusActionUserId, setStatusActionUserId] = useState<string | null>(null);
 
   const extractApiMessage = async (response: Response, fallbackMessage: string) => {
     try {
@@ -168,6 +171,14 @@ export default function UserManagement() {
         query.set('keyword', appliedSearchKeyword.trim());
       }
 
+      if (roleFilter !== 'all') {
+        query.set('role', roleFilter.toUpperCase());
+      }
+
+      if (statusFilter !== 'all') {
+        query.set('status', statusFilter === 'suspended' ? 'DISABLED' : statusFilter.toUpperCase());
+      }
+
       const response = await fetchWithAuth(`/api/user/list?${query.toString()}`);
       if (!response.ok) {
         const message = await extractApiMessage(response, 'Không tải được danh sách người dùng.');
@@ -196,16 +207,7 @@ export default function UserManagement() {
 
   useEffect(() => {
     void loadUsers();
-  }, [appliedSearchKeyword, currentPage, pageSize, sortOption]);
-
-  const filteredUsers = useMemo(() => {
-    if (roleFilter === 'all') {
-      return users;
-    }
-
-    const expectedRole = roleFilter.toUpperCase();
-    return users.filter((user) => user.globalRole === expectedRole);
-  }, [roleFilter, users]);
+  }, [appliedSearchKeyword, roleFilter, statusFilter, currentPage, pageSize, sortOption]);
 
   const stats = [
     { label: t('users.stats.total'), value: totalElements.toString(), icon: Users },
@@ -350,13 +352,57 @@ export default function UserManagement() {
     }
   };
 
+  const handleToggleUserStatus = async (user: SystemUser) => {
+    const nextStatus: SystemUser['status'] = user.status === 'Suspended' ? 'Active' : 'Suspended';
+    setStatusActionUserId(user.id);
+
+    try {
+      const response = await fetchWithAuth(`/api/user/${user.id}/change-status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          newStatus: toApiStatus(nextStatus),
+        }),
+      });
+
+      if (!response.ok) {
+        const message = await extractApiMessage(response, 'Không thể cập nhật trạng thái người dùng.');
+        throw new Error(message);
+      }
+
+      if (statusFilter === 'all') {
+        setUsers((prev) => prev.map((item) => (
+          item.id === user.id
+            ? { ...item, status: nextStatus }
+            : item
+        )));
+      } else {
+        await loadUsers();
+      }
+
+      showToast(
+        nextStatus === 'Suspended'
+          ? 'Đã khóa tài khoản người dùng.'
+          : 'Đã mở khóa tài khoản người dùng.',
+        'success',
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể cập nhật trạng thái người dùng.';
+      showToast(message, 'error');
+    } finally {
+      setStatusActionUserId(null);
+    }
+  };
+
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setAppliedSearchKeyword(searchKeyword);
     setCurrentPage(1);
   };
 
-  const displayedCount = filteredUsers.length;
+  const displayedCount = users.length;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -401,13 +447,32 @@ export default function UserManagement() {
             <div className="relative w-full sm:w-auto">
               <select
                 value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
+                onChange={(e) => {
+                  setRoleFilter(e.target.value as typeof roleFilter);
+                  setCurrentPage(1);
+                }}
                 className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40"
               >
                 <option value="all" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Tất cả vai trò' : 'All Roles'}</option>
                 <option value="admin" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Quản trị viên' : 'Admin'}</option>
                 <option value="owner" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Chủ sở hữu' : 'Owner'}</option>
                 <option value="user" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Người dùng' : 'User'}</option>
+              </select>
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={14} />
+            </div>
+            <div className="relative w-full sm:w-auto">
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value as typeof statusFilter);
+                  setCurrentPage(1);
+                }}
+                className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40"
+              >
+                <option value="all" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Tất cả trạng thái' : 'All Statuses'}</option>
+                <option value="active" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Hoạt động' : 'Active'}</option>
+                <option value="pending" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Chờ kích hoạt' : 'Pending'}</option>
+                <option value="suspended" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Bị đình chỉ' : 'Suspended'}</option>
               </select>
               <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={14} />
             </div>
@@ -450,7 +515,7 @@ export default function UserManagement() {
                     </td>
                   </tr>
                 ))
-              ) : filteredUsers.map((user) => (
+              ) : users.map((user) => (
                 <tr key={user.id} className="hover:bg-[rgba(255,255,255,0.02)]/50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
@@ -506,6 +571,23 @@ export default function UserManagement() {
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
+                        onClick={() => handleToggleUserStatus(user)}
+                        disabled={statusActionUserId === user.id}
+                        className={cn(
+                          'p-2 rounded-[12px] transition-all disabled:opacity-60',
+                          user.status === 'Suspended'
+                            ? 'text-orange-400 hover:bg-orange-500/10'
+                            : 'text-emerald-400 hover:bg-emerald-500/10'
+                        )}
+                        title={
+                          language === 'vi'
+                            ? user.status === 'Suspended' ? 'Mở khóa tài khoản' : 'Khóa tài khoản'
+                            : user.status === 'Suspended' ? 'Unlock user' : 'Lock user'
+                        }
+                      >
+                        {user.status === 'Suspended' ? <Lock size={18} /> : <LockOpen size={18} />}
+                      </button>
+                      <button
                         onClick={() => openEditModal(user)}
                         className="p-2 text-[#3b9eff] hover:bg-[rgba(59,158,255,0.05)] rounded-[12px] transition-all"
                         title={t('common.edit')}
@@ -523,7 +605,7 @@ export default function UserManagement() {
                   </td>
                 </tr>
               ))}
-              {!isLoadingUsers && filteredUsers.length === 0 && (
+              {!isLoadingUsers && users.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-[#a1a4a5] text-sm">
                     {t('users.no_users')}

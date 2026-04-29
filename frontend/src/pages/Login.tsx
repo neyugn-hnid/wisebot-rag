@@ -18,6 +18,53 @@ type LoginResponse = {
   refreshToken: string;
 };
 
+type LoginErrorPayload = {
+  message?: string;
+  error?: string;
+};
+
+const EMPTY_LOGIN_FIELDS_MESSAGE = 'Vui lòng nhập email và mật khẩu.';
+const SERVER_ERROR_MESSAGE = 'Không nhận được thông báo lỗi từ máy chủ.';
+const INVALID_LOGIN_RESPONSE_MESSAGE = 'Phản hồi đăng nhập không hợp lệ.';
+const NETWORK_ERROR_MESSAGE = 'Không thể kết nối đến máy chủ.';
+
+const extractErrorMessage = async (response: Response) => {
+  const rawText = await response.text();
+  if (!rawText.trim()) {
+    return SERVER_ERROR_MESSAGE;
+  }
+
+  try {
+    const payload = JSON.parse(rawText) as LoginErrorPayload;
+
+    if (payload.message?.trim()) {
+      return payload.message.trim();
+    }
+
+    if (payload.error?.trim()) {
+      return payload.error.trim();
+    }
+  } catch {
+    if (!rawText.startsWith('<!DOCTYPE html') && !rawText.startsWith('<html')) {
+      return rawText.trim();
+    }
+  }
+
+  return SERVER_ERROR_MESSAGE;
+};
+
+const resolveLoginPayloadError = (payload: Partial<LoginResponse & LoginErrorPayload>) => {
+  if (payload.message?.trim() && !payload.accessToken && !payload.refreshToken) {
+    return payload.message.trim();
+  }
+
+  if (!payload.accessToken || !payload.refreshToken) {
+    return payload.error?.trim() || INVALID_LOGIN_RESPONSE_MESSAGE;
+  }
+
+  return null;
+};
+
 export default function Login() {
   const { t } = useLanguage();
   const { showToast } = useToast();
@@ -28,12 +75,19 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const clearLoginError = () => {
+    if (loginError) {
+      setLoginError('');
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setLoginError('');
 
     if (!email.trim() || !password.trim()) {
-      showToast('Vui lòng nhập email và mật khẩu.', 'error');
+      setLoginError(EMPTY_LOGIN_FIELDS_MESSAGE);
       return;
     }
 
@@ -52,34 +106,27 @@ export default function Login() {
       });
 
       if (!response.ok) {
-        let message = 'Email hoặc mật khẩu không đúng.';
-        try {
-          const errorPayload = (await response.json()) as { message?: string };
-          if (errorPayload?.message) {
-            message = errorPayload.message;
-          }
-        } catch {
-          // Keep fallback message when API does not return JSON.
-        }
+        const message = await extractErrorMessage(response);
         throw new Error(message);
       }
 
-      const data = (await response.json()) as LoginResponse;
-      if (!data?.accessToken || !data?.refreshToken) {
-        throw new Error('Email hoặc mật khẩu không đúng.');
+      const payload = (await response.json()) as LoginResponse & LoginErrorPayload;
+      const payloadError = resolveLoginPayloadError(payload);
+      if (payloadError) {
+        throw new Error(payloadError);
       }
 
       storeTokens({
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
+        accessToken: payload.accessToken,
+        refreshToken: payload.refreshToken,
       }, rememberMe ? 'local' : 'session');
-      syncFromAccessToken(data.accessToken);
+      syncFromAccessToken(payload.accessToken);
 
       showToast(t('toast.login_success'), 'success');
       navigate('/dashboard');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Không thể kết nối đến máy chủ.';
-      showToast(message, 'error');
+      const message = error instanceof Error ? error.message : NETWORK_ERROR_MESSAGE;
+      setLoginError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -105,7 +152,10 @@ export default function Login() {
                   type="email" 
                   placeholder="name@company.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearLoginError();
+                  }}
                   className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] pl-10 pr-4 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all placeholder:/40 rounded-[8px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40"
                   autoComplete="email"
                   required
@@ -124,7 +174,10 @@ export default function Login() {
                   type={showPassword ? "text" : "password"} 
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    clearLoginError();
+                  }}
                   className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] pl-10 pr-10 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all placeholder:/40 rounded-[8px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40"
                   autoComplete="current-password"
                   required
@@ -158,6 +211,12 @@ export default function Login() {
             >
               {isSubmitting ? 'Đang đăng nhập...' : t('auth.sign_in')}
             </button>
+
+            {loginError && (
+              <div className="rounded-[12px] text-center px-4 py-3 text-sm font-medium text-rose-600">
+                {loginError}
+              </div>
+            )}
           </form>
 
           <div className="relative py-2">

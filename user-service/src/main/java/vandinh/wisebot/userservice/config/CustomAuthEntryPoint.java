@@ -15,6 +15,8 @@ import java.util.Date;
 
 @Component
 public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
+    private static final String INVALID_CREDENTIALS_MESSAGE = "Email hoặc mật khẩu không đúng.";
+    private static final String LOCKED_ACCOUNT_MESSAGE = "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.";
 
     @Override
     public void commence(HttpServletRequest request,
@@ -30,7 +32,12 @@ public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
         errorResponse.setError("Unauthorized");
         String path = request.getRequestURI();
         if (path != null && path.startsWith("/auth/login")) {
-            errorResponse.setMessage("Sai email hoặc mật khẩu");
+            String authMessage = authException.getMessage();
+            if (authMessage != null && authMessage.toLowerCase().contains("disabled")) {
+                errorResponse.setMessage(LOCKED_ACCOUNT_MESSAGE);
+            } else {
+                errorResponse.setMessage(authMessage != null && !authMessage.isBlank() ? authMessage : INVALID_CREDENTIALS_MESSAGE);
+            }
         } else {
             errorResponse.setMessage("Bạn chưa đăng nhập hoặc token không hợp lệ");
         }

@@ -47,6 +47,9 @@ import static vandinh.wisebot.userservice.common.enums.TokenType.REFRESH_TOKEN;
 @RequiredArgsConstructor
 @Slf4j(topic = "AUTH-SERVICE")
 public class AuthServiceImpl implements AuthService {
+    private static final String INVALID_CREDENTIALS_MESSAGE = "Email hoặc mật khẩu không đúng.";
+    private static final String LOCKED_ACCOUNT_MESSAGE = "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.";
+
     private final JwtService jwtService;
     private final JwtBlacklistService jwtBlacklistService;
     private final UserRepository userRepository;
@@ -60,30 +63,42 @@ public class AuthServiceImpl implements AuthService {
     @Transactional(rollbackFor = Exception.class)
     public TokenResponse login(LoginRequest request) {
         try {
+            String identifier = request.getUsername() == null ? "" : request.getUsername().trim();
+            UserEntity user = userRepository.findByUsernameOrEmailWithRoles(identifier)
+                    .orElseThrow(() -> new BadCredentialsException(INVALID_CREDENTIALS_MESSAGE));
+
+            if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                throw new BadCredentialsException(INVALID_CREDENTIALS_MESSAGE);
+            }
+
+            if (user.getStatus() == UserStatus.DISABLED) {
+                throw new DisabledException(LOCKED_ACCOUNT_MESSAGE);
+            }
+
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+                    new UsernamePasswordAuthenticationToken(identifier, request.getPassword())
             );
 
-            log.info("Login success for account {}", request.getUsername());
+            log.info("Login success for account {}", identifier);
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            if (!(authentication.getPrincipal() instanceof UserEntity user)) {
+            if (!(authentication.getPrincipal() instanceof UserEntity authenticatedUser)) {
                 throw new UsernameNotFoundException("Không tìm thấy người dùng");
             }
 
-            user.setLoginProvider(LoginProvider.LOCAL);
-            user.setLastLogin(LocalDateTime.now());
-            userRepository.save(user);
+            authenticatedUser.setLoginProvider(LoginProvider.LOCAL);
+            authenticatedUser.setLastLogin(LocalDateTime.now());
+            userRepository.save(authenticatedUser);
 
             List<String> authorities = authentication.getAuthorities()
                     .stream()
                     .map(a -> a.getAuthority())
                     .toList();
 
-            UUID userId = user.getId();
-            UUID tenantId = user.getTenant() != null ? user.getTenant().getId() : null;
-            String accessToken = jwtService.generateAccessToken(userId, tenantId, user.getEmail(), authorities);
-            String refreshToken = jwtService.generateRefreshToken(userId, tenantId, user.getEmail(), authorities);
+            UUID userId = authenticatedUser.getId();
+            UUID tenantId = authenticatedUser.getTenant() != null ? authenticatedUser.getTenant().getId() : null;
+            String accessToken = jwtService.generateAccessToken(userId, tenantId, authenticatedUser.getEmail(), authorities);
+            String refreshToken = jwtService.generateRefreshToken(userId, tenantId, authenticatedUser.getEmail(), authorities);
 
             return TokenResponse.builder()
                     .accessToken(accessToken)
@@ -92,18 +107,18 @@ public class AuthServiceImpl implements AuthService {
 
         } catch (BadCredentialsException e) {
             log.warn("Password incorrect for user: {}", request.getUsername());
-            throw new BadCredentialsException("Sai tài khoản hoặc mật khẩu");
+            throw new BadCredentialsException(INVALID_CREDENTIALS_MESSAGE);
 
         } catch (InternalAuthenticationServiceException e) {
             log.warn("User does not exist: {}", request.getUsername());
 
             if (e.getCause() instanceof UsernameNotFoundException) {
-                throw new BadCredentialsException("Sai tài khoản hoặc mật khẩu");
+                throw new BadCredentialsException(INVALID_CREDENTIALS_MESSAGE);
             }
 
             throw new RuntimeException("Lỗi hệ thống khi xác thực", e);
         } catch (DisabledException e) {
-            throw new DisabledException("Tài khoản đã bị vô hiệu hóa");
+            throw new DisabledException(LOCKED_ACCOUNT_MESSAGE);
         }
     }
 
@@ -121,6 +136,10 @@ public class AuthServiceImpl implements AuthService {
             UserEntity user = userRepository.findById(userId)
                     .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng"));
 
+            if (user.getStatus() == UserStatus.DISABLED) {
+                throw new DisabledException(LOCKED_ACCOUNT_MESSAGE);
+            }
+
             if (!user.getEmail().equalsIgnoreCase(email)) {
                 throw new BadCredentialsException("Refresh token không hợp lệ");
             }
@@ -135,6 +154,8 @@ public class AuthServiceImpl implements AuthService {
                     .accessToken(jwtService.generateAccessToken(user.getId(), tenantId, user.getEmail(), authorities))
                     .refreshToken(jwtService.generateRefreshToken(user.getId(), tenantId, user.getEmail(), authorities))
                     .build();
+        } catch (DisabledException exception) {
+            throw exception;
         } catch (Exception exception) {
             throw new BadCredentialsException("Refresh token không hợp lệ");
         }

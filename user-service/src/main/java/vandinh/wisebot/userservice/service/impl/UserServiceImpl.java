@@ -20,6 +20,7 @@ import vandinh.wisebot.userservice.dto.request.ChangeStatusRequest;
 import vandinh.wisebot.userservice.dto.request.EmailUpdateRequest;
 import vandinh.wisebot.userservice.dto.request.UserUpdateRequest;
 import vandinh.wisebot.userservice.entity.Role;
+import vandinh.wisebot.userservice.dto.response.UserListStatsResponse;
 import vandinh.wisebot.userservice.dto.response.UserPageResponse;
 import vandinh.wisebot.userservice.dto.response.UserResponse;
 import vandinh.wisebot.userservice.entity.UserEntity;
@@ -46,16 +47,33 @@ public class UserServiceImpl implements UserService {
     private final RoleRepository roleRepository;
 
     @Override
-    public UserPageResponse getAllUser(String keyword, String sort, int page, int size) {
-        log.info("Fetching all users, page: {}, size: {}, keyword: {}", page, size, keyword);
+    public UserPageResponse getAllUser(String keyword, String role, String status, String sort, int page, int size) {
+        log.info("Fetching all users, page: {}, size: {}, keyword: {}, role: {}, status: {}", page, size, keyword, role, status);
 
         Sort.Order order = AppUtils.getSortOrder(sort);
         Pageable pageable = PageRequest.of(Math.max(page - 1, 0), size, Sort.by(order));
-        Page<UserEntity> entityPage = StringUtils.hasLength(keyword)
-                ? userRepository.searchByKeyword("%" + keyword + "%", pageable)
-                : userRepository.findAll(pageable);
+        RoleName roleName = parseRole(role);
+        UserStatus userStatus = parseStatus(status);
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
+        Page<UserEntity> entityPage = userRepository.searchUsers(normalizedKeyword, roleName, userStatus, pageable);
+        long adminCount = roleName == null
+                ? userRepository.countUsers(normalizedKeyword, RoleName.ADMIN, userStatus)
+                : roleName == RoleName.ADMIN ? entityPage.getTotalElements() : 0;
+        long activeCount = userStatus == null || userStatus == UserStatus.ACTIVE
+                ? userRepository.countUsers(normalizedKeyword, roleName, UserStatus.ACTIVE)
+                : 0;
+        long suspendedCount = userStatus == null || userStatus == UserStatus.DISABLED
+                ? userRepository.countUsers(normalizedKeyword, roleName, UserStatus.DISABLED)
+                : 0;
 
-        return userMapper.toUserPageResponse(entityPage, page, size);
+        UserPageResponse response = userMapper.toUserPageResponse(entityPage, page, size);
+        response.setStats(UserListStatsResponse.builder()
+                .total(entityPage.getTotalElements())
+                .admins(adminCount)
+                .active(activeCount)
+                .suspended(suspendedCount)
+                .build());
+        return response;
     }
 
     @Transactional
@@ -151,7 +169,11 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(cacheNames = "user-by-id", key = "#id")
-    public void changeStatus(ChangeStatusRequest request, UUID id) {
+    public void changeStatus(ChangeStatusRequest request, UUID id, UUID actorId) {
+        if (id.equals(actorId)) {
+            throw new InvalidDataException("Không thể tự thay đổi trạng thái của chính mình");
+        }
+
         UserEntity user = getUserEntity(id);
         user.setStatus(request.getNewStatus());
         userRepository.save(user);
@@ -190,5 +212,29 @@ public class UserServiceImpl implements UserService {
     private UserEntity getUserEntity(UUID id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+    }
+
+    private RoleName parseRole(String role) {
+        if (!StringUtils.hasText(role)) {
+            return null;
+        }
+
+        try {
+            return RoleName.valueOf(role.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            throw new InvalidDataException("Vai trò không hợp lệ");
+        }
+    }
+
+    private UserStatus parseStatus(String status) {
+        if (!StringUtils.hasText(status)) {
+            return null;
+        }
+
+        try {
+            return UserStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            throw new InvalidDataException("Trạng thái không hợp lệ");
+        }
     }
 }

@@ -32,6 +32,8 @@ public class UserController {
     @GetMapping("/list")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
     public ApiResponse getList(@RequestParam(required = false) String keyword,
+                               @RequestParam(required = false) String role,
+                               @RequestParam(required = false) String status,
                                @RequestParam(required = false) String sort,
                                @RequestParam(defaultValue = "0") int page,
                                @RequestParam(defaultValue = "20") int size) {
@@ -39,7 +41,7 @@ public class UserController {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
                 .message("users")
-                .data(userService.getAllUser(keyword, sort, page, size))
+                .data(userService.getAllUser(keyword, role, status, sort, page, size))
                 .build();
     }
 
@@ -105,12 +107,14 @@ public class UserController {
 
     @Operation(summary = "Change status", description = "API change status of user")
     @PatchMapping("/{id}/change-status")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
     public ApiResponse changeStatus(@PathVariable UUID id,
                                     @RequestBody
                                     @Valid
-                                    ChangeStatusRequest request) {
-        userService.changeStatus(request, id);
+                                    ChangeStatusRequest request,
+                                    Authentication authentication) {
+        UserEntity user = (UserEntity) authentication.getPrincipal();
+        userService.changeStatus(request, id, user.getId());
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
                 .message("Status changed successfully")
