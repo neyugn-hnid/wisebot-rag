@@ -4,6 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { useRole } from '../contexts/RoleContext';
 import { storeTokens } from '../lib/auth';
+import { login } from '../api/auth';
 import Logo from '../components/Logo';
 import { 
   Mail, 
@@ -13,57 +14,7 @@ import {
 } from 'lucide-react';
 import { GoogleIcon, GithubIcon } from '../components/SocialIcons';
 
-type LoginResponse = {
-  accessToken: string;
-  refreshToken: string;
-};
-
-type LoginErrorPayload = {
-  message?: string;
-  error?: string;
-};
-
-const EMPTY_LOGIN_FIELDS_MESSAGE = 'Vui lòng nhập email và mật khẩu.';
-const SERVER_ERROR_MESSAGE = 'Không nhận được thông báo lỗi từ máy chủ.';
-const INVALID_LOGIN_RESPONSE_MESSAGE = 'Phản hồi đăng nhập không hợp lệ.';
 const NETWORK_ERROR_MESSAGE = 'Không thể kết nối đến máy chủ.';
-
-const extractErrorMessage = async (response: Response) => {
-  const rawText = await response.text();
-  if (!rawText.trim()) {
-    return SERVER_ERROR_MESSAGE;
-  }
-
-  try {
-    const payload = JSON.parse(rawText) as LoginErrorPayload;
-
-    if (payload.message?.trim()) {
-      return payload.message.trim();
-    }
-
-    if (payload.error?.trim()) {
-      return payload.error.trim();
-    }
-  } catch {
-    if (!rawText.startsWith('<!DOCTYPE html') && !rawText.startsWith('<html')) {
-      return rawText.trim();
-    }
-  }
-
-  return SERVER_ERROR_MESSAGE;
-};
-
-const resolveLoginPayloadError = (payload: Partial<LoginResponse & LoginErrorPayload>) => {
-  if (payload.message?.trim() && !payload.accessToken && !payload.refreshToken) {
-    return payload.message.trim();
-  }
-
-  if (!payload.accessToken || !payload.refreshToken) {
-    return payload.error?.trim() || INVALID_LOGIN_RESPONSE_MESSAGE;
-  }
-
-  return null;
-};
 
 export default function Login() {
   const { t } = useLanguage();
@@ -87,34 +38,17 @@ export default function Login() {
     setLoginError('');
 
     if (!email.trim() || !password.trim()) {
-      setLoginError(EMPTY_LOGIN_FIELDS_MESSAGE);
+      setLoginError('Vui lòng nhập email và mật khẩu.');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: email.trim(),
-          password,
-        }),
+      const payload = await login({
+        username: email.trim(),
+        password,
       });
-
-      if (!response.ok) {
-        const message = await extractErrorMessage(response);
-        throw new Error(message);
-      }
-
-      const payload = (await response.json()) as LoginResponse & LoginErrorPayload;
-      const payloadError = resolveLoginPayloadError(payload);
-      if (payloadError) {
-        throw new Error(payloadError);
-      }
 
       storeTokens({
         accessToken: payload.accessToken,

@@ -5,87 +5,52 @@ import { useToast } from '../contexts/ToastContext';
 import { 
   CreditCard, 
   CheckCircle2, 
-  ArrowUpRight, 
   Download, 
   Zap,
-  Clock,
-  AlertCircle,
   Users,
   TrendingUp,
   DollarSign,
-  Plus,
-  Trash2,
-  MapPin,
-  Globe,
   X,
-  ChevronRight,
   ShieldCheck,
-  ToggleLeft,
-  ToggleRight,
   Loader2,
-  LayoutDashboard,
-  Bell,
   History
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useRole } from '../contexts/RoleContext';
+import {
+  listPlans,
+  listPlanPrices,
+  getMySubscription,
+  mySubscribe,
+  listMyInvoices,
+  BillingPlanResponse,
+  BillingPlanPriceResponse,
+  SubscriptionResponse,
+  BillingInvoiceResponse,
+} from '../api/billing';
 
-const userInvoices = [
-  { id: 'INV-2024-001', date: 'Jun 01, 2024', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2024-002', date: 'May 01, 2024', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2024-003', date: 'Apr 01, 2024', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2024-004', date: 'Mar 01, 2024', amount: '$49.00', status: 'REFUNDED' },
-  { id: 'INV-2024-005', date: 'Feb 01, 2024', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2024-006', date: 'Jan 01, 2024', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2023-012', date: 'Dec 01, 2023', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2023-011', date: 'Nov 01, 2023', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2023-010', date: 'Oct 01, 2023', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2023-009', date: 'Sep 01, 2023', amount: '$49.00', status: 'PAID' },
-];
+interface Invoice {
+  id: string;
+  date: string;
+  amount: string;
+  status: string;
+}
 
-const adminSubscriptions = [
-  { user: 'Alex Rivet', plan: 'Pro', amount: '$49.00', status: 'Active', date: 'Jun 01, 2024' },
-  { user: 'Sarah Chen', plan: 'Enterprise', amount: '$299.00', status: 'Active', date: 'May 28, 2024' },
-  { user: 'Mike Johnson', plan: 'Starter', amount: '$19.00', status: 'Past Due', date: 'May 15, 2024' },
-  { user: 'Emma Wilson', plan: 'Pro', amount: '$49.00', status: 'Canceled', date: 'May 10, 2024' },
-];
+interface PaymentMethod {
+  id: string;
+  type: string;
+  last4: string;
+  expiry: string;
+  isPrimary: boolean;
+}
 
-const defaultPaymentMethods = [
-  { id: 'pm_1', type: 'Visa', last4: '4242', exp: '12/26', isPrimary: true },
-  { id: 'pm_2', type: 'Mastercard', last4: '8888', exp: '08/25', isPrimary: false },
-];
-
-const loadPaymentMethods = () => {
+function loadPaymentMethods(): PaymentMethod[] {
   try {
     const saved = localStorage.getItem('paymentMethods');
-    if (saved) return JSON.parse(saved);
-  } catch (e) {}
-  return defaultPaymentMethods;
-};
-
-const availablePlans = [
-  { 
-    id: 'free', 
-    name: 'Free', 
-    price: 0, 
-    features: ['billing.plans.free.f1', 'billing.plans.free.f2', 'billing.plans.free.f3'],
-    color: 'slate'
-  },
-  { 
-    id: 'plus', 
-    name: 'Plus', 
-    price: 19, 
-    features: ['billing.plans.plus.f1', 'billing.plans.plus.f2', 'billing.plans.plus.f3', 'billing.plans.plus.f4'],
-    color: 'primary'
-  },
-  { 
-    id: 'pro', 
-    name: 'Pro', 
-    price: 49, 
-    features: ['billing.plans.pro.f1', 'billing.plans.pro.f2', 'billing.plans.pro.f3', 'billing.plans.pro.f4', 'billing.plans.pro.f5'],
-    color: 'indigo'
-  },
-];
+    if (saved) return JSON.parse(saved) as PaymentMethod[];
+  } catch { /* ignore */ }
+  return [];
+}
 
 export default function Billing() {
   const { t, language } = useLanguage();
@@ -96,12 +61,18 @@ export default function Billing() {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
-  const [currentPlan, setCurrentPlan] = useState('Free');
+  const [currentPlan, setCurrentPlan] = useState('');
   const [upgradeStep, setUpgradeStep] = useState<'selection' | 'checkout'>('selection');
-  const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<any>(null);
-  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
-  const [paymentMethodsList, setPaymentMethodsList] = useState(loadPaymentMethods);
-  const [invoices, setInvoices] = useState(userInvoices);
+  const [paymentMethodsList, setPaymentMethodsList] = useState<PaymentMethod[]>(loadPaymentMethods);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+
+  // --- Backend state ---
+  const [backendPlans, setBackendPlans] = useState<BillingPlanResponse[]>([]);
+  const [backendPlanPrices, setBackendPlanPrices] = useState<BillingPlanPriceResponse[]>([]);
+  const [backendSubscription, setBackendSubscription] = useState<SubscriptionResponse | null>(null);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [loadingSub, setLoadingSub] = useState(true);
+  // --- End backend state ---
 
   useEffect(() => {
     localStorage.setItem('paymentMethods', JSON.stringify(paymentMethodsList));
@@ -109,58 +80,82 @@ export default function Billing() {
 
   useEffect(() => {
     if (location.state?.selectedPlanId) {
-      const plan = availablePlans.find(p => p.id === location.state.selectedPlanId);
-      if (plan) {
-        setSelectedPlanForUpgrade(plan);
-        setIsUpgradeModalOpen(true);
-        if (plan.id !== 'free') {
-          setUpgradeStep('checkout');
-        }
-      }
+      setIsUpgradeModalOpen(true);
     }
   }, [location.state]);
 
-  const handleSelectPlan = (planId: string, planName: string) => {
-    const plan = availablePlans.find(p => p.id === planId);
-    if (!plan || (planId === 'free' && currentPlan === 'Free')) return;
-    
-    if (planId === 'free') {
-      // Downgrade to free is instant in this demo
-      setCurrentPlan('Free');
-      setIsUpgradeModalOpen(false);
-      showToast(t('billing.downgrade_success'), 'info');
+  // --- Fetch backend data ---
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchBackendData() {
+      try {
+        const [plans, pricesResult, subscription, invoicesResult] = await Promise.all([
+          listPlans().catch(() => [] as BillingPlanResponse[]),
+          listPlanPrices('').catch(() => [] as BillingPlanPriceResponse[]),
+          getMySubscription().catch(() => null as SubscriptionResponse | null),
+          listMyInvoices().catch(() => [] as BillingInvoiceResponse[]),
+        ]);
+
+        if (cancelled) return;
+
+        setBackendPlans(plans);
+        setBackendPlanPrices(pricesResult);
+        setBackendSubscription(subscription);
+
+        // Set current plan from subscription
+        if (subscription && plans.length > 0) {
+          const activePlan = plans.find(p => p.id === subscription.planId);
+          if (activePlan) setCurrentPlan(activePlan.name);
+        }
+
+        // Map backend invoices to display format
+        if (invoicesResult.length > 0) {
+          setInvoices(invoicesResult.map(inv => ({
+            id: inv.invoiceNo || inv.id,
+            date: new Date(inv.issuedAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+            amount: `$${(inv.totalCents / 100).toFixed(2)}`,
+            status: inv.status,
+          })));
+        }
+      } catch {
+        // backend unavailable, plans will show empty state
+      } finally {
+        if (!cancelled) {
+          setLoadingPlans(false);
+          setLoadingSub(false);
+        }
+      }
+    }
+
+    fetchBackendData();
+    return () => { cancelled = true; };
+  }, []);
+  // --- End fetch backend data ---
+
+  const handleSelectPlan = async (planId: string, planName: string) => {
+    if (currentPlan && planName === currentPlan) return;
+
+    const backendPlan = backendPlans.find(p => p.id === planId);
+    if (!backendPlan) {
+      showToast('Plan not found', 'error');
       return;
     }
 
-    setSelectedPlanForUpgrade(plan);
-    setUpgradeStep('checkout');
-  };
-
-  const handleConfirmPayment = () => {
-    if (!selectedPlanForUpgrade) return;
-    
-    setIsProcessing(selectedPlanForUpgrade.id);
-    
-    // Simulate payment processing
-    setTimeout(() => {
-      const amount = billingCycle === 'yearly' ? Math.floor(selectedPlanForUpgrade.price * 0.8) : selectedPlanForUpgrade.price;
-      const newInvoice = {
-        id: `INV-${new Date().getFullYear()}-${String(invoices.length + 1).padStart(3, '0')}`,
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-        amount: `$${amount}.00`,
-        status: 'PAID'
-      };
-
-      setInvoices(prev => [newInvoice, ...prev]);
-      setIsProcessing(null);
-      setCurrentPlan(selectedPlanForUpgrade.name);
+    try {
+      setIsProcessing(planId);
+      const sub = await mySubscribe(backendPlan.id);
+      setBackendSubscription(sub);
+      setCurrentPlan(backendPlan.name);
       setIsUpgradeModalOpen(false);
       setUpgradeStep('selection');
-      showToast(t('billing.upgrade_success').replace('{plan}', selectedPlanForUpgrade.name), 'success');
-      
-      // Clear navigation state
+      showToast(t('billing.upgrade_success').replace('{plan}', backendPlan.name), 'success');
       navigate(location.pathname, { replace: true, state: {} });
-    }, 2000);
+    } catch (err: any) {
+      showToast(err.message || 'Subscription failed', 'error');
+    } finally {
+      setIsProcessing(null);
+    }
   };
 
   const handleDownloadInvoice = (invoiceId: string) => {
@@ -178,10 +173,82 @@ export default function Billing() {
   };
 
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [pushAlerts, setPushAlerts] = useState(false);
 
-  if (role === 'admin') {
+  const renderPlansGrid = () => {
+    if (loadingPlans) {
+      return (
+        <div className="col-span-full flex justify-center py-12">
+          <Loader2 size={32} className="animate-spin text-[#a1a4a5]" />
+        </div>
+      );
+    }
+    if (backendPlans.length === 0) {
+      return (
+        <div className="col-span-full text-center py-8 text-[#a1a4a5]">
+          {t('billing.no_plans') || 'No plans available'}
+        </div>
+      );
+    }
+    return backendPlans.map((plan) => {
+      const price = backendPlanPrices.find(p => p.planId === plan.id);
+      const monthlyPrice = price ? (price.amountCents / 100).toFixed(0) : '--';
+      const yearlyPrice = price ? ((price.amountCents / 100) * 0.8).toFixed(0) : '--';
+      const displayPrice = billingCycle === 'yearly' ? yearlyPrice : monthlyPrice;
+      const isActive = backendSubscription?.planId === plan.id;
+
+      return (
+        <div 
+          key={plan.id}
+          className={cn(
+            "relative p-6 rounded-[16px] border-2 transition-all group hover:shadow-xl",
+            isActive
+              ? "border border-primary bg-[rgba(59,158,255,0.05)]" 
+              : "border border-[rgba(255,255,255,0.3)] hover:border-[rgba(255,255,255,0.3)] bg-[#000000]"
+          )}
+        >
+          {isActive && (
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#ffffff] text-[#000000] text-[10px] font-black uppercase tracking-widest rounded-full shadow-md shadow-black/40">
+              {t('billing.plans.selected')}
+            </div>
+          )}
+          <h4 className="text-lg font-black text-[#f0f0f0]">{plan.name}</h4>
+          <div className="mt-4 flex items-baseline gap-1">
+            <span className="text-3xl font-black text-[#f0f0f0]">
+              ${displayPrice}
+            </span>
+            <span className="text-sm font-medium text-[#a1a4a5]">/mo</span>
+          </div>
+          <p className="text-xs text-[#a1a4a5] mt-2">{t('billing.plans.billed')} {billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')}</p>
+
+          <button 
+            onClick={() => handleSelectPlan(plan.id, plan.name)}
+            disabled={isProcessing !== null || isActive}
+            className={cn(
+              "w-full mt-6 py-3 rounded-[16px] font-black text-sm transition-all flex items-center justify-center gap-2",
+              "bg-[#ffffff] text-[#000000] shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0]",
+              isActive && "opacity-50 cursor-default"
+            )}
+          >
+            {isProcessing === plan.id ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : isActive ? t('billing.plans.current') : t('billing.plans.select')}
+          </button>
+
+          {plan.description && (
+            <div className="mt-8 space-y-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-[#a1a4a5]">{t('billing.plans.features')}</p>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                <span className="text-xs text-[#a1a4a5] font-medium">{plan.description}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
+
+  if (role === 'ADMIN') {
     return (
       <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -201,9 +268,9 @@ export default function Billing() {
               <h3 className="font-bold text-sm">{t('billing.mrr')}</h3>
             </div>
             <div className="flex items-end gap-3">
-              <p className="text-3xl font-black text-[#f0f0f0]">$12,450</p>
+              <p className="text-3xl font-black text-[#f0f0f0]">$0</p>
               <span className="flex items-center text-emerald-500 text-sm font-bold mb-1">
-                <TrendingUp size={16} className="mr-1" /> +14%
+                <TrendingUp size={16} className="mr-1" /> --
               </span>
             </div>
           </div>
@@ -213,9 +280,9 @@ export default function Billing() {
               <h3 className="font-bold text-sm">{t('billing.active_subs')}</h3>
             </div>
             <div className="flex items-end gap-3">
-              <p className="text-3xl font-black text-[#f0f0f0]">842</p>
+              <p className="text-3xl font-black text-[#f0f0f0]">0</p>
               <span className="flex items-center text-emerald-500 text-sm font-bold mb-1">
-                <TrendingUp size={16} className="mr-1" /> +5%
+                <TrendingUp size={16} className="mr-1" /> --
               </span>
             </div>
           </div>
@@ -225,9 +292,9 @@ export default function Billing() {
               <h3 className="font-bold text-sm">{t('billing.failed_payments')}</h3>
             </div>
             <div className="flex items-end gap-3">
-              <p className="text-3xl font-black text-[#f0f0f0]">12</p>
+              <p className="text-3xl font-black text-[#f0f0f0]">0</p>
               <span className="flex items-center text-[#ff0000] text-sm font-bold mb-1">
-                <TrendingUp size={16} className="mr-1" /> +2%
+                <TrendingUp size={16} className="mr-1" /> --
               </span>
             </div>
           </div>
@@ -252,26 +319,14 @@ export default function Billing() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[rgba(255,255,255,0.3)]">
-                {adminSubscriptions.map((sub, idx) => (
-                  <tr key={idx} className="hover:bg-[rgba(255,255,255,0.02)]/50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-bold text-[#f0f0f0]">{sub.user}</td>
-                    <td className="px-6 py-4 text-sm text-[#a1a4a5]">{sub.plan}</td>
-                    <td className="px-6 py-4 text-sm text-[#f0f0f0] font-black">{sub.amount}</td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "inline-flex items-center gap-1 px-0 py-0.5 text-xs font-black uppercase tracking-wider",
-                        sub.status === 'Active' ? "text-emerald-500" : 
-                        sub.status === 'Past Due' ? "text-amber-500" : "text-[#a1a4a5]"
-                      )}>
-                        {sub.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-[#a1a4a5]">{sub.date}</td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-xs font-bold text-[#3b9eff] hover:underline">{t('billing.manage')}</button>
-                    </td>
-                  </tr>
-                ))}
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <History size={24} className="text-[#a1a4a5]" />
+                      <p className="text-sm text-[#a1a4a5] font-medium">{t('billing.no_data') || 'No subscriptions yet'}</p>
+                    </div>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -322,42 +377,23 @@ export default function Billing() {
                           </h3>
                         </div>
                         <p className="text-sm text-[#a1a4a5] mt-1">
-                          {currentPlan === 'Free' ? t('billing.free_forever') : `${t('billing.billed_monthly')} • ${t('billing.next_renewal')} July 1, 2024`}
+                          {currentPlan ? `${t('billing.billed_monthly')}` : t('billing.loading')}
                         </p>
                       </div>
                     </div>
                     <div className="text-left sm:text-right">
                       <p className="text-3xl font-black text-[#f0f0f0]">
-                        ${currentPlan === 'Free' ? '0' : currentPlan === 'Plus' ? '19' : '49'}
-                        <span className="text-sm font-medium text-[#a1a4a5]">/mo</span>
+                        {loadingSub ? (
+                          <Loader2 size={24} className="animate-spin inline" />
+                        ) : backendSubscription ? (
+                          <>${((backendPlanPrices.find(p => p.planId === backendSubscription.planId)?.amountCents ?? 0) / 100).toFixed(0)}<span className="text-sm font-medium text-[#a1a4a5]">/mo</span></>
+                        ) : (
+                          <>--<span className="text-sm font-medium text-[#a1a4a5]">/mo</span></>
+                        )}
                       </p>
-                      {currentPlan !== 'Free' && (
+                      {backendSubscription && (
                         <button className="text-xs font-bold text-[#ff0000] hover:underline mt-1">{t('billing.cancel')}</button>
                       )}
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 sm:p-8 grid grid-cols-1 sm:grid-cols-2 gap-8">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-[#f0f0f0]">{t('billing.usage.messages')}</span>
-                        <span className="text-xs font-black text-[#f0f0f0]">8,420 / 10,000</span>
-                      </div>
-                      <div className="h-2 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
-                        <div className="h-full bg-primary rounded-full" style={{ width: '84.2%' }}></div>
-                      </div>
-                      <p className="text-[10px] text-[#a1a4a5] font-medium">{t('billing.usage.reset')} 12 days</p>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-[#f0f0f0]">{t('billing.usage.storage')}</span>
-                        <span className="text-xs font-black text-[#f0f0f0]">1.2 GB / 5 GB</span>
-                      </div>
-                      <div className="h-2 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: '24%' }}></div>
-                      </div>
-                      <p className="text-[10px] text-[#a1a4a5] font-medium">24% {t('billing.usage.capacity')}</p>
                     </div>
                   </div>
                 </div>
@@ -442,8 +478,8 @@ export default function Billing() {
 
               <div className="p-4 sm:p-8">
                 {upgradeStep === 'selection' ? (
-                  <>
-                    {/* ... (Billing Cycle Switcher and Plans Grid) */}
+                  <div>
+                    {/* Billing Cycle Switcher */}
                     <div className="flex justify-center mb-10">
                       <div className="flex items-center gap-1 bg-[rgba(255,255,255,0.05)] p-1 rounded-[16px] border border-[rgba(255,255,255,0.3)]">
                         <button 
@@ -469,179 +505,20 @@ export default function Billing() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {availablePlans.map((plan) => (
-                        <div 
-                          key={plan.id}
-                          className={cn(
-                            "relative p-6 rounded-[16px] border-2 transition-all group hover:shadow-xl",
-                            (location.state?.selectedPlanId === plan.id || (!location.state?.selectedPlanId && plan.id === 'plus')) 
-                              ? "border border-primary bg-[rgba(59,158,255,0.05)]" 
-                              : "border border-[rgba(255,255,255,0.3)] hover:border-[rgba(255,255,255,0.3)] bg-[#000000]"
-                          )}
-                        >
-                          {(location.state?.selectedPlanId === plan.id || (!location.state?.selectedPlanId && plan.id === 'plus')) && (
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#ffffff] text-[#000000] text-[10px] font-black uppercase tracking-widest rounded-full shadow-md shadow-black/40">
-                              {plan.id === 'plus' ? t('billing.plans.popular') : t('billing.plans.selected')}
-                            </div>
-                          )}
-                          <h4 className="text-lg font-black text-[#f0f0f0]">{t(`billing.plans.${plan.id}`)}</h4>
-                          <div className="mt-4 flex items-baseline gap-1">
-                            <span className="text-3xl font-black text-[#f0f0f0]">
-                              ${billingCycle === 'yearly' ? Math.floor(plan.price * 0.8) : plan.price}
-                            </span>
-                            <span className="text-sm font-medium text-[#a1a4a5]">/mo</span>
-                          </div>
-                          <p className="text-xs text-[#a1a4a5] mt-2">{t('billing.plans.billed')} {billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')}</p>
-
-                          <button 
-                            onClick={() => handleSelectPlan(plan.id, plan.name)}
-                            disabled={isProcessing !== null || (plan.name === currentPlan)}
-                            className={cn(
-                              "w-full mt-6 py-3 rounded-[16px] font-black text-sm transition-all flex items-center justify-center gap-2",
-                              plan.id === 'plus' 
-                                ? "bg-[#ffffff] text-[#000000] shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0]" 
-                                : "bg-[rgba(255,255,255,0.05)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.05)]",
-                              (plan.name === currentPlan) && "opacity-50 cursor-default"
-                            )}
-                          >
-                            {plan.name === currentPlan ? t('billing.plans.current') : t('billing.plans.select')}
-                          </button>
-
-                          <div className="mt-8 space-y-4">
-                            <p className="text-[10px] font-black uppercase tracking-wider text-[#a1a4a5]">{t('billing.plans.features')}</p>
-                            {plan.features.map((feature, i) => (
-                              <div key={i} className="flex items-start gap-3">
-                                <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                                <span className="text-xs text-[#a1a4a5] font-medium">{t(feature)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                      {renderPlansGrid()}
                     </div>
-                  </>
+                  </div>
                 ) : (
                   <div className="max-w-md mx-auto space-y-8 py-4 animate-in slide-in-from-right-4 duration-300">
                     <div className="flex items-center gap-4 p-4 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)]">
                       <div className="w-12 h-12 rounded-[16px] bg-[rgba(59,158,255,0.1)] flex items-center justify-center text-[#3b9eff]">
-                        <Zap size={24} />
+                        <Loader2 size={24} className="animate-spin" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-black text-[#f0f0f0]">
-                          {language === 'vi' 
-                            ? (selectedPlanForUpgrade?.name === 'Free' ? 'Gói Miễn phí' : `Gói ${selectedPlanForUpgrade?.name}`)
-                            : `${selectedPlanForUpgrade?.name} Plan`}
-                        </h4>
-                        <p className="text-xs text-[#a1a4a5]">{billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')} billing</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-black text-[#f0f0f0]">
-                          ${billingCycle === 'yearly' ? Math.floor(selectedPlanForUpgrade?.price * 0.8) : selectedPlanForUpgrade?.price}
-                        </p>
-                        <button 
-                          onClick={() => setUpgradeStep('selection')}
-                          className="text-[10px] font-bold text-[#3b9eff] hover:underline"
-                        >
-                          {t('common.change')}
-                        </button>
+                        <h4 className="font-black text-[#f0f0f0]">{t('common.processing')}</h4>
+                        <p className="text-xs text-[#a1a4a5]">{t('billing.subscribing') || 'Setting up your subscription...'}</p>
                       </div>
                     </div>
-
-                    <div className="space-y-4">
-                      <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.payment_methods')}</h5>
-                      
-                      {paymentMethodsList.length > 0 ? (
-                        <div className="space-y-3">
-                          {paymentMethodsList.map((method) => (
-                            <button
-                              key={method.id}
-                              onClick={() => setSelectedPaymentMethodId(method.id)}
-                              className={cn(
-                                "w-full flex items-center gap-4 p-4 rounded-[16px] border-2 transition-all text-left",
-                                selectedPaymentMethodId === method.id 
-                                  ? "border border-primary bg-[rgba(59,158,255,0.05)]" 
-                                  : "border border-[rgba(255,255,255,0.3)] bg-[#000000] hover:border-[rgba(255,255,255,0.3)]"
-                              )}
-                            >
-                              <div className="w-10 h-10 rounded-[12px] bg-[rgba(255,255,255,0.05)] flex items-center justify-center text-[#a1a4a5]">
-                                <CreditCard size={20} />
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-sm font-bold text-[#f0f0f0]">•••• •••• •••• {method.last4}</p>
-                                <p className="text-[10px] text-[#a1a4a5]">{t('billing.payment_methods.expires')} {method.expiry}</p>
-                              </div>
-                              {selectedPaymentMethodId === method.id && (
-                                <CheckCircle2 size={20} className="text-[#3b9eff]" />
-                              )}
-                            </button>
-                          ))}
-                          <button 
-                            onClick={() => {
-                              setIsUpgradeModalOpen(false);
-                              setIsPaymentModalOpen(true);
-                            }}
-                            className="w-full py-3 border-2 border-dashed border border-[rgba(255,255,255,0.3)] rounded-[16px] text-[#a1a4a5] text-xs font-bold hover:border-primary hover:text-[#3b9eff] transition-all flex items-center justify-center gap-2"
-                          >
-                            <Plus size={16} />
-                            {t('billing.payment_methods.add')}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="p-8 border-2 border-dashed border border-[rgba(255,255,255,0.3)] rounded-[16px] text-center space-y-4">
-                          <div className="w-12 h-12 rounded-full bg-[rgba(255,255,255,0.05)] flex items-center justify-center text-[#a1a4a5] mx-auto">
-                            <CreditCard size={24} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-[#f0f0f0]">{t('billing.no_payment_methods')}</p>
-                          </div>
-                          <button 
-                            onClick={() => {
-                              setIsUpgradeModalOpen(false);
-                              setIsPaymentModalOpen(true);
-                            }}
-                            className="px-6 py-2 bg-[#ffffff] text-[#000000] rounded-[16px] text-xs font-black shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all"
-                          >
-                            {t('billing.payment_methods.add')}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-4">
-                      <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.details.address')}</h5>
-                      <div className="p-4 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)] flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-[12px] bg-[#000000] flex items-center justify-center text-[#a1a4a5] border border-[rgba(255,255,255,0.3)]">
-                          <MapPin size={20} />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-bold text-[#f0f0f0]">Alex Rivet</p>
-                          <p className="text-xs text-[#a1a4a5] mt-0.5">123 Innovation Drive, Suite 400</p>
-                          <p className="text-xs text-[#a1a4a5]">San Francisco, CA 94103, USA</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button 
-                      onClick={handleConfirmPayment}
-                      disabled={isProcessing !== null || !selectedPaymentMethodId}
-                      className="w-full py-4 bg-[#ffffff] text-[#000000] rounded-[16px] font-black shadow-xl shadow-primary/20 hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 size={20} className="animate-spin" />
-                          {t('common.processing')}
-                        </>
-                      ) : (
-                        <>
-                          <ShieldCheck size={20} />
-                          {t('billing.pay_now')}
-                        </>
-                      )}
-                    </button>
-
-                    <p className="text-[10px] text-center text-[#a1a4a5] leading-relaxed">
-                      By clicking "Pay Now", you agree to our Terms of Service and authorize us to charge your payment method on a recurring basis.
-                    </p>
                   </div>
                 )}
               </div>
@@ -707,7 +584,7 @@ export default function Billing() {
                       id: `pm_${Date.now()}`,
                       type: 'Visa',
                       last4: '1234',
-                      exp: '12/28',
+                      expiry: '12/28',
                       isPrimary: paymentMethodsList.length === 0
                     };
                     setPaymentMethodsList([...paymentMethodsList, newMethod]);

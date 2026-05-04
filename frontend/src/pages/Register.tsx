@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
+import { register } from '../api/auth';
 import Logo from '../components/Logo';
 import { 
   Mail, 
@@ -11,11 +12,6 @@ import {
   EyeOff
 } from 'lucide-react';
 import { GoogleIcon, GithubIcon } from '../components/SocialIcons';
-
-type RegisterResponse = {
-  status?: number;
-  message?: string;
-};
 
 export default function Register() {
   const { t } = useLanguage();
@@ -53,32 +49,14 @@ export default function Register() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fullName: fullName.trim(),
-          email: email.trim(),
-          password,
-          confirmPassword,
-          inviteToken: inviteToken || null,
-        }),
+      const payload = await register({
+        fullName: fullName.trim(),
+        email: email.trim(),
+        password,
+        confirmPassword,
+        inviteToken: inviteToken || undefined,
       });
 
-      if (!response.ok) {
-        let message = 'Đăng ký thất bại. Vui lòng thử lại.';
-        try {
-          const errorPayload = (await response.json()) as { message?: string; error?: string };
-          message = errorPayload?.message || errorPayload?.error || message;
-        } catch {
-          // Keep default message when response has no JSON body.
-        }
-        throw new Error(message);
-      }
-
-      const payload = (await response.json()) as RegisterResponse;
       showToast(payload.message || 'Đăng ký thành công.', 'success');
       navigate('/verify-email');
     } catch (error) {

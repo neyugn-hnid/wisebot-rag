@@ -27,33 +27,22 @@ import {
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '../contexts/ToastContext';
-import { fetchWithAuth } from '../lib/auth';
+import {
+  listKnowledgeBases,
+  listDocuments,
+  createKnowledgeBase,
+  updateKnowledgeBase,
+  deleteKnowledgeBase,
+  uploadDocument,
+  deleteDocument,
+  reprocessDocument,
+  previewDocument,
+  type KnowledgeBaseResponse,
+  type DocumentResponse,
+} from '../api/knowledge-base';
 
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-
-type ApiResponse<T> = {
-  status: number;
-  message: string;
-  data: T;
-};
-
-type KnowledgeBaseApi = {
-  id: string;
-  name: string;
-  description?: string;
-  tenantId?: string;
-  createdAt?: string;
-};
-
-type DocumentApi = {
-  id: string;
-  filename: string;
-  contentType?: string;
-  status: 'UPLOADED' | 'PROCESSED' | 'FAILED';
-  size?: number;
-  createdAt?: string;
-};
 
 type SourceItem = {
   id: string;
@@ -112,15 +101,6 @@ export default function KnowledgeBase() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const extractApiMessage = async (response: Response, fallbackMessage: string) => {
-    try {
-      const payload = (await response.json()) as { message?: string; error?: string };
-      return payload.message || payload.error || fallbackMessage;
-    } catch {
-      return fallbackMessage;
-    }
-  };
-
   const formatTimeAgo = (value?: string) => {
     if (!value) {
       return 'Just now';
@@ -165,7 +145,7 @@ export default function KnowledgeBase() {
     return filename.split('.').pop()?.toUpperCase() || 'FILE';
   };
 
-  const mapDocumentStatus = (status: DocumentApi['status']): UploadItem['status'] => {
+  const mapDocumentStatus = (status: DocumentResponse['status']): UploadItem['status'] => {
     if (status === 'PROCESSED') return 'Completed';
     if (status === 'FAILED') return 'Failed';
     return 'Processing';
@@ -174,32 +154,19 @@ export default function KnowledgeBase() {
   const loadKnowledgeBases = async () => {
     setIsLoadingKb(true);
     try {
-      const response = await fetchWithAuth('/api/knowledge-bases');
+      const knowledgeBases = await listKnowledgeBases();
 
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Không tải được danh sách kho tri thức.');
-        throw new Error(message);
-      }
-
-      const payload = (await response.json()) as ApiResponse<KnowledgeBaseApi[]>;
-      const knowledgeBases = payload.data || [];
-
-      const countsEntries = await Promise.all(
+      const countMap = new Map<string, number>();
+      await Promise.all(
         knowledgeBases.map(async (kb) => {
           try {
-            const docsRes = await fetchWithAuth(`/api/knowledge-bases/${kb.id}/documents`);
-            if (!docsRes.ok) {
-              return [kb.id, 0] as const;
-            }
-            const docsPayload = (await docsRes.json()) as ApiResponse<DocumentApi[]>;
-            return [kb.id, docsPayload.data?.length || 0] as const;
+            const docs = await listDocuments(kb.id);
+            countMap.set(kb.id, docs.length);
           } catch {
-            return [kb.id, 0] as const;
+            countMap.set(kb.id, 0);
           }
         })
       );
-
-      const countMap = new Map(countsEntries);
 
       const mapped: SourceItem[] = knowledgeBases.map((kb) => ({
         id: kb.id,
@@ -235,15 +202,9 @@ export default function KnowledgeBase() {
 
     setIsLoadingUploads(true);
     try {
-      const response = await fetchWithAuth(`/api/knowledge-bases/${knowledgeBaseId}/documents`);
+      const documents = await listDocuments(knowledgeBaseId);
 
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Không tải được danh sách tài liệu.');
-        throw new Error(message);
-      }
-
-      const payload = (await response.json()) as ApiResponse<DocumentApi[]>;
-      const mapped: UploadItem[] = (payload.data || []).map((doc) => {
+      const mapped: UploadItem[] = (documents || []).map((doc) => {
         const type = mapDocumentType(doc.filename, doc.contentType);
         const status = mapDocumentStatus(doc.status);
         return {
@@ -336,16 +297,11 @@ export default function KnowledgeBase() {
             content: file.previewContent,
           });
         } else {
-          const response = await fetchWithAuth(`/api/documents/${file.id}/preview`);
-          if (!response.ok) {
-            const message = await extractApiMessage(response, 'Không tải được nội dung xem trước.');
-            throw new Error(message);
-          }
-          const payload = (await response.json()) as ApiResponse<string>;
+          const content = await previewDocument(file.id);
           setPreviewData({
             name: file.name,
             type: file.type,
-            content: payload.data || 'No content available.',
+            content: content || 'No content available.',
           });
         }
       } else if (file.type === 'PDF') {
@@ -432,13 +388,7 @@ export default function KnowledgeBase() {
 
   const handleResyncUpload = async (uploadId: string) => {
     try {
-      const response = await fetchWithAuth(`/api/documents/${uploadId}/reprocess`, {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Đồng bộ lại tài liệu thất bại.');
-        throw new Error(message);
-      }
+      await reprocessDocument(uploadId);
       await loadDocumentsByKb(selectedKbForUpload);
       showToast(t('status.completed'), 'success');
     } catch (error) {
@@ -500,13 +450,7 @@ export default function KnowledgeBase() {
     if (confirmModal.type === 'delete_upload') {
       if (confirmModal.targetUploadId) {
         try {
-          const response = await fetchWithAuth(`/api/documents/${confirmModal.targetUploadId}`, {
-            method: 'DELETE',
-          });
-          if (!response.ok) {
-            const message = await extractApiMessage(response, 'Xóa tài liệu thất bại.');
-            throw new Error(message);
-          }
+          await deleteDocument(confirmModal.targetUploadId);
           await loadDocumentsByKb(selectedKbForUpload);
           await loadKnowledgeBases();
           showToast(t('toast.kb_deleted'), 'success');
@@ -519,13 +463,7 @@ export default function KnowledgeBase() {
         if (confirmModal.targetKbId) {
           try {
             const deletingSelected = selectedKbForUpload === confirmModal.targetKbId;
-            const response = await fetchWithAuth(`/api/knowledge-bases/${confirmModal.targetKbId}`, {
-              method: 'DELETE',
-            });
-            if (!response.ok) {
-              const message = await extractApiMessage(response, 'Xóa kho tri thức thất bại.');
-              throw new Error(message);
-            }
+            await deleteKnowledgeBase(confirmModal.targetKbId);
             await loadKnowledgeBases();
             if (deletingSelected) {
               setSelectedKbForUpload('');
@@ -562,41 +500,17 @@ export default function KnowledgeBase() {
 
   const executeSave = async () => {
     try {
-      const requestBody = {
-        name: kbName.trim(),
-        description: kbDesc.trim(),
-      };
+      const requestBody = { name: kbName.trim(), description: kbDesc.trim() };
 
       if (formMode === 'create') {
-        const response = await fetchWithAuth('/api/knowledge-bases', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
-        if (!response.ok) {
-          const message = await extractApiMessage(response, 'Tạo kho tri thức thất bại.');
-          throw new Error(message);
-        }
-        const payload = (await response.json()) as ApiResponse<KnowledgeBaseApi>;
+        const newKb = await createKnowledgeBase(requestBody);
         await loadKnowledgeBases();
-        if (payload.data?.id) {
-          setSelectedKbForUpload(payload.data.id);
-          await loadDocumentsByKb(payload.data.id);
+        if (newKb?.id) {
+          setSelectedKbForUpload(newKb.id);
+          await loadDocumentsByKb(newKb.id);
         }
       } else if (editingKbId) {
-        const response = await fetchWithAuth(`/api/knowledge-bases/${editingKbId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
-        if (!response.ok) {
-          const message = await extractApiMessage(response, 'Cập nhật kho tri thức thất bại.');
-          throw new Error(message);
-        }
+        await updateKnowledgeBase(editingKbId, requestBody);
         await loadKnowledgeBases();
       }
 
@@ -623,18 +537,7 @@ export default function KnowledgeBase() {
 
     const file = files[0];
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetchWithAuth(`/api/knowledge-bases/${selectedKbForUpload}/documents`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Tải tệp lên thất bại.');
-        throw new Error(message);
-      }
+      await uploadDocument(selectedKbForUpload, file);
 
       await loadDocumentsByKb(selectedKbForUpload);
       await loadKnowledgeBases();

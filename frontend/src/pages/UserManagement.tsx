@@ -18,36 +18,16 @@ import {
   ArrowUpDown,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { fetchWithAuth } from '../lib/auth';
+import {
+  listUsers,
+  adminUpdateUser,
+  deleteUser,
+  changeUserStatus,
+  type UserResponse,
+  type UserPageResponse,
+} from '../api/users';
+import { inviteUser } from '../api/auth';
 import DeleteModal from '../components/DeleteModal';
-
-type ApiResponse<T> = {
-  status?: number;
-  message?: string;
-  data?: T;
-  error?: string;
-};
-
-type UserApi = {
-  id: string;
-  avatarUrl?: string | null;
-  fullName: string;
-  username?: string;
-  email: string;
-  phone?: string | null;
-  role?: string;
-  status?: 'ACTIVE' | 'DISABLED' | 'PENDING';
-  lastLogin?: string | null;
-  createdAt?: string;
-};
-
-type UserPageResponse = {
-  pageNumber: number;
-  pageSize: number;
-  totalElements: number;
-  totalPages: number;
-  users: UserApi[];
-};
 
 type SystemUser = {
   id: string;
@@ -93,15 +73,6 @@ export default function UserManagement() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [statusActionUserId, setStatusActionUserId] = useState<string | null>(null);
 
-  const extractApiMessage = async (response: Response, fallbackMessage: string) => {
-    try {
-      const payload = (await response.json()) as { message?: string; error?: string };
-      return payload.message || payload.error || fallbackMessage;
-    } catch {
-      return fallbackMessage;
-    }
-  };
-
   const toDisplayStatus = (status?: string): SystemUser['status'] => {
     if (status === 'DISABLED') return 'Suspended';
     if (status === 'PENDING') return 'Pending';
@@ -134,7 +105,7 @@ export default function UserManagement() {
     return `${diffDay} days ago`;
   };
 
-  const mapUser = (user: UserApi): SystemUser => ({
+  const mapUser = (user: UserResponse): SystemUser => ({
     id: user.id,
     name: user.fullName || user.username || user.email,
     email: user.email,
@@ -161,35 +132,14 @@ export default function UserManagement() {
   const loadUsers = async () => {
     setIsLoadingUsers(true);
     try {
-      const query = new URLSearchParams({
-        page: String(currentPage),
-        size: String(pageSize),
+      const pageData = await listUsers({
+        page: currentPage,
+        size: pageSize,
         sort: resolveSortQuery(),
+        keyword: appliedSearchKeyword.trim() || undefined,
+        role: roleFilter !== 'all' ? roleFilter.toUpperCase() : undefined,
+        status: statusFilter !== 'all' ? (statusFilter === 'suspended' ? 'DISABLED' : statusFilter.toUpperCase()) : undefined,
       });
-
-      if (appliedSearchKeyword.trim()) {
-        query.set('keyword', appliedSearchKeyword.trim());
-      }
-
-      if (roleFilter !== 'all') {
-        query.set('role', roleFilter.toUpperCase());
-      }
-
-      if (statusFilter !== 'all') {
-        query.set('status', statusFilter === 'suspended' ? 'DISABLED' : statusFilter.toUpperCase());
-      }
-
-      const response = await fetchWithAuth(`/api/user/list?${query.toString()}`);
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Không tải được danh sách người dùng.');
-        throw new Error(message);
-      }
-
-      const payload = (await response.json()) as ApiResponse<UserPageResponse>;
-      const pageData = payload.data;
-      if (!pageData) {
-        throw new Error('Không nhận được dữ liệu người dùng.');
-      }
 
       setUsers((pageData.users || []).map(mapUser));
       setTotalPages(Math.max(pageData.totalPages || 1, 1));
@@ -247,20 +197,7 @@ export default function UserManagement() {
 
     setIsSubmittingInvite(true);
     try {
-      const response = await fetchWithAuth('/api/auth/invite', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: inviteEmail.trim(),
-        }),
-      });
-
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Không thể gửi lời mời người dùng.');
-        throw new Error(message);
-      }
+      await inviteUser({ email: inviteEmail.trim() });
 
       showToast(t('toast.user_created') || 'Đã gửi lời mời người dùng.', 'success');
       setIsInviteModalOpen(false);
@@ -281,24 +218,13 @@ export default function UserManagement() {
 
     setIsUpdatingStatus(true);
     try {
-      const response = await fetchWithAuth(`/api/user/${selectedUser.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fullName: editForm.name.trim(),
-          email: editForm.email.trim(),
-          phone: editForm.phone.trim(),
-          role: editForm.globalRole,
-          status: toApiStatus(editForm.status),
-        }),
+      await adminUpdateUser(selectedUser.id, {
+        fullName: editForm.name.trim(),
+        email: editForm.email.trim(),
+        phone: editForm.phone.trim(),
+        role: editForm.globalRole,
+        status: toApiStatus(editForm.status),
       });
-
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Không thể cập nhật người dùng.');
-        throw new Error(message);
-      }
 
       setUsers((prev) => prev.map((user) => (
         user.id === selectedUser.id
@@ -330,14 +256,7 @@ export default function UserManagement() {
 
     setIsUpdatingStatus(true);
     try {
-      const response = await fetchWithAuth(`/api/user/${selectedUser.id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Không thể xóa người dùng.');
-        throw new Error(message);
-      }
+      await deleteUser(selectedUser.id);
 
       setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id));
       setTotalElements((prev) => Math.max(prev - 1, 0));
@@ -357,20 +276,7 @@ export default function UserManagement() {
     setStatusActionUserId(user.id);
 
     try {
-      const response = await fetchWithAuth(`/api/user/${user.id}/change-status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          newStatus: toApiStatus(nextStatus),
-        }),
-      });
-
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Không thể cập nhật trạng thái người dùng.');
-        throw new Error(message);
-      }
+      await changeUserStatus(user.id, toApiStatus(nextStatus));
 
       if (statusFilter === 'all') {
         setUsers((prev) => prev.map((item) => (

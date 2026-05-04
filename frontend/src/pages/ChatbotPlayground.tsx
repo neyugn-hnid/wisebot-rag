@@ -16,34 +16,31 @@ import {
   Info,
   X
 } from 'lucide-react';
-import { fetchWithAuth, getStoredAccessToken } from '../lib/auth';
+import { getStoredAccessToken } from '../lib/auth';
 import { cn } from '../lib/utils';
+import {
+  createSession,
+  listSessions,
+  listMessages,
+  ask,
+  getCitations,
+  type ChatSessionResponse,
+  type ChatMessageResponse,
+  type AskResponse,
+  type CitationItem,
+} from '../api/chat';
+import { listKnowledgeBases } from '../api/knowledge-base';
 
 interface Message {
   id: string;
   role: 'assistant' | 'user';
   content: string;
-  sources?: { name: string; snippet: string }[];
+  sources?: CitationResponse[];
 }
 
-interface ApiResponse<T> {
-  data?: T;
-  message?: string;
-  error?: string;
-}
-
-interface KnowledgeBaseOption {
-  id: string;
+interface CitationResponse {
   name: string;
-  tenantId?: string;
-}
-
-interface AskPayloadData {
-  sessionId?: unknown;
-  userMessageId?: unknown;
-  assistantMessageId?: unknown;
-  answer?: unknown;
-  citations?: unknown;
+  snippet: string;
 }
 
 interface ChatHistoryItem {
@@ -55,17 +52,10 @@ interface ChatHistoryItem {
 
 const CHAT_SESSION_STORAGE_KEY = 'wisebot_chat_session_id';
 
-interface ChatSessionApi {
-  id?: string;
-  title?: string;
-  lastMessageAt?: string;
-  startedAt?: string;
-}
-
-interface ChatMessageApi {
-  id?: string;
-  role?: string;
-  content?: string;
+export interface KnowledgeBaseOption {
+  id: string;
+  name: string;
+  tenantId?: string;
 }
 
 const INITIAL_MESSAGES: Message[] = [
@@ -147,40 +137,19 @@ export default function ChatbotPlayground() {
     }
   };
 
-  const extractApiMessage = async (response: Response, fallbackMessage: string) => {
-    try {
-      const payload = (await response.json()) as { message?: string; error?: string };
-      return payload.message || payload.error || fallbackMessage;
-    } catch {
-      return fallbackMessage;
-    }
-  };
-
-  const createSession = async (currentTenantId: string) => {
+  const createSessionAndStore = async (currentTenantId: string) => {
     const token = getStoredAccessToken();
     const payload = token ? parseJwtPayload(token) : null;
     const userId = typeof payload?.userId === 'string' ? payload.userId : null;
 
-    const response = await fetchWithAuth('/api/chat/sessions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        tenantId: currentTenantId,
-        userId,
-        channel: 'WEB',
-        title: 'Playground Chat',
-      }),
+    const session = await createSession({
+      tenantId: currentTenantId,
+      userId,
+      channel: 'WEB',
+      title: 'Playground Chat',
     });
 
-    if (!response.ok) {
-      const message = await extractApiMessage(response, 'Không thể tạo phiên chat.');
-      throw new Error(message);
-    }
-
-    const payloadResponse = (await response.json()) as { data?: { id?: string } };
-    const newSessionId = payloadResponse?.data?.id;
+    const newSessionId = session.id;
     if (!newSessionId) {
       throw new Error('Không thể tạo phiên chat.');
     }
@@ -227,7 +196,7 @@ export default function ChatbotPlayground() {
       .filter((item): item is { name: string; snippet: string } => item !== null);
   };
 
-  const deriveHistoryTitle = (session: ChatSessionApi, mappedMessages: Message[]) => {
+  const deriveHistoryTitle = (session: ChatSessionResponse, mappedMessages: Message[]) => {
     const rawTitle = typeof session.title === 'string' ? session.title.trim() : '';
     if (rawTitle && rawTitle.toLowerCase() !== 'playground chat') {
       return rawTitle;
@@ -241,29 +210,21 @@ export default function ChatbotPlayground() {
     return rawTitle || 'Phiên chat mới';
   };
 
-  const fetchLatestAssistantSources = async (messageId: string) => {
-    const response = await fetchWithAuth(`/api/chat/messages/${messageId}/citations`);
-
-    if (!response.ok) {
+  const fetchLatestAssistantSources = async (messageId: string): Promise<CitationResponse[] | undefined> => {
+    try {
+      const rawCitations = await getCitations(messageId);
+      const sources = mapCitationSources(rawCitations);
+      return sources.length > 0 ? sources : undefined;
+    } catch {
       return undefined;
     }
-
-    const payload = (await response.json()) as ApiResponse<unknown[]>;
-    const sources = mapCitationSources(payload.data);
-    return sources.length > 0 ? sources : undefined;
   };
 
   const fetchSessionMessages = async (targetSessionId: string) => {
-    const response = await fetchWithAuth(`/api/chat/sessions/${targetSessionId}/messages`);
+    const messageList = await listMessages(targetSessionId);
 
-    if (!response.ok) {
-      const message = await extractApiMessage(response, 'Không tải được nội dung phiên chat.');
-      throw new Error(message);
-    }
-
-    const payload = (await response.json()) as ApiResponse<ChatMessageApi[]>;
-    const mappedMessages: Message[] = (payload.data || [])
-      .filter((item): item is ChatMessageApi & { id: string; content: string } => Boolean(item?.id && item?.content))
+    const mappedMessages: Message[] = messageList
+      .filter((item): item is ChatMessageResponse & { id: string; content: string } => Boolean(item?.id && item?.content))
       .map((item) => ({
         id: item.id,
         role: String(item.role).toUpperCase() === 'ASSISTANT' ? 'assistant' : 'user',
@@ -294,15 +255,7 @@ export default function ChatbotPlayground() {
   };
 
   const loadChatHistories = async (currentTenantId: string, preferredSessionId?: string) => {
-    const response = await fetchWithAuth(`/api/chat/sessions?tenantId=${encodeURIComponent(currentTenantId)}`);
-
-    if (!response.ok) {
-      const message = await extractApiMessage(response, 'Không tải được lịch sử phiên chat.');
-      throw new Error(message);
-    }
-
-    const payload = (await response.json()) as ApiResponse<ChatSessionApi[]>;
-    const sessions = payload.data || [];
+    const sessions = await listSessions(currentTenantId);
 
     const historyItems = await Promise.all(
       sessions.map(async (session) => {
@@ -319,14 +272,14 @@ export default function ChatbotPlayground() {
             title: deriveHistoryTitle(session, mappedMessages),
             preview: lastMessage?.content?.slice(0, 72).trim() || '',
             updatedAt: session.lastMessageAt || session.startedAt || new Date().toISOString(),
-          } satisfies ChatHistoryItem;
+          } as ChatHistoryItem;
         } catch {
           return {
             sessionId: targetSessionId,
             title: typeof session.title === 'string' && session.title.trim() ? session.title.trim() : 'Phiên chat',
             preview: '',
             updatedAt: session.lastMessageAt || session.startedAt || new Date().toISOString(),
-          } satisfies ChatHistoryItem;
+        } as ChatHistoryItem;
         }
       })
     );
@@ -350,15 +303,8 @@ export default function ChatbotPlayground() {
     setIsLoadingKnowledgeBases(true);
     try {
       const resolvedTenantId = resolveTenantIdFromToken();
-      const response = await fetchWithAuth('/api/knowledge-bases');
+      const allKnowledgeBases = await listKnowledgeBases();
 
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Không tải được danh sách kho tri thức.');
-        throw new Error(message);
-      }
-
-      const payload = (await response.json()) as ApiResponse<KnowledgeBaseOption[]>;
-      const allKnowledgeBases = payload.data || [];
       const filteredByTenant = resolvedTenantId
         ? allKnowledgeBases.filter((item) => item.tenantId === resolvedTenantId)
         : allKnowledgeBases;
@@ -442,35 +388,22 @@ export default function ChatbotPlayground() {
     setIsTyping(true);
 
     try {
-      const activeSessionId = sessionId.trim() || (await createSession(resolvedTenantId));
+      const activeSessionId = sessionId.trim() || (await createSessionAndStore(resolvedTenantId));
 
-      const response = await fetchWithAuth(`/api/chat/sessions/${activeSessionId}/ask`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          question: userMessage.content,
-          topK,
-          temperature,
-          knowledgeBaseId: knowledgeBaseId.trim() || undefined,
-        }),
+      const responseData = await ask(activeSessionId, {
+        question: userMessage.content,
+        topK,
+        temperature,
+        knowledgeBaseId: knowledgeBaseId.trim() || undefined,
       });
 
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Không thể gửi câu hỏi.');
-        throw new Error(message);
-      }
-
-      const payload = (await response.json()) as { data?: AskPayloadData; answer?: unknown; citations?: unknown };
-      const responseData = payload?.data;
-      const rawAnswer = responseData?.answer ?? payload?.answer;
+      const rawAnswer = responseData?.answer;
       const answer = typeof rawAnswer === 'string' && rawAnswer.trim()
         ? rawAnswer
         : 'Không có phản hồi từ hệ thống.';
       const userMessageId = typeof responseData?.userMessageId === 'string' ? responseData.userMessageId : userMessage.id;
       const assistantMessageId = typeof responseData?.assistantMessageId === 'string' ? responseData.assistantMessageId : `temp-assistant-${Date.now() + 1}`;
-      const sources = mapCitationSources(responseData?.citations ?? payload?.citations);
+      const sources = mapCitationSources(responseData?.citations);
 
       const assistantMessage: Message = {
         id: assistantMessageId,
