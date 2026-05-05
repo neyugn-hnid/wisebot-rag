@@ -3,6 +3,7 @@ package vandinh.wisebot.userservice.dto.request;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.ToString;
 
@@ -22,6 +23,7 @@ public class RegisterRequest implements Serializable {
     private String email;
 
     @NotBlank(message = "Mật khẩu không được để trống")
+    @Size(min = 9, message = "Mật khẩu phải lớn hơn 8 ký tự")
     private String password;
     
     @NotBlank(message = "Xác nhận mật khẩu không được để trống")

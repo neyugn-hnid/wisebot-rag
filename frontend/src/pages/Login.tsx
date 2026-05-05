@@ -14,8 +14,6 @@ import {
 } from 'lucide-react';
 import { GoogleIcon, GithubIcon } from '../components/SocialIcons';
 
-const NETWORK_ERROR_MESSAGE = 'Không thể kết nối đến máy chủ.';
-
 export default function Login() {
   const { t } = useLanguage();
   const { showToast } = useToast();
@@ -26,21 +24,53 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loginError, setLoginError] = useState('');
-  const clearLoginError = () => {
-    if (loginError) {
-      setLoginError('');
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [serverError, setServerError] = useState('');
+
+  const validateField = (name: string, value: string) => {
+    switch (name) {
+      case 'email':
+        if (!value.trim()) return t('validation.required');
+        return undefined;
+      case 'password':
+        if (!value) return t('validation.required');
+        return undefined;
+      default:
+        return undefined;
     }
   };
 
+  const handleBlur = (field: string) => (e: React.FocusEvent<HTMLInputElement>) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setErrors(prev => ({ ...prev, [field]: validateField(field, e.target.value) }));
+  };
+
+  const handleChange = (field: string, setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setter(e.target.value);
+    if (serverError) setServerError('');
+    if (touched[field]) {
+      setErrors(prev => ({ ...prev, [field]: validateField(field, e.target.value) }));
+    }
+  };
+
+  const inputClass = (field: string) =>
+    `w-full bg-transparent border pl-10 pr-4 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all rounded-[8px] focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40 ${
+      touched[field] && errors[field]
+        ? 'border-[#ff0000] focus:border-[#ff0000]'
+        : 'border-[rgba(255,255,255,0.3)] focus:border-primary'
+    }`;
+
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoginError('');
 
-    if (!email.trim() || !password.trim()) {
-      setLoginError('Vui lòng nhập email và mật khẩu.');
-      return;
-    }
+    const newErrors: Record<string, string | undefined> = {
+      email: validateField('email', email),
+      password: validateField('password', password),
+    };
+    setErrors(newErrors);
+    setTouched({ email: true, password: true });
+    if (newErrors.email || newErrors.password) return;
 
     setIsSubmitting(true);
 
@@ -49,6 +79,10 @@ export default function Login() {
         username: email.trim(),
         password,
       });
+
+      if (!payload.accessToken || !payload.refreshToken) {
+        throw new Error(t('validation.login_failed'));
+      }
 
       storeTokens({
         accessToken: payload.accessToken,
@@ -59,8 +93,8 @@ export default function Login() {
       showToast(t('toast.login_success'), 'success');
       navigate('/dashboard');
     } catch (error) {
-      const message = error instanceof Error ? error.message : NETWORK_ERROR_MESSAGE;
-      setLoginError(message);
+      const message = error instanceof Error ? error.message : t('toast.server_error');
+      setServerError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -76,8 +110,7 @@ export default function Login() {
         </div>
 
         <div className="bg-[#000000] p-8 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 space-y-6">
-          <form className="space-y-6" onSubmit={handleLogin}>
-            <div className="space-y-4">
+          <form className="space-y-5" onSubmit={handleLogin} noValidate>
             <div className="space-y-1.5">
               <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">{t('auth.email')}</label>
               <div className="relative">
@@ -86,15 +119,15 @@ export default function Login() {
                   type="email" 
                   placeholder="name@company.com"
                   value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    clearLoginError();
-                  }}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] pl-10 pr-4 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all placeholder:/40 rounded-[8px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40"
+                  onChange={handleChange('email', setEmail)}
+                  onBlur={handleBlur('email')}
+                  className={inputClass('email')}
                   autoComplete="email"
-                  required
                 />
               </div>
+              {touched.email && errors.email && (
+                <p className="text-[11px] text-[#ff0000] font-medium mt-1">{errors.email}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -108,13 +141,10 @@ export default function Login() {
                   type={showPassword ? "text" : "password"} 
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    clearLoginError();
-                  }}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] pl-10 pr-10 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all placeholder:/40 rounded-[8px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40"
+                  onChange={handleChange('password', setPassword)}
+                  onBlur={handleBlur('password')}
+                  className={`${inputClass('password')} pr-10`}
                   autoComplete="current-password"
-                  required
                 />
                 <button
                   type="button"
@@ -124,7 +154,9 @@ export default function Login() {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-            </div>
+              {touched.password && errors.password && (
+                <p className="text-[11px] text-[#ff0000] font-medium mt-1">{errors.password}</p>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -146,9 +178,9 @@ export default function Login() {
               {isSubmitting ? 'Đang đăng nhập...' : t('auth.sign_in')}
             </button>
 
-            {loginError && (
-              <div className="rounded-[12px] text-center px-4 py-3 text-sm font-medium text-rose-600">
-                {loginError}
+            {serverError && (
+              <div className="rounded-[8px] text-center px-4 py-2.5 text-[12px] font-medium text-[#ff0000] bg-[rgba(255,0,0,0.05)] border border-[rgba(255,0,0,0.15)]">
+                {serverError}
               </div>
             )}
           </form>

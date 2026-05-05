@@ -43,12 +43,17 @@ class AuthError extends Error {
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const message = (body as { message?: string; error?: string })?.message
+    const message = (body as { message?: string; error?: string; status?: number })?.message
       || (body as { error?: string })?.error
-      || `Request failed: ${response.status}`;
+      || (response.status === 401 ? 'Email hoặc mật khẩu không đúng' : null)
+      || `Request failed (${response.status})`;
     throw new AuthError(message);
   }
-  const body = await response.json() as { data?: T; message?: string; accessToken?: string; refreshToken?: string };
+  const body = await response.json() as { data?: T; message?: string; error?: string; status?: number; accessToken?: string; refreshToken?: string };
+  // Handle case where HTTP 200 but body contains error status
+  if (body.status && body.status >= 400) {
+    throw new AuthError(body.message || body.error || `Request failed (${body.status})`);
+  }
   return (body.data ?? body) as T;
 }
 

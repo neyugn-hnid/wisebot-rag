@@ -99,9 +99,17 @@ export const RoleProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const syncFromAccessToken = (token: string) => {
-    setRole(parseRoleFromToken(token));
-    setIsAuthenticated(true);
-    setIsReady(true);
+    if (!token || typeof token !== 'string') {
+      clearAuth();
+      return;
+    }
+    try {
+      setRole(parseRoleFromToken(token));
+      setIsAuthenticated(true);
+      setIsReady(true);
+    } catch {
+      clearAuth();
+    }
   };
 
   const clearAuth = () => {

@@ -1,15 +1,25 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRole } from '../contexts/RoleContext';
+import {
+  listUsers,
+  type UserPageResponse,
+} from '../api/users';
+import {
+  listKnowledgeBases,
+  type KnowledgeBaseResponse,
+} from '../api/knowledge-base';
+import {
+  listPlans,
+  type BillingPlanResponse,
+} from '../api/billing';
 import { 
   TrendingUp, 
   TrendingDown, 
   MessageSquare, 
   Users, 
   Clock, 
-  Zap,
   Key,
-  CreditCard,
   Activity,
   Server,
   DollarSign
@@ -84,18 +94,43 @@ export default function Analytics() {
   const { role } = useRole();
   const isAdmin = role === 'ADMIN' || role === 'OWNER';
 
+  const [loading, setLoading] = useState(true);
+  const [userCount, setUserCount] = useState(0);
+  const [kbCount, setKbCount] = useState(0);
+  const [planCount, setPlanCount] = useState(0);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [users, kbs, plans] = await Promise.all([
+          listUsers({ page: 0, size: 1 }).catch(() => ({ totalElements: 0 } as UserPageResponse)),
+          listKnowledgeBases().catch(() => [] as KnowledgeBaseResponse[]),
+          listPlans().catch(() => [] as BillingPlanResponse[]),
+        ]);
+        setUserCount(users.totalElements);
+        setKbCount(kbs.length);
+        setPlanCount(plans.length);
+      } catch {
+        // keep defaults
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   const kpis = [
-    { label: t('dashboard.stats.conversations'), value: '12,543', change: '+12.5%', trend: 'up', icon: MessageSquare },
-    { label: t('dashboard.stats.active_users'), value: '1,205', change: '+5.2%', trend: 'up', icon: Users },
-    { label: t('dashboard.stats.avg_time'), value: '1m 42s', change: '-8.1%', trend: 'down', icon: Clock },
-    { label: t('dashboard.stats.resolution'), value: '94.2%', change: '+2.4%', trend: 'up', icon: Zap },
+    { label: t('dashboard.stats.conversations'), value: loading ? '...' : kbCount.toLocaleString(), change: `${kbCount} KBs`, trend: 'up' as const, icon: MessageSquare },
+    { label: t('dashboard.stats.active_users'), value: loading ? '...' : userCount.toLocaleString(), change: `${userCount} Users`, trend: 'up' as const, icon: Users },
+    { label: 'Knowledge Bases', value: loading ? '...' : kbCount.toLocaleString(), change: 'Active', trend: 'up' as const, icon: Clock },
+    { label: 'Billing Plans', value: loading ? '...' : planCount.toLocaleString(), change: `${planCount} Plans`, trend: 'up' as const, icon: DollarSign },
   ];
 
   const adminKpis = [
-    { label: t('analytics.admin.total_users'), value: '42,840', change: '+18.2%', trend: 'up', icon: Users, color: 'text-blue-500' },
-    { label: t('analytics.admin.mrr'), value: '$124,500', change: '+14.5%', trend: 'up', icon: DollarSign, color: 'text-emerald-500' },
-    { label: t('analytics.admin.system_health'), value: '99.98%', change: t('analytics.admin.stable'), trend: 'up', icon: Server, color: 'text-indigo-500' },
-    { label: t('analytics.admin.api_requests'), value: '4.2M', change: '+22.4%', trend: 'up', icon: Activity, color: 'text-[#ff801f]' },
+    { label: t('analytics.admin.total_users'), value: loading ? '...' : userCount.toLocaleString(), change: `${userCount} Users`, trend: 'up' as const, icon: Users, color: 'text-blue-500' },
+    { label: 'Knowledge Bases', value: loading ? '...' : kbCount.toLocaleString(), change: `${kbCount} KBs`, trend: 'up' as const, icon: DollarSign, color: 'text-emerald-500' },
+    { label: 'Billing Plans', value: loading ? '...' : planCount.toLocaleString(), change: `${planCount} Plans`, trend: 'up' as const, icon: Server, color: 'text-indigo-500' },
+    { label: t('analytics.admin.api_requests'), value: '4.2M', change: '+22.4%', trend: 'up' as const, icon: Activity, color: 'text-[#ff801f]' },
   ];
 
   return (

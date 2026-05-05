@@ -22,24 +22,12 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
-import { fetchWithAuth } from '../lib/auth';
-
-type ApiResponse<T> = {
-  status?: number;
-  message?: string;
-  data?: T;
-  error?: string;
-};
-
-type UserProfile = {
-  id: string;
-  avatarUrl?: string | null;
-  fullName: string;
-  username: string;
-  email: string;
-  phone?: string | null;
-  createdAt?: string;
-};
+import {
+  getProfile,
+  updateProfile,
+  changePassword,
+  type UserResponse,
+} from '../api/users';
 
 type PasswordForm = {
   currentPassword: string;
@@ -52,7 +40,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserResponse | null>(null);
   const [profileForm, setProfileForm] = useState({ fullName: '', phone: '' });
   const [passwordForm, setPasswordForm] = useState<PasswordForm>({
     currentPassword: '',
@@ -67,38 +55,15 @@ export default function Profile() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const extractApiMessage = async (response: Response, fallbackMessage: string) => {
-    try {
-      const payload = (await response.json()) as { message?: string; error?: string };
-      return payload.message || payload.error || fallbackMessage;
-    } catch {
-      return fallbackMessage;
-    }
-  };
-
   const loadProfile = async () => {
     setIsLoadingProfile(true);
     try {
-      const response = await fetchWithAuth('/api/user/profile', {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const data = await getProfile();
 
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Không tải được hồ sơ người dùng.');
-        throw new Error(message);
-      }
-
-      const payload = (await response.json()) as ApiResponse<UserProfile>;
-      if (!payload.data) {
-        throw new Error('Không nhận được dữ liệu hồ sơ.');
-      }
-
-      setProfile(payload.data);
+      setProfile(data);
       setProfileForm({
-        fullName: payload.data.fullName || '',
-        phone: payload.data.phone || '',
+        fullName: data.fullName || '',
+        phone: data.phone || '',
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không tải được hồ sơ người dùng.';
@@ -143,21 +108,10 @@ export default function Profile() {
 
     setIsSavingProfile(true);
     try {
-      const response = await fetchWithAuth('/api/user/update-profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fullName: profileForm.fullName.trim(),
-          phone: profileForm.phone.trim(),
-        }),
+      await updateProfile({
+        fullName: profileForm.fullName.trim(),
+        phone: profileForm.phone.trim(),
       });
-
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Không thể cập nhật hồ sơ.');
-        throw new Error(message);
-      }
 
       setProfile((current) => current ? {
         ...current,
@@ -197,18 +151,7 @@ export default function Profile() {
 
     setIsChangingPassword(true);
     try {
-      const response = await fetchWithAuth('/api/user/change-password', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(passwordForm),
-      });
-
-      if (!response.ok) {
-        const message = await extractApiMessage(response, 'Không thể đổi mật khẩu.');
-        throw new Error(message);
-      }
+      await changePassword(passwordForm);
 
       setPasswordForm({
         currentPassword: '',

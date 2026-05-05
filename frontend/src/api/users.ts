@@ -44,6 +44,17 @@ export interface ChangeStatusRequest {
   newStatus: 'ACTIVE' | 'DISABLED' | 'PENDING';
 }
 
+export interface ProfileUpdateRequest {
+  fullName: string;
+  phone: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword?: string;
+}
+
 // --- Helper ---
 
 const USER_BASE = '/api/user';
@@ -109,5 +120,36 @@ export async function changeUserStatus(id: string, newStatus: ChangeStatusReques
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error((body as { message?: string })?.message || `Status change failed: ${res.status}`);
+  }
+}
+
+// --- Profile APIs ---
+
+export async function getProfile(): Promise<UserResponse> {
+  const res = await fetchWithAuth(`${USER_BASE}/profile`);
+  return handleResponse<UserResponse>(res);
+}
+
+export async function updateProfile(request: ProfileUpdateRequest): Promise<void> {
+  const res = await fetchWithAuth(`${USER_BASE}/update-profile`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error((body as { message?: string })?.message || `Update failed: ${res.status}`);
+  }
+}
+
+export async function changePassword(request: ChangePasswordRequest): Promise<void> {
+  const res = await fetchWithAuth(`${USER_BASE}/change-password`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error((body as { message?: string })?.message || `Password change failed: ${res.status}`);
   }
 }

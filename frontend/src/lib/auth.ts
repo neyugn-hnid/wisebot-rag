@@ -75,7 +75,8 @@ function isTokenExpiringSoon(token: string, bufferMs = 30_000) {
   const payload = parseJwtPayload(token);
   const exp = typeof payload?.exp === 'number' ? payload.exp : null;
   if (!exp) {
-    return true;
+    console.warn('[auth] Token has no exp claim, treating as not expiring soon');
+    return false; // Don't refresh if we can't determine expiry
   }
   return exp * 1000 - Date.now() <= bufferMs;
 }
@@ -129,13 +130,16 @@ export async function refreshAccessToken(): Promise<string | null> {
 export async function getValidAccessToken() {
   const accessToken = getStoredAccessToken();
   if (!accessToken) {
+    console.warn('[auth] No access token found in storage');
     return null;
   }
 
-  if (!isTokenExpiringSoon(accessToken)) {
+  const expiring = isTokenExpiringSoon(accessToken);
+  if (!expiring) {
     return accessToken;
   }
 
+  console.log('[auth] Access token expiring soon, refreshing...');
   return refreshAccessToken();
 }
 
@@ -145,6 +149,8 @@ export async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit 
 
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
+  } else {
+    console.warn('[fetchWithAuth] No valid access token available for request:', input);
   }
 
   let response = await fetch(input, {
@@ -152,22 +158,22 @@ export async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit 
     headers,
   });
 
-  if (response.status !== 401) {
-    return response;
+  if (response.status === 401) {
+    console.warn('[fetchWithAuth] 401 received, attempting token refresh...');
+    const refreshedToken = await refreshAccessToken();
+    if (!refreshedToken) {
+      console.error('[fetchWithAuth] Token refresh failed, cannot retry');
+      return response;
+    }
+
+    const retryHeaders = new Headers(init.headers);
+    retryHeaders.set('Authorization', `Bearer ${refreshedToken}`);
+
+    response = await fetch(input, {
+      ...init,
+      headers: retryHeaders,
+    });
   }
-
-  const refreshedToken = await refreshAccessToken();
-  if (!refreshedToken) {
-    return response;
-  }
-
-  const retryHeaders = new Headers(init.headers);
-  retryHeaders.set('Authorization', `Bearer ${refreshedToken}`);
-
-  response = await fetch(input, {
-    ...init,
-    headers: retryHeaders,
-  });
 
   return response;
 }

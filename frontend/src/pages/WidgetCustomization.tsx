@@ -30,9 +30,16 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchWithAuth, getStoredAccessToken } from '../lib/auth';
-
+import { getStoredAccessToken } from '../lib/auth';
 import { CustomRobotLogo } from '../components/Logo';
+import { listKnowledgeBases, type KnowledgeBaseResponse } from '../api/knowledge-base';
+import {
+  listWidgets,
+  createWidget,
+  updateWidget,
+  type WidgetResponse,
+  type WidgetAppearanceConfig,
+} from '../api/widget';
 
 const BOT_ICONS = [
   { id: 'bot', icon: CustomRobotLogo },
@@ -46,40 +53,9 @@ const BOT_ICONS = [
   { id: 'user', icon: User },
 ];
 
-interface ApiResponse<T> {
-  data?: T;
-  message?: string;
-  error?: string;
-}
-
-interface WidgetRecord {
-  id: string;
-  tenantId: string;
-  name: string;
-  code: string;
-  status: string;
-  welcomeMessage?: string | null;
-  appearanceConfig?: WidgetSettings | null;
-  createdAt?: string;
-}
-
-interface WidgetSettings {
-  primaryColor?: string;
+interface WidgetSettings extends WidgetAppearanceConfig {
   botName?: string;
   welcomeMsg?: string;
-  selectedIconId?: string;
-  iconColor?: string;
-  customIconUrl?: string | null;
-  position?: 'right' | 'left';
-  knowledgeBaseId?: string;
-  topK?: number;
-  temperature?: number;
-}
-
-interface KnowledgeBaseOption {
-  id: string;
-  name: string;
-  tenantId?: string;
 }
 
 const WIDGET_SETTINGS_STORAGE_KEY = 'wisebot_widget_settings';
@@ -102,9 +78,9 @@ export default function WidgetCustomization() {
   const [temperature, setTemperature] = useState(0.2);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [widget, setWidget] = useState<WidgetRecord | null>(null);
+  const [widget, setWidget] = useState<WidgetResponse | null>(null);
   const [isLoadingWidget, setIsLoadingWidget] = useState(false);
-  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseOption[]>([]);
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseResponse[]>([]);
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasHydratedLocalSettings = useRef(false);
@@ -140,15 +116,6 @@ export default function WidgetCustomization() {
     const token = getStoredAccessToken();
     const payload = token ? parseJwtPayload(token) : null;
     return typeof payload?.userId === 'string' ? payload.userId.trim() : '';
-  };
-
-  const extractApiMessage = async (response: Response, fallbackMessage: string) => {
-    try {
-      const payload = (await response.json()) as { message?: string; error?: string };
-      return payload.message || payload.error || fallbackMessage;
-    } catch {
-      return fallbackMessage;
-    }
   };
 
   const generateWidgetCode = () => {
@@ -188,19 +155,7 @@ export default function WidgetCustomization() {
 
       setIsLoadingKnowledgeBases(true);
       try {
-        const response = await fetchWithAuth('/api/knowledge-bases', {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          const message = await extractApiMessage(response, 'Không tải được danh sách kho tri thức.');
-          throw new Error(message);
-        }
-
-        const payload = (await response.json()) as ApiResponse<KnowledgeBaseOption[]>;
-        const allItems = payload.data || [];
+        const allItems = await listKnowledgeBases();
         const tenantItems = allItems.filter((item) => item.tenantId === tenantId);
         const scopedItems = tenantItems.length > 0 ? tenantItems : allItems;
         setKnowledgeBases(scopedItems);
@@ -228,19 +183,8 @@ export default function WidgetCustomization() {
 
       setIsLoadingWidget(true);
       try {
-        const response = await fetchWithAuth(`/api/widget/widgets?tenantId=${encodeURIComponent(tenantId)}`, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          const message = await extractApiMessage(response, 'Không tải được widget.');
-          throw new Error(message);
-        }
-
-        const payload = (await response.json()) as ApiResponse<WidgetRecord[]>;
-        const existingWidget = payload.data?.[0] ?? null;
+        const widgets = await listWidgets(tenantId);
+        const existingWidget = widgets[0] ?? null;
         setWidget(existingWidget);
 
         if (existingWidget) {
@@ -322,71 +266,44 @@ export default function WidgetCustomization() {
 
       let activeWidget = widget;
       if (!activeWidget) {
-        const createResponse = await fetchWithAuth('/api/widget/widgets', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        const created = await createWidget({
+          tenantId,
+          name: botName.trim() || 'WiseBot Assistant',
+          code: generateWidgetCode(),
+          welcomeMessage: welcomeMsg.trim(),
+          createdBy: resolveUserIdFromToken() || null,
+          appearanceConfig: {
+            primaryColor,
+            position,
+            iconColor,
+            selectedIconId,
+            customIconUrl,
+            knowledgeBaseId: knowledgeBaseId || null,
+            topK,
+            temperature,
           },
-          body: JSON.stringify({
-            tenantId,
-            name: botName.trim() || 'WiseBot Assistant',
-            code: generateWidgetCode(),
-            welcomeMessage: welcomeMsg.trim(),
-            createdBy: resolveUserIdFromToken() || null,
-            appearanceConfig: {
-              primaryColor,
-              position,
-              iconColor,
-              selectedIconId,
-              customIconUrl,
-              knowledgeBaseId: knowledgeBaseId || null,
-              topK,
-              temperature,
-            },
-          }),
         });
 
-        if (!createResponse.ok) {
-          const message = await extractApiMessage(createResponse, 'Không thể tạo widget.');
-          throw new Error(message);
-        }
-
-        const createPayload = (await createResponse.json()) as ApiResponse<WidgetRecord>;
-        activeWidget = createPayload.data ?? null;
-        if (!activeWidget) {
-          throw new Error('Không nhận được dữ liệu widget từ máy chủ.');
-        }
-        setWidget(activeWidget);
+        activeWidget = created;
+        setWidget(created);
       } else {
-        const updateResponse = await fetchWithAuth(`/api/widget/widgets/${activeWidget.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
+        const updated = await updateWidget(activeWidget.id, {
+          name: botName.trim() || 'WiseBot Assistant',
+          welcomeMessage: welcomeMsg.trim(),
+          appearanceConfig: {
+            primaryColor,
+            position,
+            iconColor,
+            selectedIconId,
+            customIconUrl,
+            knowledgeBaseId: knowledgeBaseId || null,
+            topK,
+            temperature,
           },
-          body: JSON.stringify({
-            name: botName.trim() || 'WiseBot Assistant',
-            welcomeMessage: welcomeMsg.trim(),
-            appearanceConfig: {
-              primaryColor,
-              position,
-              iconColor,
-              selectedIconId,
-              customIconUrl,
-              knowledgeBaseId: knowledgeBaseId || null,
-              topK,
-              temperature,
-            },
-          }),
         });
 
-        if (!updateResponse.ok) {
-          const message = await extractApiMessage(updateResponse, 'Không thể cập nhật widget.');
-          throw new Error(message);
-        }
-
-        const updatePayload = (await updateResponse.json()) as ApiResponse<WidgetRecord>;
-        activeWidget = updatePayload.data ?? activeWidget;
-        setWidget(activeWidget);
+        activeWidget = updated;
+        setWidget(updated);
       }
 
       setIsPublishing(false);

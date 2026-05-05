@@ -160,3 +160,18 @@ export async function listPayments(invoiceId: string): Promise<PaymentResponse[]
   const res = await fetchWithAuth(`${BILLING_BASE}/payments?invoiceId=${invoiceId}`);
   return handleResponse<PaymentResponse[]>(res);
 }
+
+// --- VNPay ---
+
+export interface CreatePaymentUrlResponse {
+  paymentUrl: string;
+}
+
+export async function createPaymentUrl(amount: number, orderInfo: string, orderId: string): Promise<CreatePaymentUrlResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/payments/create-payment-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount, orderInfo, orderId }),
+  });
+  return handleResponse<CreatePaymentUrlResponse>(res);
+}
