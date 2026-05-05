@@ -1,6 +1,5 @@
 import { fetchWithAuth } from '../lib/auth';
 
-// --- Types matching backend DTOs ---
 
 export interface LoginRequest {
   username: string; // email or username
@@ -29,7 +28,6 @@ export interface InviteRequest {
   email: string;
 }
 
-// --- Helpers ---
 
 const AUTH_BASE = '/api/auth';
 
@@ -50,14 +48,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw new AuthError(message);
   }
   const body = await response.json() as { data?: T; message?: string; error?: string; status?: number; accessToken?: string; refreshToken?: string };
-  // Handle case where HTTP 200 but body contains error status
   if (body.status && body.status >= 400) {
     throw new AuthError(body.message || body.error || `Request failed (${body.status})`);
   }
   return (body.data ?? body) as T;
 }
 
-// --- API functions ---
 
 export async function login(request: LoginRequest): Promise<LoginResponse> {
   const res = await fetch(`${AUTH_BASE}/login`, {

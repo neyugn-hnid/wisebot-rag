@@ -51,13 +51,11 @@ export default function Billing() {
   const [billingAddress, setBillingAddress] = useState({ line1: '', line2: '', city: '', country: 'US', zip: '' });
   const [invoices, setInvoices] = useState<Invoice[]>([]);
 
-  // --- Backend state ---
   const [backendPlans, setBackendPlans] = useState<BillingPlanResponse[]>([]);
   const [backendPlanPrices, setBackendPlanPrices] = useState<BillingPlanPriceResponse[]>([]);
   const [backendSubscription, setBackendSubscription] = useState<SubscriptionResponse | null>(null);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [loadingSub, setLoadingSub] = useState(true);
-  // --- End backend state ---
 
   useEffect(() => {
     if (location.state?.selectedPlanId) {
@@ -65,7 +63,6 @@ export default function Billing() {
     }
   }, [location.state]);
 
-  // --- Fetch backend data ---
   useEffect(() => {
     let cancelled = false;
 
@@ -82,7 +79,6 @@ export default function Billing() {
         setBackendPlans(plans);
         setBackendSubscription(subscription);
 
-        // Fetch prices for each plan
         if (plans.length > 0) {
           const prices = await Promise.all(
             plans.map(p => listPlanPrices(p.id).catch(() => [] as BillingPlanPriceResponse[]))
@@ -90,13 +86,11 @@ export default function Billing() {
           setBackendPlanPrices(prices.flat());
         }
 
-        // Set current plan from subscription
         if (subscription && plans.length > 0) {
           const activePlan = plans.find(p => p.id === subscription.planId);
           if (activePlan) setCurrentPlan(activePlan.name);
         }
 
-        // Map backend invoices to display format
         if (invoicesResult.length > 0) {
           setInvoices(invoicesResult.map(inv => ({
             id: inv.invoiceNo || inv.id,
@@ -106,7 +100,6 @@ export default function Billing() {
           })));
         }
       } catch {
-        // backend unavailable, plans will show empty state
       } finally {
         if (!cancelled) {
           setLoadingPlans(false);
@@ -118,7 +111,6 @@ export default function Billing() {
     fetchBackendData();
     return () => { cancelled = true; };
   }, []);
-  // --- End fetch backend data ---
 
   const handleSelectPlan = (planId: string, planName: string, planPrice: number) => {
     if (currentPlan && planName === currentPlan) return;
@@ -144,8 +136,6 @@ export default function Billing() {
     try {
       setIsProcessing(id);
       
-      // TODO: Integrate real payment gateway (VNPay, Stripe) here
-      // For now, subscribe directly
       const sub = await mySubscribe(id);
       setBackendSubscription(sub);
       setCurrentPlan(name);
@@ -185,7 +175,7 @@ export default function Billing() {
 
   const renderCheckout = () => (
     <div className="max-w-lg mx-auto space-y-6 py-2 animate-in slide-in-from-right-4 duration-300">
-      {/* Order Summary */}
+      {}
       <div className="bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)] p-5 space-y-3">
         <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.order_summary') || 'Order Summary'}</h5>
         <div className="flex justify-between text-sm">
@@ -204,7 +194,7 @@ export default function Billing() {
         </button>
       </div>
 
-      {/* Payment Method */}
+      {}
       <div className="space-y-3">
         <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.payment_method') || 'Payment method'}</h5>
         
@@ -257,7 +247,7 @@ export default function Billing() {
         </div>
       </div>
 
-      {/* Billing Address */}
+      {}
       <div className="space-y-3">
         <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.details.address') || 'Billing address'}</h5>
         <div className="space-y-2">
@@ -305,7 +295,7 @@ export default function Billing() {
         </div>
       </div>
 
-      {/* Subscribe Button */}
+      {}
       <button 
         onClick={handleCheckoutConfirm}
         disabled={isProcessing !== null}
@@ -332,7 +322,6 @@ export default function Billing() {
       );
     }
     if (backendPlans.length === 0) {
-      // Show fallback message with static plans if backend unavailable
       return (
         <div className="col-span-full space-y-6">
           <div className="text-center py-4 text-[#a1a4a5] text-sm">
@@ -452,7 +441,7 @@ export default function Billing() {
           </div>
         </div>
 
-        {/* Admin Stats */}
+        {}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
             <div className="flex items-center gap-3 text-[#a1a4a5] mb-2">
@@ -492,7 +481,7 @@ export default function Billing() {
           </div>
         </div>
 
-        {/* Recent Subscriptions */}
+        {}
         <div className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 overflow-hidden">
           <div className="p-6 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
             <h3 className="text-lg font-bold text-[#f0f0f0]">{t('billing.recent_subs')}</h3>
@@ -525,7 +514,7 @@ export default function Billing() {
         </div>
       </div>
 
-      {/* Upgrade Modal */}
+      {}
       {isUpgradeModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
@@ -624,7 +613,6 @@ export default function Billing() {
     );
   }
 
-  // User View
   return (
     <>
       <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -644,7 +632,7 @@ export default function Billing() {
 
         <div className="space-y-8">
           <div className="space-y-8">
-            {/* Current Plan */}
+            {}
             <div className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] overflow-hidden shadow-md shadow-black/40 animate-in slide-in-from-bottom-4 duration-300">
                   <div className="p-4 sm:p-8 border-b border-[rgba(255,255,255,0.3)] flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
@@ -681,7 +669,7 @@ export default function Billing() {
                   </div>
                 </div>
 
-                {/* Payment History */}
+                {}
                 <div className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
                   <div className="p-6 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
                     <h3 className="text-lg font-bold text-[#f0f0f0]">{t('billing.history')}</h3>
@@ -743,7 +731,7 @@ export default function Billing() {
           </div>
         </div>
 
-        {/* Upgrade Modal */}
+        {}
         {isUpgradeModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
@@ -762,7 +750,7 @@ export default function Billing() {
               <div className="p-4 sm:p-8">
                 {upgradeStep === 'selection' ? (
                   <div>
-                    {/* Billing Cycle Switcher */}
+                    {}
                     <div className="flex justify-center mb-10">
                       <div className="flex items-center gap-1 bg-[rgba(255,255,255,0.05)] p-1 rounded-[16px] border border-[rgba(255,255,255,0.3)]">
                         <button 

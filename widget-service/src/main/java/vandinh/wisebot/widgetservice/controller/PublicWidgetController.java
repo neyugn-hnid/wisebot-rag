@@ -25,7 +25,7 @@ public class PublicWidgetController {
     public ApiResponse getPublicWidget(@PathVariable String code) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Public widget")
+                .message("Thông tin widget công khai")
                 .data(widgetService.getPublicWidgetByCode(code))
                 .build();
     }
@@ -34,7 +34,7 @@ public class PublicWidgetController {
     public ApiResponse createPublicSession(@PathVariable String code, @Valid @RequestBody CreateWidgetSessionRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Session created")
+                .message("Phiên làm việc công khai đã được tạo")
                 .data(widgetService.createPublicSession(code, request))
                 .build();
     }
@@ -43,7 +43,7 @@ public class PublicWidgetController {
     public ApiResponse trackPublicEvent(@PathVariable String code, @Valid @RequestBody TrackEventRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Event tracked")
+                .message("Event đã được ghi nhận")
                 .data(widgetService.trackPublicEvent(code, request))
                 .build();
     }

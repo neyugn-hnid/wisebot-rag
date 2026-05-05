@@ -119,7 +119,7 @@ public class BillingServiceImpl implements BillingService {
     @Transactional(rollbackFor = Exception.class)
     public UsageEventResponse createUsageEvent(CreateUsageEventRequest request) {
         BillingUsageMeter meter = usageMeterRepository.findById(request.getMeterId())
-                .orElseThrow(() -> new ResourceNotFoundException("Usage meter not found: " + request.getMeterId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Usage meter không tồn tại: " + request.getMeterId()));
         BillingUsageEvent event = BillingUsageEvent.builder()
                 .tenantId(request.getTenantId())
                 .meter(meter)
@@ -144,7 +144,7 @@ public class BillingServiceImpl implements BillingService {
     @Transactional(rollbackFor = Exception.class)
     public SubscriptionResponse subscribe(SubscribeRequest request) {
         BillingPlan plan = planRepository.findById(request.getPlanId())
-                .orElseThrow(() -> new ResourceNotFoundException("Plan not found: " + request.getPlanId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Gói cước không tồn tại: " + request.getPlanId()));
 
         BillingSubscription subscription = subscriptionRepository.findByTenantId(request.getTenantId())
                 .orElse(BillingSubscription.builder().tenantId(request.getTenantId()).build());
@@ -164,7 +164,7 @@ public class BillingServiceImpl implements BillingService {
     public SubscriptionResponse getSubscription(UUID tenantId) {
         return subscriptionRepository.findByTenantId(tenantId)
                 .map(this::mapSubscription)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found for tenant: " + tenantId));
+                .orElseThrow(() -> new ResourceNotFoundException("Đăng ký không tồn tại cho tenant: " + tenantId));
     }
 
     @Override
@@ -180,7 +180,7 @@ public class BillingServiceImpl implements BillingService {
         @Transactional(rollbackFor = Exception.class)
         public InvoiceItemResponse createInvoiceItem(CreateInvoiceItemRequest request) {
         BillingInvoice invoice = invoiceRepository.findById(request.getInvoiceId())
-            .orElseThrow(() -> new ResourceNotFoundException("Invoice not found: " + request.getInvoiceId()));
+            .orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại: " + request.getInvoiceId()));
         BillingInvoiceItem item = BillingInvoiceItem.builder()
             .invoice(invoice)
             .itemType(request.getItemType())
@@ -206,7 +206,7 @@ public class BillingServiceImpl implements BillingService {
         @Transactional(rollbackFor = Exception.class)
         public PaymentResponse createPayment(CreatePaymentRequest request) {
         BillingInvoice invoice = invoiceRepository.findById(request.getInvoiceId())
-            .orElseThrow(() -> new ResourceNotFoundException("Invoice not found: " + request.getInvoiceId()));
+            .orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại: " + request.getInvoiceId()));
         BillingPayment payment = BillingPayment.builder()
             .invoice(invoice)
             .provider(request.getProvider())

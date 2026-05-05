@@ -35,7 +35,7 @@ public class BillingController {
     public ApiResponse createPlan(@Valid @RequestBody CreatePlanRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Plan created")
+                .message("Tạo gói cước thành công")
                 .data(billingService.createPlan(request))
                 .build();
     }
@@ -45,7 +45,7 @@ public class BillingController {
     public ApiResponse listPlans() {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Plans")
+                .message("Danh sách gói cước")
                 .data(billingService.listPlans())
                 .build();
     }
@@ -55,7 +55,7 @@ public class BillingController {
     public ApiResponse createPlanPrice(@Valid @RequestBody CreatePlanPriceRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Plan price created")
+                .message("Tạo giá gói cước thành công")
                 .data(billingService.createPlanPrice(request))
                 .build();
     }
@@ -65,7 +65,7 @@ public class BillingController {
     public ApiResponse listPlanPrices(@RequestParam UUID planId) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Plan prices")
+                .message("Danh sách giá gói cước")
                 .data(billingService.listPlanPrices(planId))
                 .build();
     }
@@ -75,7 +75,7 @@ public class BillingController {
     public ApiResponse createUsageMeter(@Valid @RequestBody CreateUsageMeterRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Usage meter created")
+                .message("Tạo usage meter thành công")
                 .data(billingService.createUsageMeter(request))
                 .build();
     }
@@ -85,7 +85,7 @@ public class BillingController {
     public ApiResponse listUsageMeters() {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Usage meters")
+                .message("Danh sách usage meters")
                 .data(billingService.listUsageMeters())
                 .build();
     }
@@ -95,7 +95,7 @@ public class BillingController {
     public ApiResponse createUsageEvent(@Valid @RequestBody CreateUsageEventRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Usage event created")
+                .message("Tạo usage event thành công")
                 .data(billingService.createUsageEvent(request))
                 .build();
     }
@@ -105,7 +105,7 @@ public class BillingController {
     public ApiResponse listUsageEvents(@RequestParam UUID tenantId) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Usage events")
+                .message("Danh sách usage events")
                 .data(billingService.listUsageEvents(tenantId))
                 .build();
     }
@@ -115,7 +115,7 @@ public class BillingController {
     public ApiResponse subscribe(@Valid @RequestBody SubscribeRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Subscribed")
+                .message("Đăng ký thành công")
                 .data(billingService.subscribe(request))
                 .build();
     }

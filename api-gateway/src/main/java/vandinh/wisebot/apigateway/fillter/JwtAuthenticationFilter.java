@@ -34,7 +34,6 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
-    // Whitelist: bypass filter
     private static final String[] AUTH_WHITELIST = {
             "/auth/**",
             "/api/auth/**",

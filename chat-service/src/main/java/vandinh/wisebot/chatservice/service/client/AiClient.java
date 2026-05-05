@@ -80,7 +80,7 @@ public class AiClient {
                             onEvent.accept(event);
                         }
                     } catch (IOException ex) {
-                        throw new IllegalStateException("Failed to consume AI stream", ex);
+                        throw new IllegalStateException("Tạo token dịch vụ thất bại", ex);
                     }
                     return null;
                 }

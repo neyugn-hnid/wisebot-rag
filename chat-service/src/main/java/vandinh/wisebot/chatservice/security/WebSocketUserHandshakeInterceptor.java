@@ -38,6 +38,5 @@ public class WebSocketUserHandshakeInterceptor implements HandshakeInterceptor {
             WebSocketHandler wsHandler,
             Exception exception
     ) {
-        // no-op
     }
 }

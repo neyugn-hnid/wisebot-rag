@@ -8,7 +8,6 @@ import ChatWidget from '../components/ChatWidget';
 export default function Demo() {
   const { t } = useLanguage();
 
-  // Load settings from localStorage or use defaults
   const [publishedSettings] = React.useState(() => {
     const saved = localStorage.getItem('wisebot_widget_settings');
     if (saved) {
@@ -31,7 +30,7 @@ export default function Demo() {
 
   return (
     <div className="min-h-screen bg-[rgba(255,255,255,0.02)] font-sans text-[#f0f0f0] relative selection:bg-primary/20">
-      {/* Demo Header */}
+      {}
       <header className="bg-[#000000]/80 backdrop-blur-md border-b border-[rgba(255,255,255,0.3)] px-6 py-4 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-4">
           <Link to="/customization" className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-[16px] transition-colors text-[#3b9eff] group">
@@ -53,9 +52,9 @@ export default function Demo() {
         </div>
       </header>
 
-      {/* Mock Website Content */}
+      {}
       <main className="max-w-6xl mx-auto py-24 px-6 space-y-32">
-        {/* Hero Section */}
+        {}
         <section className="text-center space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-full shadow-md shadow-black/40">
             <span className="relative flex h-2 w-2">
@@ -81,7 +80,7 @@ export default function Demo() {
           </div>
         </section>
 
-        {/* Features Grid */}
+        {}
         <div className="grid md:grid-cols-3 gap-8">
           {[
             { icon: Zap, title: t('demo.feature.1.title'), desc: t('demo.feature.1.desc') },
@@ -98,7 +97,7 @@ export default function Demo() {
           ))}
         </div>
 
-        {/* Testimonials Section */}
+        {}
         <section className="space-y-16">
           <div className="text-center space-y-4">
             <h2 className="text-4xl font-black tracking-tight text-[#f0f0f0]">Trusted by Industry Leaders</h2>
@@ -133,7 +132,7 @@ export default function Demo() {
           </div>
         </section>
 
-        {/* CTA Section */}
+        {}
         <section className="text-center py-20 space-y-8">
           <h2 className="text-4xl font-bold text-[#f0f0f0]">{t('demo.cta.title')}</h2>
           <p className="text-[#a1a4a5] max-w-xl mx-auto">{t('demo.cta.desc')}</p>
@@ -143,13 +142,13 @@ export default function Demo() {
         </section>
       </main>
 
-      {/* The Actual Widget Preview (Floating) */}
+      {}
       <ChatWidget 
         {...publishedSettings}
         isDemo={true}
       />
 
-      {/* Demo Footer */}
+      {}
       <footer className="py-16 border-t border-[rgba(255,255,255,0.3)] bg-[#000000]">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
           <Logo size="sm" />

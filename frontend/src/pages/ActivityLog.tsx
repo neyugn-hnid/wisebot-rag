@@ -49,7 +49,6 @@ export default function ActivityLog() {
         setKbCount(kbs.length);
         setPlanCount(plans.length);
       } catch {
-        // keep defaults
       } finally {
         setLoading(false);
       }
@@ -77,7 +76,7 @@ export default function ActivityLog() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
+      {}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link to="/dashboard" className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-[12px] transition-colors text-[#3b9eff]">
@@ -102,7 +101,7 @@ export default function ActivityLog() {
         </div>
       </div>
 
-      {/* Activity List */}
+      {}
       <div className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 overflow-hidden">
         <div className="divide-y divide-[rgba(255,255,255,0.3)]">
           {filteredActivities.length > 0 ? (

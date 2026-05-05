@@ -41,7 +41,6 @@ import {
   type DocumentResponse,
 } from '../api/knowledge-base';
 
-// Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 type SourceItem = {
@@ -311,7 +310,6 @@ export default function KnowledgeBase() {
           const pdf = await loadingTask.promise;
           
           const pages: string[] = [];
-          // Render first 5 pages for preview to keep it performant
           const numPages = Math.min(pdf.numPages, 5);
           
           for (let i = 1; i <= numPages; i++) {
@@ -323,7 +321,6 @@ export default function KnowledgeBase() {
             canvas.width = viewport.width;
             
             if (context) {
-              // @ts-ignore - Handle potential version differences in pdfjs-dist types
               await page.render({ canvasContext: context, viewport }).promise;
               pages.push(canvas.toDataURL());
             }
@@ -397,7 +394,6 @@ export default function KnowledgeBase() {
     }
   };
   
-  // Form state
   const [kbName, setKbName] = useState('');
   const [kbDesc, setKbDesc] = useState('');
 
@@ -547,7 +543,6 @@ export default function KnowledgeBase() {
       showToast(message, 'error');
     }
 
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -647,7 +642,7 @@ export default function KnowledgeBase() {
             </button>
           </div>
 
-          {/* Managed Data Sources */}
+          {}
           <section>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-base font-bold text-[#f0f0f0]">{t('kb.sources.title')}</h3>
@@ -700,7 +695,7 @@ export default function KnowledgeBase() {
             </div>
           </section>
 
-          {/* Upload Area */}
+          {}
           <section>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
               <h3 className="text-base font-bold text-[#f0f0f0]">{t('kb.upload.title')}</h3>
@@ -743,7 +738,7 @@ export default function KnowledgeBase() {
             </div>
           </section>
 
-          {/* Recent Uploads Table */}
+          {}
           <section>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-[#f0f0f0]">{t('kb.recent.title')}</h3>
@@ -869,7 +864,7 @@ export default function KnowledgeBase() {
           </section>
         </div>
       )}
-      {/* Create / Edit Knowledge Base Modal */}
+      {}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
@@ -925,7 +920,7 @@ export default function KnowledgeBase() {
         </div>
       )}
 
-      {/* Details Modal */}
+      {}
       {isDetailsModalOpen && selectedUpload && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
@@ -998,7 +993,7 @@ export default function KnowledgeBase() {
         </div>
       )}
 
-      {/* Preview Modal */}
+      {}
       {isPreviewModalOpen && previewData && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col h-[90vh]">
@@ -1084,7 +1079,7 @@ export default function KnowledgeBase() {
         </div>
       )}
 
-      {/* Confirmation Modal */}
+      {}
       {confirmModal.isOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">

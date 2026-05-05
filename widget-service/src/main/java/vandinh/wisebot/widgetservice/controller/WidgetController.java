@@ -36,7 +36,7 @@ public class WidgetController {
     public ApiResponse createWidget(@Valid @RequestBody CreateWidgetRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Widget created")
+                .message("Thêm widget thành công")
                 .data(widgetService.createWidget(request))
                 .build();
     }
@@ -46,7 +46,7 @@ public class WidgetController {
     public ApiResponse updateWidget(@PathVariable UUID widgetId, @Valid @RequestBody UpdateWidgetRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Widget updated")
+                .message("Cập nhật widget thành công")
                 .data(widgetService.updateWidget(widgetId, request))
                 .build();
     }
@@ -56,7 +56,7 @@ public class WidgetController {
     public ApiResponse listWidgets(@RequestParam UUID tenantId) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Widgets")
+                .message("Danh sách widgets")
                 .data(widgetService.listWidgets(tenantId))
                 .build();
     }
@@ -66,7 +66,7 @@ public class WidgetController {
     public ApiResponse trackEvent(@PathVariable UUID widgetId, @Valid @RequestBody TrackEventRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Event tracked")
+                .message("Event đã được ghi nhận")
                 .data(widgetService.trackEvent(widgetId, request))
                 .build();
     }
@@ -86,7 +86,7 @@ public class WidgetController {
     public ApiResponse addDomain(@PathVariable UUID widgetId, @Valid @RequestBody AddDomainRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Domain added")
+                .message("Domain đã được thêm vào widget")
                 .data(widgetService.addDomain(widgetId, request))
                 .build();
     }
@@ -96,7 +96,7 @@ public class WidgetController {
     public ApiResponse listDomains(@PathVariable UUID widgetId) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Domains")
+                .message("Danh sách domains")
                 .data(widgetService.listDomains(widgetId))
                 .build();
     }
@@ -106,7 +106,7 @@ public class WidgetController {
     public ApiResponse createApiKey(@PathVariable UUID widgetId, @RequestBody CreateApiKeyRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("API key created")
+                .message("API key created successfully")
                 .data(widgetService.createApiKey(widgetId, request))
                 .build();
     }

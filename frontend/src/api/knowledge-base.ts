@@ -1,6 +1,5 @@
 import { fetchWithAuth } from '../lib/auth';
 
-// --- Types matching backend DTOs ---
 
 export interface KnowledgeBaseResponse {
   id: string;
@@ -27,7 +26,6 @@ export interface DocumentResponse {
   createdAt?: string;
 }
 
-// --- Helper ---
 
 const KB_BASE = '/api/knowledge-bases';
 const DOC_BASE = '/api/documents';
@@ -44,7 +42,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return (body.data ?? body) as T;
 }
 
-// --- Knowledge Base APIs ---
 
 export async function listKnowledgeBases(): Promise<KnowledgeBaseResponse[]> {
   const res = await fetchWithAuth(KB_BASE);
@@ -77,7 +74,6 @@ export async function deleteKnowledgeBase(id: string): Promise<void> {
   }
 }
 
-// --- Document APIs ---
 
 export async function listDocuments(knowledgeBaseId: string): Promise<DocumentResponse[]> {
   const res = await fetchWithAuth(`${KB_BASE}/${knowledgeBaseId}/documents`);

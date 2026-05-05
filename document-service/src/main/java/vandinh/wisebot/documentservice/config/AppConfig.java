@@ -1,5 +1,6 @@
 package vandinh.wisebot.documentservice.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,6 +14,7 @@ import java.util.Base64;
 import java.util.Date;
 
 @Configuration
+@Slf4j(topic = "APP_CONFIG")
 public class AppConfig {
 
     @Value("${jwt.secret:change-me}")
@@ -42,7 +44,7 @@ public class AppConfig {
                     String token = message + "." + signature;
                     request.getHeaders().add("Authorization", "Bearer " + token);
                 } catch (Exception e) {
-                    // Ignore and let it fail at embedding-service
+                    log.error("Lỗi khi tạo token cho URI {}: {}", request.getURI(), e.getMessage());
                 }
             }
             return execution.execute(request, body);

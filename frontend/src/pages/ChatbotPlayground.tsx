@@ -116,7 +116,6 @@ export default function ChatbotPlayground() {
     }
   }, []);
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -453,7 +452,7 @@ export default function ChatbotPlayground() {
         />
       )}
 
-      {/* Header */}
+      {}
       <div className="p-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between bg-[#000000] z-20">
         <div className="flex items-center gap-4">
           <button
@@ -570,7 +569,7 @@ export default function ChatbotPlayground() {
           </div>
         </div>
 
-        {/* Chat Window */}
+        {}
         <div className="flex-1 flex flex-col min-w-0 border-r border-[rgba(255,255,255,0.3)]">
           <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide" ref={chatContainerRef}>
             {messages.map((msg) => (
@@ -625,7 +624,7 @@ export default function ChatbotPlayground() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
+          {}
           <div className="p-4 sm:p-6 bg-[#000000]">
             <div className="max-w-3xl mx-auto relative group">
               <div className="relative flex items-end gap-2 bg-[#1a1a1a] rounded-[16px] p-1.5 focus-within:bg-[#262626] transition-all duration-300 shadow-md shadow-black/40 border border-[rgba(255,255,255,0.05)]">
@@ -653,19 +652,19 @@ export default function ChatbotPlayground() {
           </div>
         </div>
 
-        {/* Right Sidebar */}
+        {}
         <div className={cn(
           "fixed inset-y-0 right-0 w-80 bg-[#000000] shadow-2xl lg:shadow-none lg:relative lg:flex flex-col shrink-0 bg-[rgba(255,255,255,0.02)]/50 z-30 transition-transform duration-300 transform",
           showSettings ? "translate-x-0" : "translate-x-full lg:translate-x-0"
         )}>
-          {/* Mobile Close Button */}
+          {}
           <button 
             onClick={() => setShowSettings(false)}
             className="lg:hidden absolute top-4 right-4 p-2 text-[#a1a4a5] hover:text-[#a1a4a5] z-10"
           >
             <X size={20} />
           </button>
-          {/* Source Citations */}
+          {}
           <div className="flex-1 flex flex-col overflow-hidden border-b border-[rgba(255,255,255,0.3)]">
             <div className="p-4 bg-[rgba(255,255,255,0.02)] font-semibold text-xs text-[#a1a4a5] flex items-center gap-2">
               <LinkIcon size={14} />
@@ -697,7 +696,7 @@ export default function ChatbotPlayground() {
             </div>
           </div>
 
-          {/* Model Settings */}
+          {}
           <div className="p-6 bg-[rgba(255,255,255,0.02)] space-y-6">
             <div className="font-semibold text-xs text-[#a1a4a5] flex items-center gap-2">
               <SettingsIcon size={14} />

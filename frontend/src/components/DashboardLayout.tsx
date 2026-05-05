@@ -76,7 +76,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     navigate(path);
   };
 
-  // Close mobile sidebar on route change
   React.useEffect(() => {
     setIsMobileSidebarOpen(false);
   }, [location.pathname]);
@@ -92,20 +91,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   const sidebarItems = [
-    // User Features
     { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/dashboard', roles: ['USER', 'OWNER', 'ADMIN'] },
     { label: t('nav.knowledge'), icon: Database, path: '/knowledge-base', roles: ['USER', 'OWNER', 'ADMIN'] },
     { label: t('nav.playground'), icon: MessageSquare, path: '/playground', roles: ['USER', 'OWNER', 'ADMIN'] },
     { label: t('nav.integration'), icon: Code, path: '/customization', roles: ['USER', 'OWNER', 'ADMIN'] },
     
-    // Workspace Admin Features
     { label: t('nav.team'), icon: Users, path: '/team', roles: ['USER', 'OWNER', 'ADMIN'] },
     { label: t('nav.analytics'), icon: BarChart3, path: '/analytics', roles: ['ADMIN'] },
     
-    // System Admin Features
     { label: t('nav.users'), icon: Shield, path: '/users', roles: ['ADMIN'] },
     
-    // Shared Features
     { label: t('nav.billing'), icon: CreditCard, path: '/billing', roles: ['USER', 'OWNER', 'ADMIN'] },
     { label: t('nav.api_keys'), icon: KeyRound, path: '/api-keys', roles: ['USER', 'OWNER', 'ADMIN'] },
     { label: t('nav.settings'), icon: Settings, path: '/settings', roles: ['USER', 'OWNER', 'ADMIN'] },
@@ -115,7 +110,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#000000] selection:bg-[#ff801f] selection:text-[#ffffff]">
-      {/* Desktop Sidebar */}
+      {}
       <aside className={cn(
         "hidden lg:flex border-r border-[rgba(255,255,255,0.3)] bg-[#000000] flex-col shrink-0 overflow-y-auto transition-all duration-300",
         isDesktopSidebarCollapsed ? "w-20" : "w-64"
@@ -130,7 +125,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
       </aside>
 
-      {/* Mobile Sidebar Overlay */}
+      {}
       <AnimatePresence>
         {isMobileSidebarOpen && (
           <>
@@ -165,9 +160,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </AnimatePresence>
 
-      {/* Main Content */}
+      {}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Topbar */}
+        {}
         <header className="h-16 border-b border-[rgba(255,255,255,0.3)] bg-[#000000] flex items-center justify-between px-4 lg:px-6 shrink-0 z-40 relative">
           <div className="flex items-center gap-4 flex-1 max-w-xl">
             <button 
@@ -191,7 +186,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#ff801f] rounded-full border-2 border-[#000000]"></span>
               </button>
 
-              {/* Notifications Dropdown */}
+              {}
               {isNotificationsOpen && (
                 <div className="fixed left-4 right-4 top-20 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 bg-[#000000] rounded-[16px] shadow-md shadow-black/40 border border-[rgba(255,255,255,0.3)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-[100]">
                   <div className="p-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between bg-[rgba(255,255,255,0.02)]">
@@ -272,7 +267,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        {/* Page Body */}
+        {}
         <main className="flex-1 overflow-y-auto p-4 lg:p-8 scrollbar-hide bg-[#000000]">
           {children}
         </main>

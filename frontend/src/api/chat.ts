@@ -1,6 +1,5 @@
 import { fetchWithAuth } from '../lib/auth';
 
-// --- Types matching backend DTOs ---
 
 export interface CreateSessionRequest {
   tenantId: string;
@@ -48,7 +47,6 @@ export interface CitationResponse {
   snippet: string;
 }
 
-// --- Helper ---
 
 const CHAT_BASE = '/api/chat';
 
@@ -64,7 +62,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return (body.data ?? body) as T;
 }
 
-// --- Session APIs ---
 
 export async function createSession(request: CreateSessionRequest): Promise<ChatSessionResponse> {
   const res = await fetchWithAuth(`${CHAT_BASE}/sessions`, {
@@ -85,7 +82,6 @@ export async function listMessages(sessionId: string): Promise<ChatMessageRespon
   return handleResponse<ChatMessageResponse[]>(res);
 }
 
-// --- Message APIs ---
 
 export async function ask(sessionId: string, request: AskRequest): Promise<AskResponse> {
   const res = await fetchWithAuth(`${CHAT_BASE}/sessions/${sessionId}/ask`, {

@@ -111,7 +111,6 @@ export default function Analytics() {
         setKbCount(kbs.length);
         setPlanCount(plans.length);
       } catch {
-        // keep defaults
       } finally {
         setLoading(false);
       }
@@ -273,7 +272,7 @@ export default function Analytics() {
         </>
       )}
 
-      {/* KPI Grid */}
+      {}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {kpis.map((kpi) => (
           <div key={kpi.label} className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
@@ -292,7 +291,7 @@ export default function Analytics() {
         ))}
       </div>
 
-      {/* Charts Section */}
+      {}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
           <h3 className="text-lg font-bold text-[#f0f0f0] mb-6">{t('analytics.chart.volume')}</h3>

@@ -52,7 +52,6 @@ export default function APIKeys() {
     
     setIsGenerating(true);
     
-    // Simulate API call
     setTimeout(() => {
       const newId = Math.random().toString(36).substr(2, 9);
       const randomKey = `sk-${Math.random().toString(36).substr(2, 12)}${Math.random().toString(36).substr(2, 4)}`;
@@ -187,7 +186,7 @@ export default function APIKeys() {
         </div>
       </div>
 
-      {/* Generate Modal */}
+      {}
       {isGenerateModalOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
@@ -287,7 +286,7 @@ export default function APIKeys() {
         </div>
       )}
 
-      {/* Security Guide Modal */}
+      {}
       {isSecurityModalOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -337,7 +336,7 @@ export default function APIKeys() {
         </div>
       )}
 
-      {/* API Documentation Modal */}
+      {}
       {isDocsModalOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-3xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -408,7 +407,7 @@ export default function APIKeys() {
         </div>
       )}
 
-      {/* Revoke Confirmation Modal */}
+      {}
       <DeleteModal
         isOpen={isRevokeModalOpen}
         onClose={() => setIsRevokeModalOpen(false)}

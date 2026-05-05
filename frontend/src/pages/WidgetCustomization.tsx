@@ -91,7 +91,7 @@ export default function WidgetCustomization() {
 
   const widgetScript = widget?.code
     ? `<script src="${widgetScriptSrc}" data-id="${widget.code}" data-api-base="${widgetApiBase}" async></script>`
-    : '<!-- Publish widget to generate embed code -->';
+    : '';
 
   const parseJwtPayload = (token: string): Record<string, unknown> | null => {
     try {
@@ -243,7 +243,6 @@ export default function WidgetCustomization() {
   const handlePublish = async () => {
     setIsPublishing(true);
     
-    // Save settings to localStorage to persist for Demo page
     const settings = {
       primaryColor,
       botName,
@@ -347,7 +346,7 @@ export default function WidgetCustomization() {
 
   return (
     <div className="-m-4 lg:-m-8 h-[calc(100dvh-64px)] flex flex-col lg:flex-row overflow-hidden bg-[#000000] relative w-[calc(100%+32px)] lg:w-[calc(100%+64px)]">
-      {/* Mobile Tab Switcher */}
+      {}
       <div className="lg:hidden flex shrink-0 border-b border-[rgba(255,255,255,0.3)] bg-[#000000] z-20">
         <button 
           onClick={() => setMobileTab('settings')}
@@ -369,7 +368,7 @@ export default function WidgetCustomization() {
         </button>
       </div>
 
-      {/* Settings Panel */}
+      {}
       <div className={cn(
         "w-full lg:w-96 border-r border-[rgba(255,255,255,0.3)] flex flex-col flex-1 lg:flex-none overflow-y-auto scrollbar-hide",
         mobileTab === 'preview' ? "hidden lg:flex" : "flex"
@@ -402,7 +401,7 @@ export default function WidgetCustomization() {
         <div className="p-6 space-y-8">
           {activeTab === 'appearance' ? (
             <>
-              {/* Bot Identity */}
+              {}
               <section className="space-y-4">
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#a1a4a5]">
               <Bot size={14} /> {t('widget.identity')}
@@ -485,7 +484,7 @@ export default function WidgetCustomization() {
                     </button>
                   ))}
                   
-                  {/* Custom Uploaded Icon */}
+                  {}
                   {customIconUrl ? (
                     <button
                       onClick={() => setSelectedIconId('custom')}
@@ -520,16 +519,7 @@ export default function WidgetCustomization() {
                         ref={fileInputRef} 
                         onChange={handleFileUpload} 
                         className="hidden bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] text-[#f0f0f0] text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40" 
-                        accept="image/*"
-                      />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Branding & Style */}
+                        accept="image}
           <section className="space-y-4">
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#a1a4a5]">
               <Palette size={14} /> {t('widget.branding')}
@@ -705,7 +695,7 @@ export default function WidgetCustomization() {
         )}
       </div>
 
-      {/* Live Preview */}
+      {}
       <div className={cn(
         "flex-1 bg-[rgba(255,255,255,0.05)]/50 flex flex-col overflow-hidden relative",
         mobileTab === 'settings' ? "hidden lg:flex" : "flex"
@@ -743,7 +733,7 @@ export default function WidgetCustomization() {
           </div>
         </div>
 
-        {/* Floating Bubble Preview */}
+        {}
         <div className={cn(
           "absolute bottom-4 sm:bottom-8 transition-all duration-500",
           position === 'right' ? "right-4 sm:right-8" : "left-4 sm:left-8"

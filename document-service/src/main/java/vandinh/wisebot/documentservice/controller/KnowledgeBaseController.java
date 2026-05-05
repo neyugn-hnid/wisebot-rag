@@ -45,7 +45,7 @@ public class KnowledgeBaseController {
     public ApiResponse create(@RequestBody @Valid KnowledgeBaseRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.CREATED.value())
-            .message("Tạo kho tri thức thành công")
+                .message("Tạo kho tri thức thành công")
                 .data(knowledgeBaseService.create(request, getCurrentTenantId()))
                 .build();
     }
@@ -54,7 +54,7 @@ public class KnowledgeBaseController {
     public ApiResponse getById(@PathVariable UUID id) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-            .message("Thông tin kho tri thức")
+                .message("Thông tin kho tri thức")
                 .data(knowledgeBaseService.getById(id, getCurrentTenantId()))
                 .build();
     }
@@ -63,7 +63,7 @@ public class KnowledgeBaseController {
     public ApiResponse listAll() {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-            .message("Danh sách kho tri thức")
+                .message("Danh sách kho tri thức")
                 .data(knowledgeBaseService.listAll(getCurrentTenantId()))
                 .build();
     }
@@ -72,7 +72,7 @@ public class KnowledgeBaseController {
     public ApiResponse update(@PathVariable UUID id, @RequestBody @Valid KnowledgeBaseRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-            .message("Cập nhật kho tri thức thành công")
+                .message("Cập nhật kho tri thức thành công")
                 .data(knowledgeBaseService.update(id, request, getCurrentTenantId()))
                 .build();
     }
@@ -82,7 +82,7 @@ public class KnowledgeBaseController {
         knowledgeBaseService.delete(id, getCurrentTenantId());
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
-            .message("Xóa kho tri thức thành công")
+                .message("Xóa kho tri thức thành công")
                 .build();
     }
 }

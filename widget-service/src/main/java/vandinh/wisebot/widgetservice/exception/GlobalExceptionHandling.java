@@ -19,7 +19,7 @@ public class GlobalExceptionHandling {
     @ExceptionHandler({ConstraintViolationException.class,
             MissingServletRequestParameterException.class, MethodArgumentNotValidException.class})
     public ErrorResponse handleValidationException(Exception e, WebRequest request) {
-        return buildErrorResponse(request, HttpStatus.BAD_REQUEST, "Invalid Payload", e.getMessage());
+        return buildErrorResponse(request, HttpStatus.BAD_REQUEST, "Xác thực dữ liệu thất bại", e.getMessage());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -34,13 +34,13 @@ public class GlobalExceptionHandling {
 
     @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
     public ErrorResponse handleAccessDeniedException(Exception e, WebRequest request) {
-        return buildErrorResponse(request, HttpStatus.FORBIDDEN, HttpStatus.FORBIDDEN.getReasonPhrase(), "Access denied");
+        return buildErrorResponse(request, HttpStatus.FORBIDDEN, HttpStatus.FORBIDDEN.getReasonPhrase(), "Bạn không có quyền truy cập tài nguyên này");
     }
 
     @ExceptionHandler(Exception.class)
     public ErrorResponse handleException(Exception e, WebRequest request) {
         return buildErrorResponse(request, HttpStatus.INTERNAL_SERVER_ERROR,
-                HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(), "Unexpected error");
+                HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(), "Đã xảy ra lỗi không mong muốn");
     }
 
     private ErrorResponse buildErrorResponse(WebRequest request, HttpStatus status, String error, String message) {

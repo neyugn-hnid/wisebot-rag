@@ -37,10 +37,10 @@ public class EmbeddingClient {
             String responseBody = e.getResponseBodyAsString();
             String detail = (responseBody == null || responseBody.isBlank()) ? e.getStatusText() : responseBody;
             throw new InvalidDataException(
-                    "Embedding request failed: " + e.getStatusCode().value() + " " + e.getStatusText() + " - " + detail
+                    "Yêu cầu nhúng thất bại: " + e.getStatusCode().value() + " " + e.getStatusText() + " - " + detail
             );
         } catch (RestClientException e) {
-            throw new InvalidDataException("Embedding request failed: " + e.getMessage());
+            throw new InvalidDataException("Yêu cầu nhúng thất bại: " + e.getMessage());
         }
     }
 }

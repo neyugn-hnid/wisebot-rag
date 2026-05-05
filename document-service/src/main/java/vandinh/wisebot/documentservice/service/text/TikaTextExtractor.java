@@ -19,7 +19,7 @@ public class TikaTextExtractor implements TextExtractor {
         try {
             return extract(file.getInputStream());
         } catch (IOException e) {
-            throw new InvalidDataException("Failed to read file: " + e.getMessage());
+            throw new InvalidDataException("Lỗi khi trích xuất văn bản: " + e.getMessage());
         }
     }
 
@@ -28,7 +28,7 @@ public class TikaTextExtractor implements TextExtractor {
         try {
             return tika.parseToString(inputStream);
         } catch (IOException | TikaException e) {
-            throw new InvalidDataException("Failed to extract text: " + e.getMessage());
+            throw new InvalidDataException("Lỗi khi trích xuất văn bản: " + e.getMessage());
         }
     }
 }

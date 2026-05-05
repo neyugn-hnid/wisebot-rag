@@ -33,7 +33,7 @@ public class ChatController {
     public ApiResponse createSession(@Valid @RequestBody CreateSessionRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Session created")
+                .message("Tạo phiên chat thành công")
                 .data(chatService.createSession(request))
                 .build();
     }
@@ -43,7 +43,7 @@ public class ChatController {
     public ApiResponse listSessions(@RequestParam UUID tenantId) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Sessions")
+                .message("Danh sách phiên chat")
                 .data(chatService.listSessions(tenantId))
                 .build();
     }
@@ -53,7 +53,7 @@ public class ChatController {
     public ApiResponse sendMessage(@PathVariable UUID sessionId, @Valid @RequestBody SendMessageRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Message sent")
+                .message("Tin nhắn đã được gửi")
                 .data(chatService.sendMessage(sessionId, request))
                 .build();
     }
@@ -63,7 +63,7 @@ public class ChatController {
     public ApiResponse ask(@PathVariable UUID sessionId, @Valid @RequestBody AskRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Answered")
+                .message("Trả lời đã được gửi")
                 .data(chatService.ask(sessionId, request))
                 .build();
     }
@@ -73,7 +73,7 @@ public class ChatController {
     public ApiResponse listMessages(@PathVariable UUID sessionId) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Messages")
+                .message("Danh sách tin nhắn")
                 .data(chatService.listMessages(sessionId))
                 .build();
     }
@@ -93,7 +93,7 @@ public class ChatController {
     public ApiResponse submitFeedback(@PathVariable UUID messageId, @Valid @RequestBody MessageFeedbackRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Feedback submitted")
+                .message("Đánh giá đã được gửi")
                 .data(chatService.submitFeedback(messageId, request))
                 .build();
     }
@@ -103,7 +103,7 @@ public class ChatController {
     public ApiResponse listFeedback(@PathVariable UUID messageId) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Feedback")
+                .message("Danh sách đánh giá")
                 .data(chatService.listFeedback(messageId))
                 .build();
     }
@@ -114,7 +114,7 @@ public class ChatController {
         chatService.closeSession(sessionId);
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
-                .message("Session closed")
+                .message("Phiên chat đã được đóng")
                 .build();
     }
 }

@@ -15,7 +15,7 @@
     font-feature-settings: "ss01" 1, "ss03" 1, "ss04" 1, "ss11" 1;
   }
 
-  /* Scrollbar hide */
+  
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }

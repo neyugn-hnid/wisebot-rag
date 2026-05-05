@@ -1,6 +1,5 @@
 import { fetchWithAuth } from '../lib/auth';
 
-// --- Types matching backend DTOs ---
 
 export interface WidgetAppearanceConfig {
   primaryColor?: string;
@@ -39,7 +38,6 @@ export interface UpdateWidgetRequest {
   appearanceConfig?: WidgetAppearanceConfig;
 }
 
-// --- Helper ---
 
 const WIDGET_BASE = '/api/widget';
 
@@ -55,7 +53,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return (body.data ?? body) as T;
 }
 
-// --- API functions ---
 
 export async function listWidgets(tenantId: string): Promise<WidgetResponse[]> {
   const res = await fetchWithAuth(`${WIDGET_BASE}/widgets?tenantId=${encodeURIComponent(tenantId)}`);

@@ -88,11 +88,9 @@ export default function TeamManagement() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingMember) {
-      // Update
       setMembers(members.map(m => m.id === editingMember.id ? { ...m, ...formData } : m));
       handleCloseModal();
     } else {
-      // Generate Invite Link
       const baseUrl = window.location.origin;
       const params = new URLSearchParams({
         email: formData.email,
@@ -102,12 +100,10 @@ export default function TeamManagement() {
       const link = `${baseUrl}/register?${params.toString()}`;
       setInviteLink(link);
       
-      // Role transition logic: USER -> OWNER
       if (userRole === 'USER') {
         setRole('OWNER');
       }
       
-      // Also add to pending list for demo purposes
       const newMember: Member = {
         id: Math.random().toString(36).substr(2, 9),
         ...formData,
@@ -146,7 +142,7 @@ export default function TeamManagement() {
       </div>
 
       <div className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] overflow-hidden shadow-md shadow-black/40">
-        {/* Table Controls */}
+        {}
         <div className="p-4 border-b border-[rgba(255,255,255,0.3)] flex flex-col sm:flex-row gap-4 justify-between items-center bg-[rgba(255,255,255,0.02)]/50">
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
@@ -257,7 +253,7 @@ export default function TeamManagement() {
         </div>
       </div>
 
-      {/* Modal Overlay */}
+      {}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
@@ -376,7 +372,7 @@ export default function TeamManagement() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {}
       <DeleteModal
         isOpen={isDeleteConfirmOpen}
         onClose={() => setIsDeleteConfirmOpen(false)}

@@ -41,7 +41,6 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
-    // Whitelist: bypass filter
     private static final String[] AUTH_WHITELIST = {
             "/user/auth/**",
             "/swagger-ui/**",

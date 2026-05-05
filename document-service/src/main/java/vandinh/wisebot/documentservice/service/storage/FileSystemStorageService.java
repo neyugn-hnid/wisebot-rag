@@ -42,24 +42,24 @@ public class FileSystemStorageService implements StorageService {
             Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
             return target.toString();
         } catch (IOException e) {
-            throw new InvalidDataException("Failed to store file: " + e.getMessage());
+            throw new InvalidDataException("Lỗi khi lưu tệp: " + e.getMessage());
         }
     }
 
     @Override
     public Resource loadAsResource(String storagePath) {
         if (storagePath == null || storagePath.isBlank()) {
-            throw new InvalidDataException("Storage path is missing");
+            throw new InvalidDataException("Lỗi khi tải tệp: " + storagePath);
         }
         try {
             Path path = Paths.get(storagePath).toAbsolutePath().normalize();
             Resource resource = new UrlResource(path.toUri());
             if (!resource.exists()) {
-                throw new InvalidDataException("File not found");
+                throw new InvalidDataException("Tệp không tồn tại: " + storagePath);
             }
             return resource;
         } catch (MalformedURLException e) {
-            throw new InvalidDataException("Invalid storage path");
+            throw new InvalidDataException("Đường dẫn lưu trữ không hợp lệ: " + storagePath);
         }
     }
 }

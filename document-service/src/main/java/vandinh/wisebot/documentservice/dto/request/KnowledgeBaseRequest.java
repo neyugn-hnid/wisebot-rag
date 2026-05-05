@@ -7,7 +7,7 @@ import java.util.UUID;
 
 @Data
 public class KnowledgeBaseRequest {
-    @NotBlank(message = "name must be not blank")
+    @NotBlank(message = "Tên kho tri thức không được để trống")
     private String name;
     private String description;
     private UUID tenantId;

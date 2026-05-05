@@ -1,6 +1,5 @@
 import { fetchWithAuth } from '../lib/auth';
 
-// --- Types matching backend DTOs ---
 
 export interface UserResponse {
   id: string;
@@ -55,7 +54,6 @@ export interface ChangePasswordRequest {
   confirmNewPassword?: string;
 }
 
-// --- Helper ---
 
 const USER_BASE = '/api/user';
 
@@ -71,7 +69,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return (body.data ?? body) as T;
 }
 
-// --- API functions ---
 
 export async function listUsers(params: UserListParams = {}): Promise<UserPageResponse> {
   const query = new URLSearchParams();
@@ -123,7 +120,6 @@ export async function changeUserStatus(id: string, newStatus: ChangeStatusReques
   }
 }
 
-// --- Profile APIs ---
 
 export async function getProfile(): Promise<UserResponse> {
   const res = await fetchWithAuth(`${USER_BASE}/profile`);

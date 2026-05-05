@@ -66,7 +66,7 @@ public class WidgetServiceImpl implements WidgetService {
     @Transactional(rollbackFor = Exception.class)
     public WidgetResponse updateWidget(UUID widgetId, UpdateWidgetRequest request) {
         Widget widget = widgetRepository.findById(widgetId)
-                .orElseThrow(() -> new ResourceNotFoundException("Widget not found: " + widgetId));
+                .orElseThrow(() -> new ResourceNotFoundException("Widget không tồn tại: " + widgetId));
 
         widget.setName(request.getName());
         widget.setWelcomeMessage(request.getWelcomeMessage());
@@ -116,7 +116,7 @@ public class WidgetServiceImpl implements WidgetService {
     @Transactional(rollbackFor = Exception.class)
     public WidgetEventResponse trackEvent(UUID widgetId, TrackEventRequest request) {
         Widget widget = widgetRepository.findById(widgetId)
-                .orElseThrow(() -> new ResourceNotFoundException("Widget not found: " + widgetId));
+                .orElseThrow(() -> new ResourceNotFoundException("Widget không tồn tại: " + widgetId));
 
         WidgetEvent event = WidgetEvent.builder()
                 .widgetId(widget.getId())
@@ -141,7 +141,7 @@ public class WidgetServiceImpl implements WidgetService {
         @Transactional(rollbackFor = Exception.class)
         public DomainResponse addDomain(UUID widgetId, AddDomainRequest request) {
         Widget widget = widgetRepository.findById(widgetId)
-            .orElseThrow(() -> new ResourceNotFoundException("Widget not found: " + widgetId));
+            .orElseThrow(() -> new ResourceNotFoundException("Widget không tồn tại: " + widgetId));
         WidgetAllowedDomain domain = WidgetAllowedDomain.builder()
             .widget(widget)
             .domain(request.getDomain())
@@ -163,7 +163,7 @@ public class WidgetServiceImpl implements WidgetService {
         @Transactional(rollbackFor = Exception.class)
         public ApiKeyResponse createApiKey(UUID widgetId, CreateApiKeyRequest request) {
         Widget widget = widgetRepository.findById(widgetId)
-            .orElseThrow(() -> new ResourceNotFoundException("Widget not found: " + widgetId));
+            .orElseThrow(() -> new ResourceNotFoundException("Widget không tồn tại: " + widgetId));
         String raw = UUID.randomUUID().toString().replace("-", "");
         WidgetApiKey key = WidgetApiKey.builder()
             .widget(widget)
@@ -188,7 +188,7 @@ public class WidgetServiceImpl implements WidgetService {
         @Transactional(rollbackFor = Exception.class)
         public WidgetSessionResponse createSession(UUID widgetId, CreateWidgetSessionRequest request) {
         Widget widget = widgetRepository.findById(widgetId)
-            .orElseThrow(() -> new ResourceNotFoundException("Widget not found: " + widgetId));
+            .orElseThrow(() -> new ResourceNotFoundException("Widget không tồn tại: " + widgetId));
         WidgetSession session = WidgetSession.builder()
             .widget(widget)
             .tenantId(request.getTenantId())
@@ -215,7 +215,7 @@ public class WidgetServiceImpl implements WidgetService {
         @Transactional(rollbackFor = Exception.class)
         public void endSession(UUID sessionId) {
         WidgetSession session = sessionRepository.findById(sessionId)
-            .orElseThrow(() -> new ResourceNotFoundException("Widget session not found: " + sessionId));
+            .orElseThrow(() -> new ResourceNotFoundException("Phiên làm việc không tồn tại: " + sessionId));
         session.setEndedAt(LocalDateTime.now());
         sessionRepository.save(session);
         }
@@ -235,7 +235,7 @@ public class WidgetServiceImpl implements WidgetService {
 
     private Widget findWidgetByCode(String code) {
         return widgetRepository.findByCode(code)
-                .orElseThrow(() -> new ResourceNotFoundException("Widget not found with code: " + code));
+                .orElseThrow(() -> new ResourceNotFoundException("Widget không tồn tại với mã: " + code));
     }
 
     private String writeAppearanceConfig(WidgetAppearanceConfig appearanceConfig) {

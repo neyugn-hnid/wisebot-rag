@@ -21,7 +21,6 @@ function buildSrcDoc(widgetCode: string, origin: string) {
         background:
           radial-gradient(circle at top left, rgba(59,130,246,0.25), transparent 30%),
           radial-gradient(circle at bottom right, rgba(16,185,129,0.18), transparent 35%),
-          #020617;
         color: #f8fafc;
       }
       main {

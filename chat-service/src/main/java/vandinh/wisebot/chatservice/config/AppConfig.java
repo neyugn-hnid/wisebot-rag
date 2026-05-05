@@ -63,7 +63,7 @@ public class AppConfig {
 
             return message + "." + signature;
         } catch (Exception ex) {
-            throw new IllegalStateException("Failed to generate service JWT", ex);
+            throw new IllegalStateException("Tạo token dịch vụ thất bại", ex);
         }
     }
 }

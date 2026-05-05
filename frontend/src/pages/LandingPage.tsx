@@ -41,7 +41,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#000000] selection:bg-[#ff801f] selection:text-[#ffffff]">
-      {/* Navigation */}
+      {}
       <nav className="fixed top-0 left-0 right-0 h-20 bg-[#000000]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.3)] z-50">
         <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
           <Logo />
@@ -83,7 +83,7 @@ export default function LandingPage() {
           </button>
         </div>
 
-        {/* Mobile Menu */}
+        {}
         {isMenuOpen && (
           <div className="md:hidden absolute top-20 left-0 right-0 bg-[#000000] border-b border-[rgba(255,255,255,0.3)] p-6 space-y-6 animate-in slide-in-from-top-4 duration-300">
             <div className="flex flex-col gap-4">
@@ -123,15 +123,15 @@ export default function LandingPage() {
         )}
       </nav>
 
-      {/* Hero Section */}
+      {}
       <section className="pt-40 pb-32 px-6 relative overflow-hidden bg-[#000000]">
-        {/* Subtle warm glow behind hero */}
+        {}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-[#ff801f] opacity-[0.03] blur-[120px] pointer-events-none rounded-full"></div>
         <div className="absolute top-1/3 left-1/3 w-[600px] h-[400px] bg-[#3b9eff] opacity-[0.02] blur-[100px] pointer-events-none rounded-full"></div>
         
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-            {/* Left Column: Text Content */}
+            {}
             <div className="space-y-10 text-left">
               <h1 className="text-[76px] lg:text-[96px] font-serif font-normal text-[#f0f0f0] leading-[1] tracking-[-0.96px]">
                 {t('landing.hero.title_1')} <br/><span className="text-[#a1a4a5] italic">{t('landing.hero.title_2')}</span>
@@ -160,11 +160,11 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Right Column: Chat Mockup */}
+            {}
             <div className="relative isolate transform perspective-1000">
               
               <div className="relative bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] overflow-hidden flex flex-col h-[600px] z-10 transform -rotate-2 hover:rotate-0 transition-transform duration-700 ease-out origin-bottom shadow-md shadow-black/40">
-                {/* Header */}
+                {}
                 <div className="flex items-center gap-4 px-6 py-5 border-b border-[rgba(255,255,255,0.3)] bg-[#000000]">
                   <div className="relative">
                     <div className="w-12 h-12 rounded-full border border-[rgba(255,255,255,0.3)] flex items-center justify-center">
@@ -178,27 +178,27 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* Chat Area */}
+                {}
                 <div className="flex-1 p-6 space-y-8 overflow-y-auto bg-[rgba(255,255,255,0.02)]">
                   <div className="text-center">
                     <span className="text-[12px] font-semibold text-[#a1a4a5] uppercase tracking-[0.5px]">Today, 10:24 AM</span>
                   </div>
 
-                  {/* Bot Message */}
+                  {}
                   <div className="flex items-end gap-3">
                     <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] text-[#a1a4a5] px-5 py-4 rounded-[16px] rounded-bl-[4px] text-[16px] font-normal leading-relaxed max-w-[85%]">
                       {t('landing.hero.mockup.bot_1')}
                     </div>
                   </div>
 
-                  {/* User Message */}
+                  {}
                   <div className="flex items-end justify-end gap-3">
                     <div className="bg-[#f0f0f0] text-[#000000] px-5 py-4 rounded-[16px] rounded-br-[4px] text-[16px] font-normal leading-relaxed max-w-[85%]">
                       {t('landing.hero.mockup.user')}
                     </div>
                   </div>
 
-                  {/* Typing Indicator */}
+                  {}
                   <div className="flex items-end gap-3">
                     <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] px-5 py-5 rounded-[16px] rounded-bl-[4px] flex items-center gap-1.5 w-fit">
                       <div className="w-1.5 h-1.5 bg-[#a1a4a5] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
@@ -208,7 +208,7 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* Input Area */}
+                {}
                 <div className="p-5 bg-[#000000]">
                   <div className="flex items-center gap-2 px-2 py-1.5 border border-[rgba(255,255,255,0.3)] focus-within:border-[rgba(255,255,255,0.2)] rounded-full bg-[rgba(255,255,255,0.02)] transition-colors">
                     <button className="w-10 h-10 flex items-center justify-center rounded-full bg-transparent text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.05)] transition-colors shrink-0">
@@ -228,7 +228,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Grid */}
+      {}
       <section id="features" className="py-32 bg-[#000000] px-6 relative overflow-hidden">
         <div className="max-w-7xl mx-auto space-y-24 relative z-10">
           <div className="space-y-6 max-w-2xl">
@@ -262,7 +262,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How it Works Section */}
+      {}
       <section id="how-it-works" className="py-32 bg-[#000000] px-6 relative overflow-hidden">
         <div className="max-w-7xl mx-auto space-y-24 relative z-10">
           <div className="text-center space-y-6 max-w-2xl mx-auto">
@@ -286,7 +286,7 @@ export default function LandingPage() {
                   <div className={cn("w-[88px] h-[88px] rounded-[16px] border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.02)] flex items-center justify-center mb-8 relative z-10 shadow-md shadow-black/40", item.color)}>
                     <item.icon size={32} strokeWidth={1.5} />
                     
-                    {/* Step Number Badge */}
+                    {}
                     <div className={cn("absolute -top-3 -right-3 w-8 h-8 rounded-full text-[#ffffff] flex items-center justify-center text-[14px] font-bold shadow-md shadow-black/40", item.accent)}>
                       {item.step}
                     </div>
@@ -301,7 +301,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {}
       <section id="pricing" className="py-32 px-6 bg-[#000000] relative overflow-hidden">
         <div className="max-w-7xl mx-auto space-y-16 relative z-10">
           <div className="text-center space-y-6 max-w-2xl mx-auto">
@@ -311,7 +311,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {/* Billing Cycle Switcher */}
+          {}
           <div className="flex justify-center">
             <div className="inline-flex items-center p-1 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-full">
               <button 
@@ -438,7 +438,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Documentation Section */}
+      {}
       <section id="docs" className="py-32 bg-[#000000] px-6">
         <div className="max-w-7xl mx-auto space-y-24">
           <div className="text-center space-y-6 max-w-2xl mx-auto">
@@ -474,7 +474,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
+      {}
       <footer className="bg-[#000000] text-[#a1a4a5] py-24 px-6 mt-auto">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-16">
           <div className="space-y-8">

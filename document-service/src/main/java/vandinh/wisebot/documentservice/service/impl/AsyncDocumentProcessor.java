@@ -36,11 +36,10 @@ public class AsyncDocumentProcessor {
 
     @Async
     public void processDocumentAsync(UUID documentId, UUID tenantId, UUID knowledgeBaseId, byte[] fileContent) {
-        log.info("Starting async processing for document: {}", documentId);
         
         Document document = documentRepository.findById(documentId).orElse(null);
         if (document == null) {
-            log.error("Document not found: {}", documentId);
+            log.error("Tài liệu không tồn tại: {}", documentId);
             return;
         }
 
@@ -52,7 +51,7 @@ public class AsyncDocumentProcessor {
             List<String> chunks = textChunker.chunk(text);
             
             if (chunks.isEmpty()) {
-                log.warn("No text extracted for document: {}", documentId);
+                log.warn("Không có văn bản nào được trích xuất cho tài liệu: {}", documentId);
                 document.setStatus(DocumentStatus.FAILED);
                 documentRepository.save(document);
                 return;
@@ -72,10 +71,10 @@ public class AsyncDocumentProcessor {
             boolean embedded = embedChunks(documentId, tenantId, knowledgeBaseId, chunkEntities);
             document.setStatus(embedded ? DocumentStatus.PROCESSED : DocumentStatus.FAILED);
             documentRepository.save(document);
-            log.info("Finished async processing for document: {}. Status: {}", documentId, document.getStatus());
+            log.info("Tài liệu {}: Status: {}", documentId, document.getStatus());
             
         } catch (Exception e) {
-            log.error("Error processing document: {}", documentId, e);
+            log.error("Lỗi khi xử lý tài liệu: {}", documentId, e);
             document.setStatus(DocumentStatus.FAILED);
             documentRepository.save(document);
         }
@@ -83,10 +82,10 @@ public class AsyncDocumentProcessor {
 
     @Async
     public void reprocessDocumentAsync(UUID documentId, UUID tenantId, UUID knowledgeBaseId, List<DocumentChunk> chunks) {
-        log.info("Starting async reprocessing for document: {}", documentId);
+        log.info("Bắt đầu xử lý lại tài liệu: {}", documentId);
         Document document = documentRepository.findById(documentId).orElse(null);
         if (document == null) {
-            log.error("Document not found: {}", documentId);
+            log.error("Tài liệu không tồn tại: {}", documentId);
             return;
         }
 
@@ -94,9 +93,9 @@ public class AsyncDocumentProcessor {
             boolean embedded = embedChunks(documentId, tenantId, knowledgeBaseId, chunks);
             document.setStatus(embedded ? DocumentStatus.PROCESSED : DocumentStatus.FAILED);
             documentRepository.save(document);
-            log.info("Finished async reprocessing for document: {}. Status: {}", documentId, document.getStatus());
+            log.info("Hoàn thành xử lý lại tài liệu: {}. Status: {}", documentId, document.getStatus());
         } catch (Exception e) {
-            log.error("Error reprocessing document: {}", documentId, e);
+            log.error("Lỗi khi xử lý lại tài liệu: {}", documentId, e);
             document.setStatus(DocumentStatus.FAILED);
             documentRepository.save(document);
         }
@@ -139,7 +138,7 @@ public class AsyncDocumentProcessor {
 
             return chunks.stream().anyMatch(c -> c.getStatus() == EmbeddingStatus.EMBEDDED);
         } catch (Exception ex) {
-            log.error("Failed to embed chunks for document: {}", documentId, ex);
+            log.error("Lỗi khi nhúng chunks cho tài liệu: {}", documentId, ex);
             for (DocumentChunk chunk : chunks) {
                 chunk.setStatus(EmbeddingStatus.FAILED);
             }

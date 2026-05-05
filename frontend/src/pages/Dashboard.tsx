@@ -101,7 +101,6 @@ export default function Dashboard() {
         setPlanCount(plans.length);
         setBackendPlans(plans);
       } catch {
-        // Keep defaults
       } finally {
         setLoadingStats(false);
       }
@@ -162,7 +161,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header & Status */}
+      {}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-[24px] font-display font-medium text-[#f0f0f0] tracking-tight">
@@ -171,7 +170,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {kpis.map((kpi, idx) => (
           <motion.div 
@@ -203,7 +202,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Chart Section */}
+        {}
         <div className="lg:col-span-2 bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -272,7 +271,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Activity Feed for Admin */}
+        {}
         {isAdmin ? (
           <div className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
             <div className="flex items-center justify-between mb-6">
@@ -339,10 +338,10 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Additional Analytics */}
+      {}
       {isAdmin && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Bar Chart */}
+          {}
           <div className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-[16px] font-sans font-semibold text-[#f0f0f0]">{t('dashboard.conversation_volume')}</h3>
@@ -365,7 +364,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Pie Chart */}
+          {}
           <div className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-[16px] font-sans font-semibold text-[#f0f0f0]">{t('dashboard.plan_distribution')}</h3>

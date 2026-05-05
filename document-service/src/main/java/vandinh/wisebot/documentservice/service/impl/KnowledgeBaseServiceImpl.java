@@ -35,7 +35,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     @Transactional(readOnly = true)
     public KnowledgeBaseResponse getById(UUID id, UUID tenantId) {
         KnowledgeBase kb = knowledgeBaseRepository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Knowledge base not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Kho tri thức không tồn tại: " + id));
         return toResponse(kb);
     }
 
@@ -49,7 +49,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     @Transactional(rollbackFor = Exception.class)
     public KnowledgeBaseResponse update(UUID id, KnowledgeBaseRequest request, UUID tenantId) {
         KnowledgeBase kb = knowledgeBaseRepository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Knowledge base not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Kho tri thức không tồn tại: " + id));
         kb.setName(request.getName());
         kb.setDescription(request.getDescription());
         return toResponse(knowledgeBaseRepository.save(kb));
@@ -59,7 +59,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(UUID id, UUID tenantId) {
         KnowledgeBase kb = knowledgeBaseRepository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Knowledge base not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Kho tri thức không tồn tại: " + id));
         knowledgeBaseRepository.delete(kb);
     }
 

@@ -92,7 +92,7 @@ export default function Settings() {
       </div>
 
       <div className="flex flex-col md:flex-row gap-8">
-        {/* Settings Navigation */}
+        {}
         <aside className="w-full md:w-64 shrink-0 space-y-1">
           {navItems.map((item) => (
             <button 
@@ -109,7 +109,7 @@ export default function Settings() {
           ))}
         </aside>
 
-        {/* Settings Content */}
+        {}
         <div className="flex-1 space-y-8">
           {activeTab === 'system' && (
             <section className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 overflow-hidden animate-in slide-in-from-right-4 duration-300">
@@ -118,7 +118,7 @@ export default function Settings() {
               </div>
               
               <div className="p-8 space-y-10">
-                {/* Language Settings */}
+                {}
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-[12px] bg-[rgba(255,255,255,0.05)] text-[#a1a4a5] flex items-center justify-center">
@@ -144,7 +144,7 @@ export default function Settings() {
                   </div>
                 </div>
 
-                {/* Appearance Settings */}
+                {}
                 <div className="space-y-4 pt-8 border-t border-[rgba(255,255,255,0.3)]">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-[12px] bg-[rgba(255,255,255,0.05)] text-[#a1a4a5] flex items-center justify-center">
@@ -380,7 +380,7 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Password Modal */}
+      {}
       {isPasswordModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
@@ -478,7 +478,7 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Delete Payment Confirm Modal */}
+      {}
       <DeleteModal 
         isOpen={isDeleteConfirmOpen}
         onClose={() => {
@@ -499,7 +499,7 @@ export default function Settings() {
         confirmText={t('billing.payment_methods.delete_confirm_btn')}
       />
 
-      {/* Add Payment Modal */}
+      {}
       {isPaymentModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
@@ -511,7 +511,7 @@ export default function Settings() {
             </div>
             
             <div className="p-6 space-y-6">
-              {/* Fake form for adding payment method */}
+              {}
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-[#f0f0f0] uppercase tracking-wider mb-2">{t('billing.payment_methods.cardholder_name')}</label>

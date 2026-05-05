@@ -1,6 +1,5 @@
 import { fetchWithAuth, getStoredAccessToken } from '../lib/auth';
 
-// --- Types matching backend DTOs ---
 
 export interface BillingPlanResponse {
   id: string;
@@ -51,7 +50,6 @@ export interface PaymentResponse {
   paidAt: string;
 }
 
-// --- API payloads ---
 
 export interface SubscribeRequest {
   tenantId: string;
@@ -69,7 +67,6 @@ export interface CreatePaymentRequest {
   paidAt?: string;
 }
 
-// --- Helper ---
 
 const BILLING_BASE = '/api/billing';
 
@@ -97,7 +94,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return (body.data ?? body) as T;
 }
 
-// --- API functions ---
 
 export async function listPlans(): Promise<BillingPlanResponse[]> {
   const res = await fetchWithAuth(`${BILLING_BASE}/plans`);
@@ -161,7 +157,6 @@ export async function listPayments(invoiceId: string): Promise<PaymentResponse[]
   return handleResponse<PaymentResponse[]>(res);
 }
 
-// --- VNPay ---
 
 export interface CreatePaymentUrlResponse {
   paymentUrl: string;

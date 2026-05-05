@@ -62,7 +62,7 @@ export default function ChatWidget({
       "bg-white shadow-2xl rounded-[16px] border border-slate-200 flex flex-col overflow-hidden transition-all duration-500",
       isDemo ? "w-[calc(100vw-32px)] sm:w-[400px] h-[500px] sm:h-[600px] max-h-[calc(100dvh-100px)]" : "w-full h-full"
     )}>
-      {/* Widget Header */}
+      {}
       <div className="p-4 flex items-center justify-between text-white shrink-0" style={{ backgroundColor: primaryColor }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden" style={{ color: iconColor }}>
@@ -88,7 +88,7 @@ export default function ChatWidget({
         </button>
       </div>
 
-      {/* Widget Chat Area */}
+      {}
       <div className="flex-1 p-4 space-y-4 overflow-y-auto scrollbar-hide bg-[#f9fafb]">
         <div className="flex items-start gap-2">
           <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0 overflow-hidden shadow-sm border border-slate-100" style={{ color: iconColor }}>
@@ -126,7 +126,7 @@ export default function ChatWidget({
         </div>
       </div>
 
-      {/* Widget Input Area */}
+      {}
       <div className="p-4 border-t border-slate-200 bg-white shrink-0">
         <div className="flex items-center gap-2 bg-[#f3f4f6] rounded-full px-2 py-1.5 border border-transparent focus-within:border-slate-300 focus-within:bg-white transition-all duration-300 shadow-sm">
           <button className="p-2 rounded-full text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-none shrink-0 outline-none">

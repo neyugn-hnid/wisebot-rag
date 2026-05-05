@@ -55,14 +55,14 @@ function App() {
             <RoleProvider>
               <Router>
             <Routes>
-              {/* Public Routes */}
+              {}
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* Dashboard Routes */}
+              {}
               <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
               <Route path="/activity" element={<ProtectedRoute><DashboardLayout><ActivityLog /></DashboardLayout></ProtectedRoute>} />
               <Route path="/demo" element={<Demo />} />
@@ -78,7 +78,7 @@ function App() {
               <Route path="/settings" element={<ProtectedRoute><DashboardLayout><Settings /></DashboardLayout></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
 
-              {/* Fallback */}
+              {}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Router>
