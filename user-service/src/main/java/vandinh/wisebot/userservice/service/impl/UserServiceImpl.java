@@ -48,7 +48,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserPageResponse getAllUser(String keyword, String role, String status, String sort, int page, int size) {
-        log.info("Fetching all users, page: {}, size: {}, keyword: {}, role: {}, status: {}", page, size, keyword, role, status);
 
         Sort.Order order = AppUtils.getSortOrder(sort);
         Pageable pageable = PageRequest.of(Math.max(page - 1, 0), size, Sort.by(order));
@@ -82,7 +81,7 @@ public class UserServiceImpl implements UserService {
     public UserResponse getUserById(UUID id) {
         UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "User not found with id: " + id));
+                        "Người dùng không tồn tại với ID: " + id));
         return userMapper.toUserResponse(userEntity);
     }
 
@@ -129,7 +128,7 @@ public class UserServiceImpl implements UserService {
             }
 
             Role role = roleRepository.findByName(roleName)
-                    .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
+                    .orElseThrow(() -> new ResourceNotFoundException("Vai trò không tồn tại: " + roleName));
             user.setRoles(Set.of(role));
         }
 
@@ -141,7 +140,7 @@ public class UserServiceImpl implements UserService {
     @CacheEvict(cacheNames = "user-by-id", key = "#id")
     public void updateUser(UserUpdateRequest request, UUID id) {
         UserEntity user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Người dùng không tồn tại với ID: " + id));
 
         if (request.getFullName() != null) {
             user.setFullName(request.getFullName());
@@ -158,7 +157,7 @@ public class UserServiceImpl implements UserService {
     @CacheEvict(cacheNames = "user-by-id", key = "#id")
     public void updateEmail(EmailUpdateRequest request, UUID id) {
         UserEntity user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Người dùng không tồn tại với ID: " + id));
 
         if (request.getNewEmail() != null){
             user.setEmail(request.getNewEmail());
@@ -184,14 +183,14 @@ public class UserServiceImpl implements UserService {
     @CacheEvict(cacheNames = "user-by-id", key = "#id")
     public void changePassword(ChangePasswordRequest request, UUID id) {
         UserEntity user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Người dùng không tồn tại với ID: " + id));
 
         if(!passwordEncoder.matches(request.getCurrentPassword(),user.getPassword())){
-            throw new InvalidDataException("Current password is incorrect");
+            throw new InvalidDataException("Mật khẩu hiện tại không đúng");
         }
 
         if (!request.getNewPassword().equals(request.getConfirmNewPassword())){
-            throw new InvalidDataException("New password and confirm password do not match");
+            throw new InvalidDataException("Mật khẩu mới và xác nhận mật khẩu không khớp");
         }
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
@@ -211,7 +210,7 @@ public class UserServiceImpl implements UserService {
 
     private UserEntity getUserEntity(UUID id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Người dùng không tồn tại với ID: " + id));
     }
 
     private RoleName parseRole(String role) {

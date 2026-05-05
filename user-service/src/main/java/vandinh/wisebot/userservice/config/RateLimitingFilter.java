@@ -49,8 +49,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
         String clientKey = resolveClientKey(request);
         if (!rateLimiterService.isAllowed(clientKey)) {
-            log.warn("Rate limit exceeded for key: {}", clientKey);
-            writeErrorResponse(response, request.getRequestURI(), "Too many requests", SC_TOO_MANY_REQUESTS);
+            log.warn("Đã vượt quá giới hạn số lượt truy cập cho khóa {}: {}", clientKey, request.getRequestURI());
+            writeErrorResponse(response, request.getRequestURI(), "Quá nhiều yêu cầu", SC_TOO_MANY_REQUESTS);
             return;
         }
 
@@ -75,7 +75,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         return request.getRemoteAddr();
     }
 
-    private void writeErrorResponse(HttpServletResponse response, String path, String message, int status) throws IOException {
+    private void writeErrorResponse(HttpServletResponse response, String path, String message, int status)
+            throws IOException {
         response.setStatus(status);
         response.setContentType("application/json");
 
@@ -83,7 +84,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         error.setTimestamp(new Date());
         error.setStatus(status);
         error.setPath(path);
-        error.setError("Too Many Requests");
+        error.setError("Quá nhiều yêu cầu");
         error.setMessage(message);
 
         objectMapper.writeValue(response.getWriter(), error);

@@ -11,15 +11,15 @@ import java.io.Serializable;
 @Data
 @ToString
 public class ChangePasswordRequest implements Serializable {
-    @NotBlank(message = "currentPassword must be not blank")
+    @NotBlank(message = "Mật khẩu hiện tại không được để trống")
     private String currentPassword;
 
-    @NotBlank(message = "newPassword must be not blank")
-    @Size(min = 8, max = 100, message = "Password must be at least 8 characters")
+    @NotBlank(message = "Mật khẩu mới không được để trống")
+    @Size(min = 8, max = 100, message = "Mật khẩu phải có ít nhất 8 ký tự")
     @Pattern(regexp = "^(?=.*[A-Z])(?=.*\\d).{8,}$",
-            message = "Password must contain at least 1 uppercase letter and 1 number")
+            message = "Mật khẩu phải chứa ít nhất 1 chữ hoa và 1 số")
     private String newPassword;
 
-    @NotBlank(message = "confirmNewPassword must be not blank")
+    @NotBlank(message = "Xác nhận mật khẩu mới không được để trống")
     private String confirmNewPassword;
 }

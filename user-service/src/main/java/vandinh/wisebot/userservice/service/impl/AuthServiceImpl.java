@@ -79,7 +79,7 @@ public class AuthServiceImpl implements AuthService {
                     new UsernamePasswordAuthenticationToken(identifier, request.getPassword())
             );
 
-            log.info("Login success for account {}", identifier);
+            log.info("Đăng nhập thành công cho tài khoản {}", identifier);
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
             if (!(authentication.getPrincipal() instanceof UserEntity authenticatedUser)) {
@@ -106,11 +106,11 @@ public class AuthServiceImpl implements AuthService {
                     .build();
 
         } catch (BadCredentialsException e) {
-            log.warn("Password incorrect for user: {}", request.getUsername());
+            log.warn("Sai mật khẩu cho người dùng: {}", request.getUsername());
             throw new BadCredentialsException(INVALID_CREDENTIALS_MESSAGE);
 
         } catch (InternalAuthenticationServiceException e) {
-            log.warn("User does not exist: {}", request.getUsername());
+            log.warn("Người dùng không tồn tại: {}", request.getUsername());
 
             if (e.getCause() instanceof UsernameNotFoundException) {
                 throw new BadCredentialsException(INVALID_CREDENTIALS_MESSAGE);

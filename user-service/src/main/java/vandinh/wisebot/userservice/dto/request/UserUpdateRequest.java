@@ -13,8 +13,8 @@ import java.io.Serializable;
 @Setter
 @ToString
 public class UserUpdateRequest implements Serializable {
-    @NotBlank(message = "fullName must be not blank")
+    @NotBlank(message = "Họ tên không được để trống.")
     private String fullName;
-    @NotBlank(message = "phone must be not blank")
+    @NotBlank(message = "Số điện thoại không được để trống.")
     private String phone;
 }

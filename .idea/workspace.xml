@@ -5,29 +5,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9395e225-b2fc-43f8-8b76-11165b432eb5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/billing-service/src/main/java/vandinh/wisebot/billingservice/config/VNPayConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/billing-service/src/main/java/vandinh/wisebot/billingservice/controller/PaymentController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/billing-service/src/main/java/vandinh/wisebot/billingservice/service/VNPayService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/billing-service/src/main/resources/db/migration/V2__seed_plans.sql" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/api/widget.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/billing-service/src/main/resources/application-dev.yml" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/src/main/resources/application-dev.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/application-dev.yml" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/application-dev.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/api/auth.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/auth.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/api/billing.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/billing.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/api/users.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/users.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/contexts/LanguageContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/contexts/LanguageContext.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/lib/auth.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/lib/auth.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/ActivityLog.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/ActivityLog.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Analytics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Analytics.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Billing.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Billing.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Profile.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Profile.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Register.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Register.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/WidgetCustomization.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/WidgetCustomization.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/dto/request/RegisterRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/dto/request/RegisterRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/java/vandinh/wisebot/apigateway/fillter/JwtAuthenticationFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/java/vandinh/wisebot/apigateway/fillter/JwtAuthenticationFilter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application-prod.yml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application-prod.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application-test.yml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application-test.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/AuditLoggingFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/AuditLoggingFilter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/CustomAuthEntryPoint.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/CustomAuthEntryPoint.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/JWTAuthenticationFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/JWTAuthenticationFilter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/RateLimitingFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/RateLimitingFilter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/controller/AuthController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/controller/UserController.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/controller/UserController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/dto/request/AdminUserUpdateRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/dto/request/AdminUserUpdateRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/dto/request/ChangePasswordRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/dto/request/ChangePasswordRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/dto/request/EmailUpdateRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/dto/request/EmailUpdateRequest.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -214,7 +203,7 @@
       <workItem from="1777294401831" duration="5262000" />
       <workItem from="1777343454952" duration="22310000" />
       <workItem from="1777913866816" duration="2805000" />
-      <workItem from="1777945606204" duration="6286000" />
+      <workItem from="1777945606204" duration="6917000" />
     </task>
     <servers />
   </component>

@@ -28,7 +28,7 @@ import java.util.UUID;
 public class UserController {
     private final UserService userService;
 
-    @Operation(summary = "Get all user", description = "API retrieve list of user")
+    @Operation(summary = "Get all user", description = "API truy xuất danh sách người dùng với phân trang và bộ lọc.")
     @GetMapping("/list")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
     public ApiResponse getList(@RequestParam(required = false) String keyword,
@@ -37,7 +37,8 @@ public class UserController {
                                @RequestParam(required = false) String sort,
                                @RequestParam(defaultValue = "0") int page,
                                @RequestParam(defaultValue = "20") int size) {
-        log.info("Get user list");
+        log.info("Lấy danh sách người dùng với keyword: {}, role: {}, status: {}, sort: {}, page: {}, size: {}",
+                keyword, role, status, sort, page, size);
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
                 .message("users")
@@ -45,29 +46,29 @@ public class UserController {
                 .build();
     }
 
-    @Operation(summary = "Get user", description = "API retrieve user")
+    @Operation(summary = "Get user", description = "API truy xuất thông tin người dùng theo ID.")
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
     public ApiResponse getUser(@PathVariable UUID id) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("User profile retrieved successfully")
+                .message("Thông tin người dùng")
                 .data(userService.getUserById(id))
                 .build();
     }
 
-    @Operation(summary = "Admin update user", description = "API update user by admin")
+    @Operation(summary = "Admin update user", description = "API cập nhật thông tin người dùng bởi admin.")
     @PatchMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
     public ApiResponse adminUpdateUser(@PathVariable UUID id, @RequestBody @Valid AdminUserUpdateRequest request) {
         userService.adminUpdateUser(request, id);
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
-                .message("User updated successfully")
+                .message("Người dùng đã được cập nhật thành công")
                 .build();
     }
 
-    @Operation(summary = "Get profile", description = "API retrieve profile of user")
+    @Operation(summary = "Get profile", description = "API truy xuất hồ sơ người dùng")
     @GetMapping("/profile")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_OWNER','ROLE_USER')")
     public ApiResponse getProfile(Authentication authentication) {
@@ -75,13 +76,13 @@ public class UserController {
         log.info("Get profile of userId: {}", user.getId());
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("User profile retrieved successfully")
+                .message("Thông tin người dùng đã được truy xuất thành công")
                 .data(userService.getProfile(user.getId()))
                 .build();
     }
 
 
-    @Operation(summary = "Update profile", description = "API update profile of user")
+    @Operation(summary = "Update profile", description = "API cập nhật hồ sơ người dùng")
     @PatchMapping("/update-profile")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse updateProfile(@RequestBody @Valid UserUpdateRequest request, Authentication authentication) {
@@ -89,11 +90,11 @@ public class UserController {
         userService.updateUser(request, user.getId());
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
-                .message("User profile updated successfully")
+                .message("Hồ sơ người dùng đã được cập nhật thành công")
                 .build();
     }
 
-    @Operation(summary = "Update email", description = "API update email of user")
+    @Operation(summary = "Update email", description = "API cập nhật email của người dùng")
     @PatchMapping("/update-email")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse updateEmail(@RequestBody @Valid EmailUpdateRequest request, Authentication authentication) {
@@ -101,11 +102,11 @@ public class UserController {
         userService.updateEmail(request, user.getId());
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
-                .message("Email updated successfully")
+                .message("Email đã được cập nhật thành công")
                 .build();
     }
 
-    @Operation(summary = "Change status", description = "API change status of user")
+    @Operation(summary = "Change status", description = "API thay đổi trạng thái người dùng (active/inactive) bởi admin")
     @PatchMapping("/{id}/change-status")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
     public ApiResponse changeStatus(@PathVariable UUID id,
@@ -117,11 +118,11 @@ public class UserController {
         userService.changeStatus(request, id, user.getId());
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
-                .message("Status changed successfully")
+                .message("Trạng thái đã được thay đổi thành công")
                 .build();
     }
 
-    @Operation(summary = "Change password", description = "API change password of user")
+    @Operation(summary = "Change password", description = "API thay đổi mật khẩu của người dùng")
     @PatchMapping("/change-password")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse changePassword(@RequestBody @Valid ChangePasswordRequest request, Authentication authentication) {
@@ -129,11 +130,11 @@ public class UserController {
         userService.changePassword(request, user.getId());
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
-                .message("Password changed successfully")
+                .message("Mật khẩu đã được thay đổi thành công")
                 .build();
     }
 
-    @Operation(summary = "Delete user", description = "API delete user by admin")
+    @Operation(summary = "Delete user", description = "API xóa người dùng bởi admin")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
     public ApiResponse deleteUser(@PathVariable UUID id, Authentication authentication) {
@@ -141,7 +142,7 @@ public class UserController {
         userService.deleteUser(id, user.getId());
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
-                .message("User deleted successfully")
+                .message("Người dùng đã được xóa thành công")
                 .build();
     }
 

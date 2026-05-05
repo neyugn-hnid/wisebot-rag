@@ -32,16 +32,16 @@ public class GlobalExceptionHandling {
             int start = raw.lastIndexOf("[") + 1;
             int end = raw.lastIndexOf("]") - 1;
             message = raw.substring(start, end);
-            error = "Invalid Payload";
+            error = "Xác thực thất bại";
         } else if (e instanceof MissingServletRequestParameterException) {
             message = e.getMessage();
-            error = "Invalid Parameter";
+            error = "Tham số không hợp lệ";
         } else if (e instanceof ConstraintViolationException) {
             message = e.getMessage().substring(e.getMessage().indexOf(" ") + 1);
-            error = "Invalid Parameter";
+            error = "Tham số không hợp lệ";
         } else {
             message = e.getMessage();
-            error = "Invalid Data";
+            error = "Dữ liệu không hợp lệ";
         }
 
         return buildErrorResponse(e, request, BAD_REQUEST, error, message);
@@ -62,7 +62,7 @@ public class GlobalExceptionHandling {
 
     @ExceptionHandler({ForBiddenException.class, AccessDeniedException.class})
     public ErrorResponse handleAccessDeniedException(Exception e, WebRequest request) {
-        return buildErrorResponse(e, request, FORBIDDEN, FORBIDDEN.getReasonPhrase(), "You do not have permission to access this resource");
+        return buildErrorResponse(e, request, FORBIDDEN, FORBIDDEN.getReasonPhrase(), "Bạn không có quyền truy cập tài nguyên này");
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -79,7 +79,7 @@ public class GlobalExceptionHandling {
 
     @ExceptionHandler(Exception.class)
     public ErrorResponse handleException(Exception e, WebRequest request) {
-        return buildErrorResponse(e, request, INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR.getReasonPhrase(), "An unexpected error occurred");
+        return buildErrorResponse(e, request, INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR.getReasonPhrase(), "Đã xảy ra lỗi không mong muốn");
     }
 
     private ErrorResponse buildErrorResponse(Exception e, WebRequest request, HttpStatus status, String error, String message) {

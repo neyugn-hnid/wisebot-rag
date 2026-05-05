@@ -10,7 +10,7 @@ import java.io.Serializable;
 public class AdminUserUpdateRequest implements Serializable {
     private String fullName;
 
-    @Email(message = "email must be a valid email address")
+    @Email(message = "Email không đúng định dạng")
     private String email;
 
     private String phone;
