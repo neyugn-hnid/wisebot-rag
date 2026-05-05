@@ -1,0 +1,6 @@
+{
+  "framework": "react",
+  "tailwind": true,
+  "outDir": "src/bones",
+  "devServerUrl": "http://localhost:5173"
+}
