@@ -1,0 +1,234 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: wisebot-postgres
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-password}
+      POSTGRES_DB: ${DATABASE_NAME:-wisebot_database}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wisebot-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: wisebot-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-password}
+      JWT_ACCESS_KEY: ${JWT_ACCESS_KEY:-VYW20sDO+am1aOTsq/4Tn48CZ6oEV13ooo51rDrz7AI=}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - wisebot-network
+
+  # User Service
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: wisebot-user-service
+    ports:
+      - "8082:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-password}
+      JWT_ACCESS_KEY: ${JWT_ACCESS_KEY:-VYW20sDO+am1aOTsq/4Tn48CZ6oEV13ooo51rDrz7AI=}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - wisebot-network
+
+  # Document Service
+  document-service:
+    build:
+      context: ./document-service
+      dockerfile: Dockerfile
+    container_name: wisebot-document-service
+    ports:
+      - "8081:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-password}
+      STORAGE_BASE_PATH: /app/data/uploads
+      EMBEDDING_BASE_URL: http://ai-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/data/uploads
+    networks:
+      - wisebot-network
+
+  # Billing Service
+  billing-service:
+    build:
+      context: ./billing-service
+      dockerfile: Dockerfile
+    container_name: wisebot-billing-service
+    ports:
+      - "8083:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - wisebot-network
+
+  # Chat Service
+  chat-service:
+    build:
+      context: ./chat-service
+      dockerfile: Dockerfile
+    container_name: wisebot-chat-service
+    ports:
+      - "8084:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - wisebot-network
+
+  # Widget Service
+  widget-service:
+    build:
+      context: ./widget-service
+      dockerfile: Dockerfile
+    container_name: wisebot-widget-service
+    ports:
+      - "8085:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - wisebot-network
+
+  # AI Service (Python FastAPI)
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: wisebot-ai-service
+    ports:
+      - "8001:8000"
+    environment:
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - qdrant_data:/app/.qdrant
+    networks:
+      - wisebot-network
+
+  # Embedding Service (Python FastAPI)
+  embedding-service:
+    build:
+      context: ./embedding-service
+      dockerfile: Dockerfile
+    container_name: wisebot-embedding-service
+    ports:
+      - "8002:8001"
+    environment:
+      DATABASE_URL: postgresql://postgres:${DATABASE_PASSWORD:-password}@postgres:5432/${EMBEDDING_DATABASE_NAME:-wisebot_embedding_database}
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://ollama:11434
+      AUTH_ENABLED: "true"
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:-change-me}
+      SERVICE_JWT_ISSUER: ${SERVICE_JWT_ISSUER:-wisebot}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      ollama:
+        condition: service_started
+    networks:
+      - wisebot-network
+
+  # Qdrant vector database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: wisebot-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - wisebot-network
+
+  # Ollama for embeddings
+  ollama:
+    image: ollama/ollama:latest
+    container_name: wisebot-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - wisebot-network
+
+  # Frontend (Node.js)
+  frontend:
+    image: node:18-alpine
+    container_name: wisebot-frontend
+    working_dir: /app
+    ports:
+      - "3000:5173"
+    volumes:
+      - ./frontend:/app
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080
+    command: sh -c "npm install && npm run dev"
+    networks:
+      - wisebot-network
+
+volumes:
+  postgres_data:
+  uploads_data:
+  qdrant_data:
+  qdrant_storage:
+  ollama_data:
+
+networks:
+  wisebot-network:
+    driver: bridge
