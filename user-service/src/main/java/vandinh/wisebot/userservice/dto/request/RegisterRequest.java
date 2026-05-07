@@ -28,6 +28,5 @@ public class RegisterRequest implements Serializable {
     
     @NotBlank(message = "Xác nhận mật khẩu không được để trống")
     private String confirmPassword;
-    private Boolean isEmailVerified;
     private String inviteToken;
 }

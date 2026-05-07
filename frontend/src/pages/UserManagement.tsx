@@ -71,6 +71,7 @@ export default function UserManagement() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [statusActionUserId, setStatusActionUserId] = useState<string | null>(null);
 
   const toDisplayStatus = (status?: string): SystemUser['status'] => {
@@ -85,27 +86,31 @@ export default function UserManagement() {
     return 'ACTIVE';
   };
 
-  const formatLastLogin = (value?: string | null) => {
+  const formatLastLogin = (value: string | null | undefined, translate: (key: string) => string) => {
     if (!value) {
-      return 'Never';
+      return translate('time.never');
     }
 
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
-      return 'Never';
+      return translate('time.never');
     }
 
     const diffMs = Date.now() - date.getTime();
     const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return 'Just now';
-    if (diffMin < 60) return `${diffMin} mins ago`;
+    if (diffMin < 1) return translate('time.just_now');
+    if (diffMin < 60) return translate('time.mins_ago').replace('{mins}', diffMin.toString());
     const diffHour = Math.floor(diffMin / 60);
-    if (diffHour < 24) return `${diffHour} hours ago`;
+    if (diffHour < 24) {
+      if (diffHour === 1) return translate('time.hour_ago');
+      return translate('time.hours_ago').replace('{hours}', diffHour.toString());
+    }
     const diffDay = Math.floor(diffHour / 24);
-    return `${diffDay} days ago`;
+    if (diffDay === 1) return translate('time.day_ago');
+    return translate('time.days_ago').replace('{days}', diffDay.toString());
   };
 
-  const mapUser = (user: UserResponse): SystemUser => ({
+  const mapUser = (user: UserResponse, translate: (key: string) => string): SystemUser => ({
     id: user.id,
     name: user.fullName || user.username || user.email,
     email: user.email,
@@ -113,7 +118,7 @@ export default function UserManagement() {
     globalRole: user.role || 'USER',
     status: toDisplayStatus(user.status),
     avatar: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName || user.email)}&background=111111&color=f0f0f0`,
-    lastLogin: formatLastLogin(user.lastLogin),
+    lastLogin: formatLastLogin(user.lastLogin, translate),
   });
 
   const resolveSortQuery = () => {
@@ -141,7 +146,7 @@ export default function UserManagement() {
         status: statusFilter !== 'all' ? (statusFilter === 'suspended' ? 'DISABLED' : statusFilter.toUpperCase()) : undefined,
       });
 
-      setUsers((pageData.users || []).map(mapUser));
+      setUsers((pageData.users || []).map((user) => mapUser(user, t)));
       setTotalPages(Math.max(pageData.totalPages || 1, 1));
       setTotalElements(pageData.totalElements || 0);
     } catch (error) {
@@ -250,24 +255,20 @@ export default function UserManagement() {
   };
 
   const handleDelete = async () => {
-    if (!selectedUser) {
-      return;
-    }
-
-    setIsUpdatingStatus(true);
+    if (!selectedUser) return;
+    setIsDeleting(true);
     try {
       await deleteUser(selectedUser.id);
-
       setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id));
       setTotalElements((prev) => Math.max(prev - 1, 0));
-      showToast(t('toast.user_deleted') || 'Xóa người dùng thành công.', 'success');
+      showToast('Xóa người dùng thành công.', 'success');
       setIsDeleteConfirmOpen(false);
       setSelectedUser(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể xóa người dùng.';
       showToast(message, 'error');
     } finally {
-      setIsUpdatingStatus(false);
+      setIsDeleting(false);
     }
   };
 
@@ -346,7 +347,7 @@ export default function UserManagement() {
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
               placeholder={t('common.search')}
-              className="w-full pl-9 pr-4 py-2 border border-[rgba(255,255,255,0.3)] outline-none transition-all bg-transparent rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40"
+              className="w-full pl-9 pr-4 py-2 border border-[rgba(255,255,255,0.3)] outline-none transition-all bg-transparent rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-white focus:ring-2 focus:ring-white/30 placeholder:text-[#a1a4a5]/40"
             />
           </form>
           <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -357,7 +358,7 @@ export default function UserManagement() {
                   setRoleFilter(e.target.value as typeof roleFilter);
                   setCurrentPage(1);
                 }}
-                className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40"
+                className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-white focus:ring-2 focus:ring-white/30 transition-all placeholder:text-[#a1a4a5]/40"
               >
                 <option value="all" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Tất cả vai trò' : 'All Roles'}</option>
                 <option value="admin" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Quản trị viên' : 'Admin'}</option>
@@ -373,7 +374,7 @@ export default function UserManagement() {
                   setStatusFilter(e.target.value as typeof statusFilter);
                   setCurrentPage(1);
                 }}
-                className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40"
+                className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-white focus:ring-2 focus:ring-white/30 transition-all placeholder:text-[#a1a4a5]/40"
               >
                 <option value="all" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Tất cả trạng thái' : 'All Statuses'}</option>
                 <option value="active" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Hoạt động' : 'Active'}</option>
@@ -389,7 +390,7 @@ export default function UserManagement() {
                   setSortOption(e.target.value as typeof sortOption);
                   setCurrentPage(1);
                 }}
-                className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40"
+                className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-white focus:ring-2 focus:ring-white/30 transition-all placeholder:text-[#a1a4a5]/40"
               >
                 <option value="newest" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Mới nhất trước' : 'Newest First'}</option>
                 <option value="oldest" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Cũ nhất trước' : 'Oldest First'}</option>
@@ -465,14 +466,7 @@ export default function UserManagement() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[#a1a4a5]">
-                    {language === 'vi'
-                      ? user.lastLogin
-                        .replace('mins ago', 'phút trước')
-                        .replace('hours ago', 'giờ trước')
-                        .replace('days ago', 'ngày trước')
-                        .replace('Just now', 'Vừa xong')
-                        .replace('Never', 'Chưa từng')
-                      : user.lastLogin}
+                    {user.lastLogin}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -543,44 +537,44 @@ export default function UserManagement() {
       </div>
 
       {isInviteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#f0f0f0]">{t('users.create')}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.08)] flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#ffffff]">{t('users.create')}</h3>
               <button
                 onClick={() => setIsInviteModalOpen(false)}
-                className="text-[#a1a4a5] hover:text-[#a1a4a5] p-1 rounded-md hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                className="text-[rgba(255,255,255,0.7)] hover:text-[#ffffff] p-1 rounded-md hover:bg-[rgba(255,255,255,0.08)] transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleInviteSubmit} className="p-6 space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('team.email_address')}</label>
+                <label className="text-xs font-bold text-[rgba(255,255,255,0.8)]">{t('team.email_address')}</label>
                 <input
                   type="email"
                   required
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="jane@example.com"
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                  className="w-full bg-[rgb(228, 228, 231)] border border-[rgba(255,255,255,0.12)] outline-none rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 placeholder:text-[rgba(255,255,255,0.38)]"
                 />
               </div>
-              <p className="text-xs text-[#a1a4a5]">
+              <p className="text-xs text-[rgba(255,255,255,0.62)]">
                 {language === 'vi' ? 'Hệ thống sẽ gửi lời mời tham gia tenant hiện tại qua email.' : 'The system will send an invitation to join the current tenant by email.'}
               </p>
               <div className="pt-4 flex gap-3">
                 <button
                   type="button"
                   onClick={() => setIsInviteModalOpen(false)}
-                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[#a1a4a5] bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.05)] rounded-md transition-colors"
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[rgba(255,255,255,0.75)] bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.12)] rounded-md transition-colors"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingInvite}
-                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[#000000] bg-[#ffffff] hover:bg-[#f0f0f0] rounded-md shadow-md shadow-black/40 shadow-primary/20 transition-all disabled:opacity-60"
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[#000000] bg-[#ffffff] hover:bg-[#f0f0f0] rounded-md shadow-md shadow-black/20 transition-all disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
                 >
                   {isSubmittingInvite ? 'Đang gửi...' : t('users.create')}
                 </button>
@@ -591,79 +585,79 @@ export default function UserManagement() {
       )}
 
       {isEditModalOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#f0f0f0]">{t('users.edit')}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.08)] flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#ffffff]">{t('users.edit')}</h3>
               <button
                 onClick={() => {
                   setIsEditModalOpen(false);
                   setSelectedUser(null);
                 }}
-                className="text-[#a1a4a5] hover:text-[#a1a4a5] p-1 rounded-md hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                className="text-[rgba(255,255,255,0.7)] hover:text-[#ffffff] p-1 rounded-md hover:bg-[rgba(255,255,255,0.08)] transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('team.full_name')}</label>
+                <label className="text-xs font-bold text-[rgba(255,255,255,0.8)]">{t('team.full_name')}</label>
                 <input
                   type="text"
                   value={editForm.name}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm outline-none"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none placeholder:text-[rgba(255,255,255,0.38)]"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('team.email_address')}</label>
+                <label className="text-xs font-bold text-[rgba(255,255,255,0.8)]">{t('team.email_address')}</label>
                 <input
                   type="email"
                   value={editForm.email}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm outline-none"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none placeholder:text-[rgba(255,255,255,0.38)]"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">Phone Number</label>
+                <label className="text-xs font-bold text-[rgba(255,255,255,0.8)]">{t('users.table.phone')}</label>
                 <input
                   type="tel"
                   value={editForm.phone}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm outline-none"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none placeholder:text-[rgba(255,255,255,0.38)]"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('users.table.role')}</label>
+                <label className="text-xs font-bold text-[rgba(255,255,255,0.8)]">{t('users.table.role')}</label>
                 <select
                   value={editForm.globalRole}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, globalRole: e.target.value }))}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none appearance-none"
                 >
-                  <option value="ADMIN" className="bg-[#000000] text-[#f0f0f0]">ADMIN</option>
-                  <option value="OWNER" className="bg-[#000000] text-[#f0f0f0]">OWNER</option>
-                  <option value="USER" className="bg-[#000000] text-[#f0f0f0]">USER</option>
+                  <option value="ADMIN" className="bg-[rgba(44,44,46,0.92)] text-[#f0f0f0]" style={{ backgroundColor: '#2c2c2e', color: '#f0f0f0' }}>ADMIN</option>
+                  <option value="OWNER" className="bg-[rgba(44,44,46,0.92)] text-[#f0f0f0]" style={{ backgroundColor: '#2c2c2e', color: '#f0f0f0' }}>OWNER</option>
+                  <option value="USER" className="bg-[rgba(44,44,46,0.92)] text-[#f0f0f0]" style={{ backgroundColor: '#2c2c2e', color: '#f0f0f0' }}>USER</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">Last Login</label>
+                <label className="text-xs font-bold text-[rgba(255,255,255,0.8)]">{t('users.table.last_login')}</label>
                 <input
                   type="text"
                   value={selectedUser.lastLogin}
                   readOnly
-                  className="w-full bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.2)] rounded-[8px] px-4 py-2.5 text-sm text-[#a1a4a5] outline-none"
+                  className="w-full bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-[8px] px-4 py-2.5 text-sm text-[rgba(255,255,255,0.65)] focus:border-white focus:ring-2 focus:ring-white/30 outline-none"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('users.table.status')}</label>
+                <label className="text-xs font-bold text-[rgba(255,255,255,0.8)]">{t('users.table.status')}</label>
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, status: e.target.value as SystemUser['status'] }))}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none appearance-none"
                 >
-                  <option value="Active" className="bg-[#000000] text-[#f0f0f0]">Active</option>
-                  <option value="Pending" className="bg-[#000000] text-[#f0f0f0]">Pending</option>
-                  <option value="Suspended" className="bg-[#000000] text-[#f0f0f0]">Suspended</option>
+                  <option value="Active" className="bg-[rgba(44,44,46,0.92)] text-[#f0f0f0]" style={{ backgroundColor: '#2c2c2e', color: '#f0f0f0' }}>Active</option>
+                  <option value="Pending" className="bg-[rgba(44,44,46,0.92)] text-[#f0f0f0]" style={{ backgroundColor: '#2c2c2e', color: '#f0f0f0' }}>Pending</option>
+                  <option value="Suspended" className="bg-[rgba(44,44,46,0.92)] text-[#f0f0f0]" style={{ backgroundColor: '#2c2c2e', color: '#f0f0f0' }}>Suspended</option>
                 </select>
               </div>
               <div className="pt-4 flex gap-3">
@@ -673,14 +667,14 @@ export default function UserManagement() {
                     setIsEditModalOpen(false);
                     setSelectedUser(null);
                   }}
-                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[#a1a4a5] bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.05)] rounded-md transition-colors"
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[rgba(255,255,255,0.75)] bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.12)] rounded-md transition-colors"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={isUpdatingStatus}
-                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[#000000] bg-[#ffffff] hover:bg-[#f0f0f0] rounded-md shadow-md shadow-black/40 shadow-primary/20 transition-all disabled:opacity-60"
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[#000000] bg-[#ffffff] rounded-md shadow-md shadow-black/20 transition-all disabled:opacity-60"
                 >
                   {isUpdatingStatus ? 'Đang lưu...' : t('common.save')}
                 </button>
@@ -697,7 +691,7 @@ export default function UserManagement() {
           setSelectedUser(null);
         }}
         onConfirm={handleDelete}
-        isDeleting={isUpdatingStatus}
+        isDeleting={isDeleting}
         title={t('users.confirm.delete.title')}
         description={`${t('users.confirm.delete.msg')} "${selectedUser?.name}"?`}
         warningText={t('users.confirm.delete.undone')}

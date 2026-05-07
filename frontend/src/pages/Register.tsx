@@ -104,7 +104,7 @@ export default function Register() {
       });
 
       showToast(payload.message || 'Đăng ký thành công.', 'success');
-      navigate('/verify-email');
+      navigate('/verify-email', { state: { email: email.trim() } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể kết nối đến máy chủ.';
       showToast(message, 'error');

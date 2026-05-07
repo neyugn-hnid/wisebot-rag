@@ -519,99 +519,108 @@ export default function WidgetCustomization() {
                         ref={fileInputRef} 
                         onChange={handleFileUpload} 
                         className="hidden bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] text-[#f0f0f0] text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40" 
-                        accept="image}
-          <section className="space-y-4">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#a1a4a5]">
-              <Palette size={14} /> {t('widget.branding')}
-            </div>
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.primary_color')}</label>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {PRESET_COLORS.slice(0, 9).map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setPrimaryColor(color)}
-                      className={cn(
-                        "w-6 h-6 rounded-full border-2 transition-all",
-                        primaryColor === color ? "border border-slate-900 scale-110" : "border border-transparent hover:scale-110"
-                      )}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-                <div className="flex items-center gap-3">
-                  <input 
-                    type="color" 
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="w-10 h-10 rounded-[12px] border-none cursor-pointer overflow-hidden p-0 bg-transparent"
-                  />
-                  <input 
-                    type="text" 
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="flex-1 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-xs font-mono uppercase focus:ring-2 focus:ring-primary/20 outline-none"
-                  />
-                </div>
-              </div>
+                        accept="image/*"
+                      />
+                    </button>
+                  )}
 
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.icon_color') || 'Icon Color'}</label>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {PRESET_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setIconColor(color)}
-                      className={cn(
-                        "w-6 h-6 rounded-full border-2 transition-all",
-                        iconColor === color ? "border border-slate-900 scale-110" : "border border-transparent hover:scale-110 border border-[rgba(255,255,255,0.3)]"
-                      )}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-                <div className="flex items-center gap-3">
-                  <input 
-                    type="color" 
-                    value={iconColor}
-                    onChange={(e) => setIconColor(e.target.value)}
-                    className="w-10 h-10 rounded-[12px] border-none cursor-pointer overflow-hidden p-0 bg-transparent"
-                  />
-                  <input 
-                    type="text" 
-                    value={iconColor}
-                    onChange={(e) => setIconColor(e.target.value)}
-                    className="flex-1 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-xs font-mono uppercase focus:ring-2 focus:ring-primary/20 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.position')}</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button 
-                    onClick={() => setPosition('left')}
-                    className={cn(
-                      "py-2 text-xs font-bold rounded-[12px] border transition-all",
-                      position === 'left' ? "bg-[#ffffff] text-[#000000] border border-primary shadow-md shadow-black/40" : "bg-[#000000] text-[#a1a4a5] border border-[rgba(255,255,255,0.3)] hover:bg-[rgba(255,255,255,0.02)]"
-                    )}
-                  >
-                    {t('widget.pos_left')}
-                  </button>
-                  <button 
-                    onClick={() => setPosition('right')}
-                    className={cn(
-                      "py-2 text-xs font-bold rounded-[12px] border transition-all",
-                      position === 'right' ? "bg-[#ffffff] text-[#000000] border border-primary shadow-md shadow-black/40" : "bg-[#000000] text-[#a1a4a5] border border-[rgba(255,255,255,0.3)] hover:bg-[rgba(255,255,255,0.02)]"
-                    )}
-                  >
-                    {t('widget.pos_right')}
-                  </button>
                 </div>
               </div>
             </div>
           </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#a1a4a5]">
+                  <Palette size={14} /> {t('widget.branding')}
+                </div>
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.primary_color')}</label>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {PRESET_COLORS.slice(0, 9).map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => setPrimaryColor(color)}
+                          className={cn(
+                            "w-6 h-6 rounded-full border-2 transition-all",
+                            primaryColor === color ? "border border-slate-900 scale-110" : "border border-transparent hover:scale-110"
+                          )}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="color" 
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        className="w-10 h-10 rounded-[12px] border-none cursor-pointer overflow-hidden p-0 bg-transparent"
+                      />
+                      <input 
+                        type="text" 
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        className="flex-1 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-xs font-mono uppercase focus:ring-2 focus:ring-primary/20 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.icon_color') || 'Icon Color'}</label>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {PRESET_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => setIconColor(color)}
+                          className={cn(
+                            "w-6 h-6 rounded-full border-2 transition-all",
+                            iconColor === color ? "border border-slate-900 scale-110" : "border border-transparent hover:scale-110 border border-[rgba(255,255,255,0.3)]"
+                          )}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="color" 
+                        value={iconColor}
+                        onChange={(e) => setIconColor(e.target.value)}
+                        className="w-10 h-10 rounded-[12px] border-none cursor-pointer overflow-hidden p-0 bg-transparent"
+                      />
+                      <input 
+                        type="text" 
+                        value={iconColor}
+                        onChange={(e) => setIconColor(e.target.value)}
+                        className="flex-1 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-xs font-mono uppercase focus:ring-2 focus:ring-primary/20 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.position')}</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button 
+                        onClick={() => setPosition('left')}
+                        className={cn(
+                          "py-2 text-xs font-bold rounded-[12px] border transition-all",
+                          position === 'left' ? "bg-[#ffffff] text-[#000000] border border-primary shadow-md shadow-black/40" : "bg-[#000000] text-[#a1a4a5] border border-[rgba(255,255,255,0.3)] hover:bg-[rgba(255,255,255,0.02)]"
+                        )}
+                      >
+                        {t('widget.pos_left')}
+                      </button>
+                      <button 
+                        onClick={() => setPosition('right')}
+                        className={cn(
+                          "py-2 text-xs font-bold rounded-[12px] border transition-all",
+                          position === 'right' ? "bg-[#ffffff] text-[#000000] border border-primary shadow-md shadow-black/40" : "bg-[#000000] text-[#a1a4a5] border border-[rgba(255,255,255,0.3)] hover:bg-[rgba(255,255,255,0.02)]"
+                        )}
+                      >
+                        {t('widget.pos_right')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
           </>
           ) : (
             <div className="space-y-8 animate-in fade-in duration-300">

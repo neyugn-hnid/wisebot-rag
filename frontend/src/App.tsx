@@ -19,10 +19,10 @@ import ChatbotPlayground from './pages/ChatbotPlayground';
 import WidgetCustomization from './pages/WidgetCustomization';
 import WidgetEmbedTest from './pages/WidgetEmbedTest';
 import Analytics from './pages/Analytics';
-import TeamManagement from './pages/TeamManagement';
 import UserManagement from './pages/UserManagement';
 import APIKeys from './pages/APIKeys';
 import Billing from './pages/Billing';
+import UpgradePlan from './pages/UpgradePlan';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 
@@ -71,10 +71,10 @@ function App() {
               <Route path="/customization" element={<ProtectedRoute><DashboardLayout><WidgetCustomization /></DashboardLayout></ProtectedRoute>} />
               <Route path="/widget-test" element={<ProtectedRoute><WidgetEmbedTest /></ProtectedRoute>} />
               <Route path="/analytics" element={<ProtectedRoute allowedRoles={['ADMIN']}><DashboardLayout><Analytics /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/team" element={<ProtectedRoute><DashboardLayout><TeamManagement /></DashboardLayout></ProtectedRoute>} />
               <Route path="/users" element={<ProtectedRoute allowedRoles={['ADMIN']}><DashboardLayout><UserManagement /></DashboardLayout></ProtectedRoute>} />
               <Route path="/api-keys" element={<ProtectedRoute><DashboardLayout><APIKeys /></DashboardLayout></ProtectedRoute>} />
               <Route path="/billing" element={<ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/billing/upgrade" element={<ProtectedRoute><DashboardLayout><UpgradePlan /></DashboardLayout></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><DashboardLayout><Settings /></DashboardLayout></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
 

@@ -22,7 +22,12 @@ import {
   Mail,
   Calendar,
   Menu,
-  BrainCircuit
+  BrainCircuit,
+  FileText,
+  HelpCircle,
+  Tag,
+  Layers,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -96,14 +101,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: t('nav.playground'), icon: MessageSquare, path: '/playground', roles: ['USER', 'OWNER', 'ADMIN'] },
     { label: t('nav.integration'), icon: Code, path: '/customization', roles: ['USER', 'OWNER', 'ADMIN'] },
     
-    { label: t('nav.team'), icon: Users, path: '/team', roles: ['USER', 'OWNER', 'ADMIN'] },
     { label: t('nav.analytics'), icon: BarChart3, path: '/analytics', roles: ['ADMIN'] },
     
     { label: t('nav.users'), icon: Shield, path: '/users', roles: ['ADMIN'] },
     
     { label: t('nav.billing'), icon: CreditCard, path: '/billing', roles: ['USER', 'OWNER', 'ADMIN'] },
     { label: t('nav.api_keys'), icon: KeyRound, path: '/api-keys', roles: ['USER', 'OWNER', 'ADMIN'] },
-    { label: t('nav.settings'), icon: Settings, path: '/settings', roles: ['USER', 'OWNER', 'ADMIN'] },
   ];
 
   const filteredItems = sidebarItems.filter(item => item.roles.includes(role));
@@ -112,7 +115,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex h-screen overflow-hidden bg-[#000000] selection:bg-[#ff801f] selection:text-[#ffffff]">
       {}
       <aside className={cn(
-        "hidden lg:flex border-r border-[rgba(255,255,255,0.3)] bg-[#000000] flex-col shrink-0 overflow-y-auto transition-all duration-300",
+        "hidden lg:flex border-r border-[rgba(255,255,255,0.3)] bg-[#2c2c2e] flex-col shrink-0 overflow-y-auto transition-all duration-300",
         isDesktopSidebarCollapsed ? "w-20" : "w-64"
       )}>
         <SidebarContent 
@@ -141,7 +144,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-72 bg-[#000000] z-[70] lg:hidden flex flex-col shadow-[rgba(176,199,217,0.145)_1px_0px_0px_0px]"
+              className="fixed inset-y-0 left-0 w-72 bg-[#2c2c2e] z-[70] lg:hidden flex flex-col shadow-[rgba(176,199,217,0.145)_1px_0px_0px_0px]"
             >
               <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.3)]">
                 <Logo theme="dark" size="sm" />
@@ -162,112 +165,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {}
-        <header className="h-16 border-b border-[rgba(255,255,255,0.3)] bg-[#000000] flex items-center justify-between px-4 lg:px-6 shrink-0 z-40 relative">
-          <div className="flex items-center gap-4 flex-1 max-w-xl">
-            <button 
-              onClick={() => setIsMobileSidebarOpen(true)}
-              className="lg:hidden p-2 text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.05)] rounded-lg transition-colors"
-            >
-              <Menu size={20} />
-            </button>
-          </div>
-          
-          <div className="flex items-center gap-2 sm:gap-4 ml-4">
-            <div className="relative" ref={notificationsRef}>
-              <button 
-                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className={cn(
-                  "w-10 h-10 flex items-center justify-center rounded-full relative transition-colors",
-                  isNotificationsOpen ? "bg-[rgba(255,255,255,0.05)] text-[#ffffff]" : "text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.05)]"
-                )}
-              >
-                <Bell size={20} />
-                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#ff801f] rounded-full border-2 border-[#000000]"></span>
-              </button>
-
-              {}
-              {isNotificationsOpen && (
-                <div className="fixed left-4 right-4 top-20 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 bg-[#000000] rounded-[16px] shadow-md shadow-black/40 border border-[rgba(255,255,255,0.3)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-[100]">
-                  <div className="p-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between bg-[rgba(255,255,255,0.02)]">
-                    <h3 className="font-semibold text-[14px] text-[#f0f0f0]">{t('notifications.title')}</h3>
-                    <button className="text-[12px] font-semibold text-[#a1a4a5] hover:text-[#f0f0f0] transition-colors">
-                      {t('notifications.mark_read')}
-                    </button>
-                  </div>
-
-                  <div className="max-h-[400px] overflow-y-auto">
-                    {notifications.length > 0 ? (
-                      <div className="divide-y divide-[rgba(255,255,255,0.3)]">
-                        {notifications.map((notification) => (
-                          <div 
-                            key={notification.id} 
-                            className={cn(
-                              "p-4 hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer flex gap-3",
-                              !notification.isRead && "bg-[rgba(255,255,255,0.01)]"
-                            )}
-                          >
-                            <div className={cn(
-                              "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-                              notification.type === 'message' ? "bg-[rgba(59,158,255,0.1)] text-[#3b9eff]" :
-                              notification.type === 'system' ? "bg-[rgba(17,255,153,0.1)] text-[#11ff99]" :
-                              "bg-[rgba(255,197,61,0.1)] text-[#ffc53d]"
-                            )}>
-                              {notification.type === 'message' ? <MessageSquare size={16} /> :
-                               notification.type === 'system' ? <BrainCircuit size={16} /> :
-                               <CreditCard size={16} />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-1">
-                                <p className="text-[14px] font-semibold text-[#f0f0f0] truncate">{notification.title}</p>
-                                <span className="text-[10px] text-[#a1a4a5] whitespace-nowrap">{notification.time}</span>
-                              </div>
-                              <p className="text-[12px] text-[#a1a4a5] line-clamp-2 leading-relaxed">
-                                {notification.description}
-                              </p>
-                            </div>
-                            {!notification.isRead && (
-                              <div className="w-2 h-2 bg-[#ff801f] rounded-full mt-2 shrink-0"></div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-8 text-center">
-                        <div className="w-12 h-12 bg-[rgba(255,255,255,0.05)] rounded-full flex items-center justify-center mx-auto mb-3 text-[#a1a4a5]">
-                          <Bell size={24} />
-                        </div>
-                        <p className="text-[14px] text-[#a1a4a5] font-medium">{t('notifications.empty')}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-3 border-t border-[rgba(255,255,255,0.3)] bg-[#000000]">
-                    <button className="w-full py-2 text-[12px] font-semibold text-[#a1a4a5] hover:text-[#f0f0f0] transition-colors">
-                      {t('notifications.view_all')}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <div className="relative">
-              <div 
-                className="flex items-center gap-3 pl-2 cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => navigate('/profile')}
-              >
-                <img 
-                  src="https://picsum.photos/seed/alex/100/100" 
-                  alt="User" 
-                  className="w-8 h-8 rounded-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {}
         <main className="flex-1 overflow-y-auto p-4 lg:p-8 scrollbar-hide bg-[#000000]">
           {children}
         </main>
@@ -286,7 +183,7 @@ function SidebarContent({ filteredItems, role, t, location, isCollapsed = false,
   };
 
   return (
-    <div className={cn("flex flex-col h-full bg-[#000000]", isCollapsed ? "p-4" : "p-6")}>
+    <div className={cn("flex flex-col h-full ", isCollapsed ? "p-4" : "p-6")}>
       <div className={cn("hidden lg:flex mb-8 items-center", isCollapsed ? "justify-center" : "justify-between")}>
         {!isCollapsed && <Logo theme="dark" size="sm" />}
         {onToggleCollapse && (
@@ -324,18 +221,46 @@ function SidebarContent({ filteredItems, role, t, location, isCollapsed = false,
         })}
       </nav>
 
-      <div className="mt-auto pt-6">
-        <button 
-          onClick={handleSignOut}
-          title={isCollapsed ? t('profile.sign_out') : undefined}
+      <div className="mt-auto pt-6 space-y-1">
+        {[
+          { icon: FileText, label: t('nav.docs'), href: '/docs' },
+          { icon: HelpCircle, label: t('nav.faq'), href: '/faq' },
+          { icon: Tag, label: t('nav.pricing'), href: '/pricing' },
+          { icon: Layers, label: t('nav.integration_secondary'), href: '/integration' },
+          { icon: Send, label: t('nav.contact'), href: '/contact' },
+          { icon: User, label: t('nav.profile') || 'Profile', href: '/profile' },
+        ].map((item) => (
+          <Link
+            key={item.href}
+            to={item.href}
+            title={isCollapsed ? item.label : undefined}
+            className={cn(
+              "flex items-center rounded-md transition-colors",
+              isCollapsed ? "justify-center p-3" : "gap-3 px-3 py-2 text-[14px] font-medium",
+              location.pathname === item.href
+                ? "bg-[rgba(255,255,255,0.05)] text-[#ffffff]"
+                : "text-[#a1a4a5] hover:text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.02)]"
+            )}
+          >
+            <item.icon size={isCollapsed ? 20 : 16} />
+            {!isCollapsed && <span>{item.label}</span>}
+          </Link>
+        ))}
+
+        <Link
+          to="/settings"
+          title={isCollapsed ? t('nav.settings') : undefined}
           className={cn(
-            "w-full flex items-center text-[#ff0000] hover:bg-[#ff0000]/10 rounded-md transition-colors outline-none",
-            isCollapsed ? "justify-center p-3" : "gap-3 px-3 py-2 text-[14px] font-medium"
+            "flex items-center rounded-md transition-colors",
+            isCollapsed ? "justify-center p-3" : "gap-3 px-3 py-2 text-[14px] font-medium",
+            location.pathname === '/settings'
+              ? "bg-[rgba(255,255,255,0.05)] text-[#ffffff]"
+              : "text-[#a1a4a5] hover:text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.02)]"
           )}
         >
-          <LogOut size={isCollapsed ? 20 : 16} />
-          {!isCollapsed && <span>{t('profile.sign_out')}</span>}
-        </button>
+          <Settings size={isCollapsed ? 20 : 16} />
+          {!isCollapsed && <span>{t('nav.settings')}</span>}
+        </Link>
       </div>
     </div>
   );

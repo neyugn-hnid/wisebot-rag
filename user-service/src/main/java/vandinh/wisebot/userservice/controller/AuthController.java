@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import vandinh.wisebot.userservice.common.response.ApiResponse;
@@ -20,6 +21,8 @@ import vandinh.wisebot.userservice.dto.request.InviteRequest;
 import vandinh.wisebot.userservice.dto.request.LoginRequest;
 import vandinh.wisebot.userservice.dto.request.RefreshTokenRequest;
 import vandinh.wisebot.userservice.dto.request.RegisterRequest;
+import vandinh.wisebot.userservice.dto.request.VerifyEmailRequest;
+import vandinh.wisebot.userservice.dto.request.ForgotPasswordRequest;
 import vandinh.wisebot.userservice.entity.UserEntity;
 import vandinh.wisebot.userservice.service.AuthService;
 
@@ -54,9 +57,21 @@ public class AuthController {
         authService.register(request);
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-            .message("Đăng ký tài khoản thành công")
+            .message("Đăng ký tài khoản thành công. Vui lòng kiểm tra email để lấy OTP xác minh tài khoản")
                 .data(null)
                 .build();
+    }
+
+    @Operation(summary = "Verify email", description = "Xác minh tài khoản bằng OTP trong email")
+    @PostMapping("/verify-email")
+    public ApiResponse verifyEmail(@RequestBody @Valid VerifyEmailRequest request) {
+        return authService.verifyEmail(request);
+    }
+
+    @Operation(summary = "Resend verification email", description = "Gửi lại email xác minh chứa OTP mới")
+    @PostMapping("/resend-verification")
+    public ApiResponse resendVerification(@RequestParam String email) {
+        return authService.resendVerificationEmail(email);
     }
 
     @Operation(summary = "Logout", description = "Thu hồi mã truy cập bằng cách thêm nó vào danh sách đen.")
@@ -71,6 +86,20 @@ public class AuthController {
     public ApiResponse invite(@RequestBody @Valid InviteRequest request, Authentication authentication) {
         UserEntity user = (UserEntity) authentication.getPrincipal();
         return authService.inviteUser(user.getTenant().getId(), request.getEmail());
+    }
+
+    @Operation(summary = "Forgot password - send OTP", description = "Gửi OTP đặt lại mật khẩu qua email")
+    @PostMapping("/forgot-password")
+    public ApiResponse forgotPassword(@RequestBody @Valid ForgotPasswordRequest request) {
+        log.info("Yêu cầu gửi OTP đặt lại mật khẩu: {}", request.getEmail());
+        return authService.sendResetPasswordOtp(request);
+    }
+
+    @Operation(summary = "Reset password", description = "Xác minh OTP và đặt lại mật khẩu mới")
+    @PostMapping("/reset-password")
+    public ApiResponse resetPassword(@RequestBody @Valid ForgotPasswordRequest request) {
+        log.info("Yêu cầu đặt lại mật khẩu: {}", request.getEmail());
+        return authService.resetPassword(request);
     }
 
 }

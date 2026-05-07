@@ -58,12 +58,6 @@ export default function Billing() {
   const [loadingSub, setLoadingSub] = useState(true);
 
   useEffect(() => {
-    if (location.state?.selectedPlanId) {
-      setIsUpgradeModalOpen(true);
-    }
-  }, [location.state]);
-
-  useEffect(() => {
     let cancelled = false;
 
     async function fetchBackendData() {
@@ -139,7 +133,6 @@ export default function Billing() {
       const sub = await mySubscribe(id);
       setBackendSubscription(sub);
       setCurrentPlan(name);
-      setIsUpgradeModalOpen(false);
       setUpgradeStep('selection');
       setSelectedPlan(null);
       setNewCard({ number: '', expiry: '', cvc: '', name: '' });
@@ -428,13 +421,7 @@ export default function Billing() {
           <div>
             <h2 className="text-[24px] font-display font-medium tracking-tight tracking-tight text-[#f0f0f0]">{t('billing.title')}</h2>
           </div>
-          <div className="flex gap-3">
-            <button 
-              onClick={() => setIsUpgradeModalOpen(true)}
-              className="px-4 py-2 bg-[#ffffff] text-[#000000] rounded-[12px] text-sm font-bold shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all"
-            >
-              {t('billing.upgrade')}
-            </button>
+          <div>
             <button className="px-4 py-2 bg-[#000000] text-[#f0f0f0] border border-[rgba(255,255,255,0.3)] rounded-md text-sm font-bold shadow-md shadow-black/40 hover:bg-[rgba(255,255,255,0.02)] transition-all">
               {t('billing.create_plan')}
             </button>
@@ -482,7 +469,7 @@ export default function Billing() {
         </div>
 
         {}
-        <div className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 overflow-hidden">
+        <div className="bg-[rgba(40,40,40,1)] rounded-[16px] overflow-hidden">
           <div className="p-6 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
             <h3 className="text-lg font-bold text-[#f0f0f0]">{t('billing.recent_subs')}</h3>
             <button className="text-xs font-bold text-[#3b9eff] hover:underline">{t('billing.view_all')}</button>
@@ -499,7 +486,7 @@ export default function Billing() {
                   <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider text-right">{t('billing.table.action')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[rgba(255,255,255,0.3)]">
+              <tbody className="divide-y divide-[rgba(255,255,255,0.3)] border-t border-[rgba(255,255,255,0.3)]">
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
@@ -618,16 +605,14 @@ export default function Billing() {
       <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-[24px] font-display font-medium tracking-tight tracking-tight text-[#f0f0f0]">{t('billing.title')}</h2>
+            <h2 className="text-[24px] font-display font-medium tracking-tight text-[#f0f0f0]">{t('billing.title')}</h2>
           </div>
-          <div className="flex gap-3">
-            <button 
-              onClick={() => setIsUpgradeModalOpen(true)}
-              className="px-4 py-2 bg-[#ffffff] text-[#000000] rounded-[12px] text-sm font-bold shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all"
-            >
-              {t('billing.upgrade')}
-            </button>
-          </div>
+          <button 
+            onClick={() => navigate('/billing/upgrade')}
+            className="px-4 py-2 bg-[#ffffff] text-[#000000] rounded-[12px] text-sm font-bold shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all"
+          >
+            {t('billing.upgrade') || 'Nâng cấp gói'}
+          </button>
         </div>
 
         <div className="space-y-8">
@@ -670,8 +655,8 @@ export default function Billing() {
                 </div>
 
                 {}
-                <div className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
-                  <div className="p-6 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
+                <div className="bg-[rgba(40,40,40,1)] rounded-[16px] overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+                  <div className="p-6 flex items-center justify-between">
                     <h3 className="text-lg font-bold text-[#f0f0f0]">{t('billing.history')}</h3>
                   </div>
                   {invoices.length > 0 ? (
@@ -718,7 +703,7 @@ export default function Billing() {
                     </div>
                   ) : (
                     <div className="p-12 flex flex-col items-center justify-center text-center">
-                      <div className="w-16 h-16 bg-[rgba(255,255,255,0.02)] text-[rgba(255,255,255,0.3)] rounded-full flex items-center justify-center mb-4">
+                      <div className="w-16 h-16 bg-[rgba(40,40,40,1)] text-[rgba(255,255,255)] rounded-full flex items-center justify-center mb-4">
                         <History size={24} />
                       </div>
                       <p className="text-[#a1a4a5] font-medium">
@@ -730,72 +715,6 @@ export default function Billing() {
 
           </div>
         </div>
-
-        {}
-        {isUpgradeModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-              <div className="flex items-center justify-between p-4 sm:p-8 border-b border-[rgba(255,255,255,0.3)] sticky top-0 bg-[#000000] z-10">
-                <div>
-                  <h3 className="text-2xl font-black text-[#f0f0f0]">{t('billing.upgrade')}</h3>
-                </div>
-                <button 
-                  onClick={() => { setIsUpgradeModalOpen(false); setUpgradeStep('selection'); setSelectedPlan(null); }}
-                  className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-[16px] transition-colors"
-                >
-                  <X size={24} className="text-[#a1a4a5]" />
-                </button>
-              </div>
-
-              <div className="p-4 sm:p-8">
-                {upgradeStep === 'selection' ? (
-                  <div>
-                    {}
-                    <div className="flex justify-center mb-10">
-                      <div className="flex items-center gap-1 bg-[rgba(255,255,255,0.05)] p-1 rounded-[16px] border border-[rgba(255,255,255,0.3)]">
-                        <button 
-                          onClick={() => setBillingCycle('monthly')}
-                          className={cn(
-                            "px-6 py-2 text-xs font-black rounded-[12px] transition-all",
-                            billingCycle === 'monthly' ? "bg-[#000000] text-[#f0f0f0] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#f0f0f0]"
-                          )}
-                        >
-                          {t('billing.plans.monthly')}
-                        </button>
-                        <button 
-                          onClick={() => setBillingCycle('yearly')}
-                          className={cn(
-                            "px-6 py-2 text-xs font-black rounded-[12px] transition-all flex items-center gap-2",
-                            billingCycle === 'yearly' ? "bg-[#000000] text-[#f0f0f0] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#f0f0f0]"
-                          )}
-                        >
-                          {t('billing.plans.yearly')}
-                          <span className="text-[#ff0000]">{t('billing.plans.save_20')}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {renderPlansGrid()}
-                    </div>
-                  </div>
-                ) : (
-                  renderCheckout()
-                )}
-              </div>
-              <div className="p-6 bg-[rgba(255,255,255,0.02)] border-t border-[rgba(255,255,255,0.3)] flex items-center justify-center gap-8">
-                <div className="flex items-center gap-2 text-[#a1a4a5]">
-                  <ShieldCheck size={18} />
-                  <span className="text-xs font-bold">{t('billing.secure_ssl')}</span>
-                </div>
-                <div className="flex items-center gap-2 text-[#a1a4a5]">
-                  <CreditCard size={18} />
-                  <span className="text-xs font-bold">{t('billing.cancel_anytime')}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
     </>

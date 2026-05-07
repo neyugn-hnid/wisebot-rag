@@ -16,6 +16,7 @@ public class AppFeatureProperties {
     private RateLimit rateLimit = new RateLimit();
     private Audit audit = new Audit();
     private Cache cache = new Cache();
+    private Mail mail = new Mail();
 
     @Getter
     @Setter
@@ -49,5 +50,16 @@ public class AppFeatureProperties {
         private boolean enabled = true;
         private Duration defaultTtl = Duration.ofMinutes(10);
         private Map<String, Duration> ttlByCache = new HashMap<>();
+    }
+
+    @Getter
+    @Setter
+    public static class Mail {
+        private boolean enabled = false;
+        private String from = "no-reply@wisebot.local";
+        private String appName = "WiseBot";
+        private String inviteBaseUrl = "http://localhost:3000/register";
+        private String invitePath = "/register";
+        private String sendgridApiKey = "";
     }
 }

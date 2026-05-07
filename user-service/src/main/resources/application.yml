@@ -14,6 +14,12 @@ spring:
     password: ${DATABASE_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
 
+  sendGrid:
+    apiKey: ${SENDGRID_API_KEY}
+    fromEmail: ${SENDGRID_FROM_EMAIL:deannguyen.ptho@gmail.com}
+    templateId: ${SENDGRID_TEMPLATE_ID:d-0cad2bac5e0048d183c73a0a9b75d5d8}
+    verificationLink: ${SENDGRID_VERIFICATION_LINK:http://localhost:3000/verify-email?token={token}}
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -21,7 +27,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
+        format_sql: false
         cache:
           use_second_level_cache: false
 
@@ -92,3 +98,10 @@ app:
       default-ttl: 10m
       ttl-by-cache:
         user-by-id: 5m
+    mail:
+      enabled: ${MAIL_ENABLED:false}
+      from: ${MAIL_FROM:no-reply@wisebot.local}
+      app-name: ${MAIL_APP_NAME:WiseBot}
+      invite-base-url: ${MAIL_INVITE_BASE_URL:http://localhost:3000}
+      invite-path: ${MAIL_INVITE_PATH:/register}
+      sendgrid-api-key: ${SENDGRID_API_KEY:}

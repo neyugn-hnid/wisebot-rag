@@ -94,7 +94,13 @@ export default function Login() {
       navigate('/dashboard');
     } catch (error) {
       const message = error instanceof Error ? error.message : t('toast.server_error');
-      setServerError(message);
+      
+      if (message.includes('chưa được xác minh') || message.includes('OTP')) {
+        showToast(message, 'warning');
+        navigate('/verify-email', { state: { email: email.trim() } });
+      } else {
+        setServerError(message);
+      }
     } finally {
       setIsSubmitting(false);
     }

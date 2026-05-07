@@ -17,8 +17,11 @@ import {
   X,
   Eye,
   EyeOff,
+  LogOut,
+  Trash2,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useRole } from '../contexts/RoleContext';
 import { cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
@@ -37,6 +40,7 @@ type PasswordForm = {
 
 export default function Profile() {
   const { t, language } = useLanguage();
+  const { logout } = useRole();
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -134,6 +138,11 @@ export default function Profile() {
       fullName: profile?.fullName || '',
       phone: profile?.phone || '',
     });
+  };
+
+  const handleSignOut = async () => {
+    await logout();
+    navigate('/login');
   };
 
   const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -440,6 +449,23 @@ export default function Profile() {
                   </button>
                 </form>
               </div>
+            </div>
+
+            <div className="flex gap-3 pt-4 justify-end">
+              <button
+                onClick={handleSignOut}
+                className="px-6 py-2.5 bg-[rgba(255,255,255,0.02)] text-[#a1a4a5] text-sm font-bold rounded-[12px] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#f0f0f0] transition-all flex items-center justify-center gap-2 border border-[rgba(255,255,255,0.3)]"
+              >
+                <LogOut size={16} />
+                {t('profile.sign_out') || 'Đăng xuất'}
+              </button>
+              <button
+                onClick={() => showToast('Tính năng đang phát triển', 'info')}
+                className="px-6 py-2.5 bg-[#ff0000]/10 text-[#ff0000] text-sm font-bold rounded-[12px] hover:bg-[#ff0000]/20 transition-all flex items-center justify-center gap-2"
+              >
+                <Trash2 size={16} />
+                Xóa tài khoản
+              </button>
             </div>
           </div>
         </main>

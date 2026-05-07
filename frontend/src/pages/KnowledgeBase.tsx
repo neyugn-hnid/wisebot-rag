@@ -321,7 +321,7 @@ export default function KnowledgeBase() {
             canvas.width = viewport.width;
             
             if (context) {
-              await page.render({ canvasContext: context, viewport }).promise;
+              await page.render({ canvasContext: context, canvas, viewport }).promise;
               pages.push(canvas.toDataURL());
             }
           }
@@ -551,7 +551,7 @@ export default function KnowledgeBase() {
   return (
     <>
       {currentView === 'manage' ? (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto relative">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto relative">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <button 
@@ -866,52 +866,52 @@ export default function KnowledgeBase() {
       )}
       {}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.3)]">
-              <h3 className="text-lg font-bold text-[#f0f0f0]">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)]">
+              <h3 className="text-lg font-bold text-[#ffffff]">
                 {formMode === 'create' ? t('kb.modal.create') : t('kb.modal.edit')}
               </h3>
               <button 
                 onClick={() => setIsCreateModalOpen(false)}
-                className="text-[#a1a4a5] hover:text-[#a1a4a5] transition-colors"
+                className="text-[rgba(255,255,255,0.7)] hover:text-[#ffffff] p-1 rounded-md hover:bg-[rgba(255,255,255,0.04)] transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
             <div className="p-6 space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-[#f0f0f0]">{t('kb.modal.name')}</label>
+                <label className="text-sm font-bold text-[#ffffff]">{t('kb.modal.name')}</label>
                 <input 
                   type="text" 
                   value={kbName}
                   onChange={(e) => setKbName(e.target.value)}
                   placeholder={t('kb.modal.name_placeholder')} 
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none transition-all placeholder:text-[rgba(255,255,255,0.5)]"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-[#f0f0f0]">{t('kb.modal.desc')}</label>
+                <label className="text-sm font-bold text-[#ffffff]">{t('kb.modal.desc')}</label>
                 <textarea 
                   value={kbDesc}
                   onChange={(e) => setKbDesc(e.target.value)}
                   placeholder={t('kb.modal.desc_placeholder')} 
                   rows={3}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none transition-all resize-none placeholder:text-[rgba(255,255,255,0.5)]"
                 />
               </div>
             </div>
-            <div className="p-6 border-t border-[rgba(255,255,255,0.3)] bg-[#000000] flex justify-end gap-3">
+            <div className="p-6 border-t border-[rgba(255,255,255,0.08)] bg-[rgba(44,44,46,0.92)] flex gap-3">
               <button 
                 onClick={() => setIsCreateModalOpen(false)}
-                className="px-5 py-2.5 text-sm font-bold text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.05)] rounded-[12px] transition-colors"
+                className="flex-1 py-2.5 text-sm font-bold bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff] rounded-md transition-all"
               >
                 {t('common.cancel')}
               </button>
               <button 
                 onClick={handleSaveClick}
                 disabled={!kbName.trim()}
-                className="px-5 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {formMode === 'create' ? t('common.create') : t('common.save')}
               </button>
@@ -922,20 +922,20 @@ export default function KnowledgeBase() {
 
       {}
       {isDetailsModalOpen && selectedUpload && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.3)]">
-              <h3 className="text-lg font-bold text-[#f0f0f0]">{t('common.view_details')}</h3>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)]">
+              <h3 className="text-lg font-bold text-[#ffffff]">{t('common.view_details')}</h3>
               <button 
                 onClick={() => setIsDetailsModalOpen(false)}
-                className="text-[#a1a4a5] hover:text-[#a1a4a5] transition-colors"
+                className="text-[rgba(255,255,255,0.7)] hover:text-[#ffffff] p-1 rounded-md hover:bg-[rgba(255,255,255,0.04)] transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="flex items-center gap-4 p-4 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)]">
-                <div className={cn("w-12 h-12 rounded-[12px] bg-[#000000] flex items-center justify-center shadow-md shadow-black/40", selectedUpload.color)}>
+              <div className="flex items-center gap-4 p-4 bg-[rgba(255,255,255,0.04)] rounded-[16px] border border-[rgba(255,255,255,0.08)]">
+                <div className={cn("w-12 h-12 rounded-[12px] bg-[rgba(255,255,255,0.06)] flex items-center justify-center", selectedUpload.color)}>
                   <FileText size={24} />
                 </div>
                 <div className="min-w-0">
@@ -945,7 +945,7 @@ export default function KnowledgeBase() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)]">
+                <div className="p-3 bg-[rgba(255,255,255,0.04)] rounded-[16px] border border-[rgba(255,255,255,0.08)]">
                   <p className="text-[10px] font-black text-[#a1a4a5] uppercase tracking-wider mb-1">{t('kb.table.status')}</p>
                   <div className="flex items-center gap-2">
                     <span className={cn(
@@ -956,7 +956,7 @@ export default function KnowledgeBase() {
                     <p className="text-xs font-bold text-[#f0f0f0]">{selectedUpload.status}</p>
                   </div>
                 </div>
-                <div className="p-3 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)]">
+                <div className="p-3 bg-[rgba(255,255,255,0.04)] rounded-[16px] border border-[rgba(255,255,255,0.08)]">
                   <p className="text-[10px] font-black text-[#a1a4a5] uppercase tracking-wider mb-1">{t('kb.table.date')}</p>
                   <p className="text-xs font-bold text-[#f0f0f0]">{selectedUpload.date}</p>
                 </div>
@@ -972,19 +972,19 @@ export default function KnowledgeBase() {
                 </div>
               </div>
             </div>
-            <div className="p-6 border-t border-[rgba(255,255,255,0.3)] bg-[#000000] flex justify-end gap-3">
+            <div className="p-6 border-t border-[rgba(255,255,255,0.08)] bg-[rgba(44,44,46,0.92)] flex gap-3">
               <button 
                 onClick={() => {
                   setIsDetailsModalOpen(false);
                   handlePreview(selectedUpload);
                 }}
-                className="px-6 py-2.5 text-sm font-bold border border-[rgba(255,255,255,0.3)] text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.05)] rounded-[12px] transition-colors"
+                className="flex-1 py-2.5 text-sm font-bold bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff] rounded-md transition-all"
               >
                 {t('kb.preview')}
               </button>
               <button 
                 onClick={() => setIsDetailsModalOpen(false)}
-                className="px-6 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-[12px] transition-colors shadow-md shadow-black/40 shadow-primary/20"
+                className="flex-1 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-[12px] transition-colors shadow-md shadow-black/40 shadow-primary/20"
               >
                 {t('common.done')}
               </button>
@@ -995,21 +995,21 @@ export default function KnowledgeBase() {
 
       {}
       {isPreviewModalOpen && previewData && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col h-[90vh]">
-            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.3)] shrink-0">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col h-[90vh]">
+            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)] shrink-0">
               <div>
-                <h3 className="text-lg font-bold text-[#f0f0f0]">{t('kb.preview')}</h3>
+                <h3 className="text-lg font-bold text-[#ffffff]">{t('kb.preview')}</h3>
                 <p className="text-xs text-[#a1a4a5] mt-0.5">{previewData.name}</p>
               </div>
               <button 
                 onClick={closePreview}
-                className="text-[#a1a4a5] hover:text-[#a1a4a5] transition-colors"
+                className="text-[rgba(255,255,255,0.7)] hover:text-[#ffffff] p-1 rounded-md hover:bg-[rgba(255,255,255,0.04)] transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
-            <div className="flex-1 overflow-hidden bg-[rgba(255,255,255,0.02)] relative">
+            <div className="flex-1 overflow-hidden bg-[rgba(255,255,255,0.04)] relative">
               {isPreviewLoading ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#000000]/50 backdrop-blur-sm z-10">
                   <Loader2 size={40} className="text-[#3b9eff] animate-spin mb-4" />
@@ -1021,7 +1021,7 @@ export default function KnowledgeBase() {
                 {previewData.pdfPages ? (
                   <div className="flex flex-col gap-6 items-center">
                     {previewData.pdfPages.map((pageData, i) => (
-                      <div key={i} className="bg-[#000000] shadow-md shadow-black/40 border border-[rgba(255,255,255,0.3)] rounded-sm overflow-hidden max-w-full">
+                      <div key={i} className="bg-[rgba(255,255,255,0.04)] shadow-md shadow-black/30 border border-[rgba(255,255,255,0.08)] rounded-sm overflow-hidden max-w-full">
                         <img 
                           src={pageData} 
                           alt={`Page ${i + 1}`} 
@@ -1039,11 +1039,11 @@ export default function KnowledgeBase() {
                 ) : previewData.url ? (
                   <iframe 
                     src={previewData.url} 
-                    className="w-full h-full rounded-[16px] border border-[rgba(255,255,255,0.3)] bg-[#000000] shadow-md shadow-black/40"
+                    className="w-full h-full rounded-[16px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] shadow-md shadow-black/30"
                     title="PDF Preview"
                   />
                 ) : previewData.content ? (
-                  <div className="bg-[#000000] p-8 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 min-h-full prose prose-slate max-w-none">
+                  <div className="bg-[rgba(255,255,255,0.04)] p-8 rounded-[16px] border border-[rgba(255,255,255,0.08)] shadow-md shadow-black/30 min-h-full prose prose-slate max-w-none">
                     {previewData.type === 'DOCX' ? (
                       <div dangerouslySetInnerHTML={{ __html: previewData.content }} />
                     ) : (
@@ -1067,7 +1067,7 @@ export default function KnowledgeBase() {
                 )}
               </div>
             </div>
-            <div className="p-6 border-t border-[rgba(255,255,255,0.3)] bg-[#000000] flex justify-end shrink-0">
+            <div className="p-6 border-t border-[rgba(255,255,255,0.08)] bg-[rgba(44,44,46,0.92)] flex justify-end shrink-0">
               <button 
                 onClick={closePreview}
                 className="px-6 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 shadow-primary/20"
@@ -1081,8 +1081,8 @@ export default function KnowledgeBase() {
 
       {}
       {confirmModal.isOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 text-center">
               <div className={`size-16 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmModal.type.startsWith('delete') ? 'bg-[#ff0000]/10 text-[#ff0000]' : 'bg-[rgba(59,158,255,0.1)] text-[#3b9eff]'}`}>
                 {confirmModal.type.startsWith('delete') ? <Trash2 size={32} /> : <AlertCircle size={32} />}
@@ -1094,10 +1094,10 @@ export default function KnowledgeBase() {
                 {confirmModal.message}
               </p>
             </div>
-            <div className="p-6 border-t border-[rgba(255,255,255,0.3)] bg-[#000000] flex gap-3">
+            <div className="p-6 border-t border-[rgba(255,255,255,0.08)] bg-[rgba(44,44,46,0.92)] flex gap-3">
               <button 
                 onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-                className="flex-1 py-2.5 text-sm font-bold bg-[#000000] border border-[rgba(255,255,255,0.3)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.02)] hover:text-[#f0f0f0] rounded-md transition-all"
+                className="flex-1 py-2.5 text-sm font-bold bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff] rounded-md transition-all"
               >
                 {t('common.cancel')}
               </button>
