@@ -242,6 +242,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private String generateUniqueUsername(String email) {
+        String localPart = email == null ? "" : email.split("@")[0];
         String sanitized = localPart
                 .replaceAll("[^a-zA-Z0-9_]", "_")
                 .replaceAll("_+", "_")

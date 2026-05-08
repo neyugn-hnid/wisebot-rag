@@ -532,10 +532,10 @@ export default function Billing() {
           </div>
           <div className="flex gap-3">
             <button 
-              onClick={() => setIsUpgradeModalOpen(true)}
+              onClick={() => navigate('/billing/upgrade')}
               className="px-4 py-2 bg-[#ffffff] text-[#000000] rounded-[12px] text-sm font-bold shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all"
             >
-              {t('billing.upgrade')}
+              {t('billing.upgrade') || 'Nâng cấp gói'}
             </button>
           </div>
         </div>
@@ -640,72 +640,6 @@ export default function Billing() {
 
           </div>
         </div>
-
-        {/* Upgrade Modal */}
-        {isUpgradeModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-              <div className="flex items-center justify-between p-4 sm:p-8 border-b border-[rgba(255,255,255,0.3)] sticky top-0 bg-[#000000] z-10">
-                <div>
-                  <h3 className="text-2xl font-black text-[#f0f0f0]">{t('billing.upgrade')}</h3>
-                </div>
-                <button 
-                  onClick={() => { setIsUpgradeModalOpen(false); setUpgradeStep('selection'); setSelectedPlan(null); }}
-                  className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-[16px] transition-colors"
-                >
-                  <X size={24} className="text-[#a1a4a5]" />
-                </button>
-              </div>
-
-              <div className="p-4 sm:p-8">
-                {upgradeStep === 'selection' ? (
-                  <div>
-                    {/* Billing Cycle Switcher */}
-                    <div className="flex justify-center mb-10">
-                      <div className="flex items-center gap-1 bg-[rgba(255,255,255,0.05)] p-1 rounded-[16px] border border-[rgba(255,255,255,0.3)]">
-                        <button 
-                          onClick={() => setBillingCycle('monthly')}
-                          className={cn(
-                            "px-6 py-2 text-xs font-black rounded-[12px] transition-all",
-                            billingCycle === 'monthly' ? "bg-[#000000] text-[#f0f0f0] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#f0f0f0]"
-                          )}
-                        >
-                          {t('billing.plans.monthly')}
-                        </button>
-                        <button 
-                          onClick={() => setBillingCycle('yearly')}
-                          className={cn(
-                            "px-6 py-2 text-xs font-black rounded-[12px] transition-all flex items-center gap-2",
-                            billingCycle === 'yearly' ? "bg-[#000000] text-[#f0f0f0] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#f0f0f0]"
-                          )}
-                        >
-                          {t('billing.plans.yearly')}
-                          <span className="text-[#ff0000]">{t('billing.plans.save_20')}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {renderPlansGrid()}
-                    </div>
-                  </div>
-                ) : (
-                  renderCheckout()
-                )}
-              </div>
-              <div className="p-6 bg-[rgba(255,255,255,0.02)] border-t border-[rgba(255,255,255,0.3)] flex items-center justify-center gap-8">
-                <div className="flex items-center gap-2 text-[#a1a4a5]">
-                  <ShieldCheck size={18} />
-                  <span className="text-xs font-bold">{t('billing.secure_ssl')}</span>
-                </div>
-                <div className="flex items-center gap-2 text-[#a1a4a5]">
-                  <CreditCard size={18} />
-                  <span className="text-xs font-bold">{t('billing.cancel_anytime')}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
     </>

@@ -22,7 +22,13 @@ import {
   Mail,
   Calendar,
   Menu,
-  BrainCircuit
+  BrainCircuit,
+  FileText,
+  HelpCircle,
+  Tag,
+  Layers,
+  Zap,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -99,7 +105,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: t('nav.integration'), icon: Code, path: '/customization', roles: ['USER', 'OWNER', 'ADMIN'] },
     
     // Workspace Admin Features
-    { label: t('nav.team'), icon: Users, path: '/team', roles: ['USER', 'OWNER', 'ADMIN'] },
     { label: t('nav.analytics'), icon: BarChart3, path: '/analytics', roles: ['ADMIN'] },
     
     // System Admin Features
@@ -108,7 +113,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Shared Features
     { label: t('nav.billing'), icon: CreditCard, path: '/billing', roles: ['USER', 'OWNER', 'ADMIN'] },
     { label: t('nav.api_keys'), icon: KeyRound, path: '/api-keys', roles: ['USER', 'OWNER', 'ADMIN'] },
-    { label: t('nav.settings'), icon: Settings, path: '/settings', roles: ['USER', 'OWNER', 'ADMIN'] },
   ];
 
   const filteredItems = sidebarItems.filter(item => item.roles.includes(role));
@@ -139,7 +143,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileSidebarOpen(false)}
-              className="fixed inset-0 bg-[#000000]/80 backdrop-blur-sm z-[60] lg:hidden"
+              className="fixed inset-0 bg-[rgba(44,44,46,0.48)] backdrop-blur-md z-[60] lg:hidden"
             />
             <motion.aside
               initial={{ x: '-100%' }}
@@ -281,17 +285,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 
-function SidebarContent({ filteredItems, role, t, location, isCollapsed = false, onToggleCollapse }: any) {
-  const navigate = useNavigate();
-  const { logout } = useRole();
-
-  const handleSignOut = async () => {
-    await logout();
-    navigate('/login');
-  };
-
+function SidebarContent({ filteredItems, role, t, location, isCollapsed, onToggleCollapse }: any) {
   return (
-    <div className={cn("flex flex-col h-full bg-[#000000]", isCollapsed ? "p-4" : "p-6")}>
+    <div className={cn("flex flex-col h-full", isCollapsed ? "p-4" : "p-6")}>
       <div className={cn("hidden lg:flex mb-8 items-center", isCollapsed ? "justify-center" : "justify-between")}>
         {!isCollapsed && <Logo theme="dark" size="sm" />}
         {onToggleCollapse && (
@@ -329,18 +325,46 @@ function SidebarContent({ filteredItems, role, t, location, isCollapsed = false,
         })}
       </nav>
 
-      <div className="mt-auto pt-6">
-        <button 
-          onClick={handleSignOut}
-          title={isCollapsed ? t('profile.sign_out') : undefined}
+      <div className="mt-auto pt-6 space-y-1">
+        {[
+          { icon: FileText, label: t('nav.docs'), href: '/docs' },
+          { icon: HelpCircle, label: t('nav.faq'), href: '/faq' },
+          { icon: Tag, label: t('nav.pricing'), href: '/pricing' },
+          { icon: Code, label: t('nav.integration_secondary'), href: '/integration' },
+          { icon: Send, label: t('nav.contact'), href: '/contact' },
+          { icon: User, label: t('nav.profile') || 'Profile', href: '/profile' },
+        ].map((item) => (
+          <Link
+            key={item.href}
+            to={item.href}
+            title={isCollapsed ? item.label : undefined}
+            className={cn(
+              "flex items-center rounded-md transition-colors",
+              isCollapsed ? "justify-center p-3" : "gap-3 px-3 py-2 text-[14px] font-medium",
+              location.pathname === item.href
+                ? "bg-[rgba(255,255,255,0.05)] text-[#ffffff]"
+                : "text-[#a1a4a5] hover:text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.02)]"
+            )}
+          >
+            <item.icon size={isCollapsed ? 20 : 16} />
+            {!isCollapsed && <span>{item.label}</span>}
+          </Link>
+        ))}
+
+        <Link
+          to="/settings"
+          title={isCollapsed ? t('nav.settings') : undefined}
           className={cn(
-            "w-full flex items-center text-[#ff0000] hover:bg-[#ff0000]/10 rounded-md transition-colors outline-none",
-            isCollapsed ? "justify-center p-3" : "gap-3 px-3 py-2 text-[14px] font-medium"
+            "flex items-center rounded-md transition-colors",
+            isCollapsed ? "justify-center p-3" : "gap-3 px-3 py-2 text-[14px] font-medium",
+            location.pathname === '/settings'
+              ? "bg-[rgba(255,255,255,0.05)] text-[#ffffff]"
+              : "text-[#a1a4a5] hover:text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.02)]"
           )}
         >
-          <LogOut size={isCollapsed ? 20 : 16} />
-          {!isCollapsed && <span>{t('profile.sign_out')}</span>}
-        </button>
+          <Settings size={isCollapsed ? 20 : 16} />
+          {!isCollapsed && <span>{t('nav.settings')}</span>}
+        </Link>
       </div>
     </div>
   );
