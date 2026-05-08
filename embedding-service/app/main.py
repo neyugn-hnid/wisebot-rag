@@ -1,15 +1,17 @@
 import asyncio
+import logging
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from qdrant_client.http.models import PointStruct, VectorParams, Distance, Filter, FieldCondition, MatchValue
 
 from app.chunking import chunk_text
 from app.config import settings
-from app.db import close_db_pool, get_pool, init_db_pool
-from app.ollama_client import OllamaClient, ensure_dimension, vector_to_literal
+from app.db import close_db_pool, get_pool, init_db_pool, init_qdrant, get_qdrant
+from app.ollama_client import OllamaClient, ensure_dimension
 from app.parsing import UnsupportedFileTypeError, parse_text_from_bytes
 from app.schemas import (
     CollectionResponse,
@@ -26,23 +28,35 @@ from app.security import require_service_auth
 
 
 ollama_client = OllamaClient(settings.ollama_base_url, settings.ollama_embedding_model)
+logger = logging.getLogger(__name__)
 
 
-async def _embed_texts_to_literals(texts: list[str], target_dimension: int) -> list[str]:
+async def _embed_texts_to_vectors(texts: list[str], target_dimension: int) -> list[list[float]]:
+    batch_size = 10
     semaphore = asyncio.Semaphore(max(1, settings.embed_concurrency))
 
-    async def _embed_one(text: str) -> str:
+    async def _embed_batch_task(batch: list[str]) -> list[list[float]]:
         async with semaphore:
-            vector = await ollama_client.embed(text)
-        vector = ensure_dimension(vector, target_dimension)
-        return vector_to_literal(vector)
+            vectors = await ollama_client.embed_batch(batch)
+        return [ensure_dimension(v, target_dimension) for v in vectors]
 
-    return await asyncio.gather(*[_embed_one(text) for text in texts])
+    tasks = []
+    for i in range(0, len(texts), batch_size):
+        tasks.append(_embed_batch_task(texts[i:i + batch_size]))
+
+    results = await asyncio.gather(*tasks)
+    
+    final_vectors = []
+    for batch_results in results:
+        final_vectors.extend(batch_results)
+        
+    return final_vectors
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db_pool()
+    await init_qdrant()
     yield
     await close_db_pool()
 
@@ -57,6 +71,21 @@ async def healthcheck() -> dict:
         await conn.execute("SELECT 1")
     return {"status": "ok", "service": settings.app_name}
 
+
+async def _ensure_qdrant_collection(collection_name: str, dimension: int):
+    qdrant = await get_qdrant()
+    # Use synchronous qdrant client method or try/except to check existence
+    from qdrant_client.http.exceptions import UnexpectedResponse
+    try:
+        await qdrant.get_collection(collection_name)
+    except UnexpectedResponse as e:
+        if e.status_code == 404:
+            await qdrant.create_collection(
+                collection_name=collection_name,
+                vectors_config=VectorParams(size=dimension, distance=Distance.COSINE)
+            )
+        else:
+            raise
 
 @app.post("/v1/collections", response_model=CollectionResponse)
 async def create_collection(
@@ -84,6 +113,7 @@ async def create_collection(
                 payload.dimension,
                 payload.metric,
             )
+        await _ensure_qdrant_collection(str(row["id"]), payload.dimension)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -117,6 +147,8 @@ async def _index_chunks(
 
         target_dimension = int(collection["dimension"])
 
+        await _ensure_qdrant_collection(str(collection_id), target_dimension)
+
         async with conn.transaction():
             await conn.execute(
                 """
@@ -131,30 +163,31 @@ async def _index_chunks(
                 len(chunks),
             )
 
-            literal_vectors = await _embed_texts_to_literals(chunks, target_dimension)
+            vectors = await _embed_texts_to_vectors(chunks, target_dimension)
 
+            points = []
             for idx, item in enumerate(chunks):
-                source_chunk_id = uuid.uuid4()
-                literal_vector = literal_vectors[idx]
-
+                source_chunk_id = str(uuid.uuid4())
+                
                 payload = dict(metadata)
+                payload["tenant_id"] = str(tenant_id)
+                payload["collection_id"] = str(collection_id)
+                payload["source_document_id"] = str(source_document_id)
+                payload["source_chunk_id"] = source_chunk_id
                 payload["chunk_index"] = idx
+                payload["chunk_text"] = item
 
-                await conn.execute(
-                    """
-                    INSERT INTO embedding_service.embeddings
-                    (tenant_id, collection_id, source_document_id, source_chunk_id, chunk_index, chunk_text, embedding, metadata)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7::vector, $8::jsonb)
-                    """,
-                    tenant_id,
-                    collection_id,
-                    source_document_id,
-                    source_chunk_id,
-                    idx,
-                    item,
-                    literal_vector,
-                    payload,
-                )
+                points.append(PointStruct(
+                    id=source_chunk_id,
+                    vector=vectors[idx],
+                    payload=payload
+                ))
+            
+            qdrant = await get_qdrant()
+            await qdrant.upsert(
+                collection_name=str(collection_id),
+                points=points
+            )
 
             await conn.execute(
                 """
@@ -168,33 +201,23 @@ async def _index_chunks(
     return {"job_id": str(job_id), "chunk_count": len(chunks)}
 
 
-async def _resolve_collection_by_kb(knowledge_base_id: uuid.UUID):
+async def _resolve_collection_by_kb(tenant_id: uuid.UUID, knowledge_base_id: uuid.UUID):
     pool = await get_pool()
     async with pool.acquire() as conn:
         collection = await conn.fetchrow(
             """
             SELECT id, tenant_id, dimension, status
             FROM embedding_service.embedding_collections
-            WHERE knowledge_base_id = $1 AND status = 'ACTIVE'
+            WHERE tenant_id = $1 AND knowledge_base_id = $2 AND status = 'ACTIVE'
             ORDER BY updated_at DESC, created_at DESC
             LIMIT 1
             """,
+            tenant_id,
             knowledge_base_id,
         )
 
         if collection:
             return collection
-
-        tenant_id = await conn.fetchval(
-            """
-            SELECT tenant_id
-            FROM document_service.knowledge_bases
-            WHERE id = $1
-            """,
-            knowledge_base_id,
-        )
-        if tenant_id is None:
-            tenant_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
         inserted = await conn.fetchrow(
             """
@@ -209,6 +232,7 @@ async def _resolve_collection_by_kb(knowledge_base_id: uuid.UUID):
             settings.ollama_embedding_model,
             settings.embedding_dimension,
         )
+        await _ensure_qdrant_collection(str(inserted["id"]), settings.embedding_dimension)
         return inserted
 
 
@@ -305,28 +329,11 @@ async def semantic_search(
 
     vector = await ollama_client.embed(payload.query)
     vector = ensure_dimension(vector, settings.embedding_dimension)
-    literal_vector = vector_to_literal(vector)
+
+    qdrant = await get_qdrant()
 
     if payload.collection_id:
-        query = """
-            SELECT e.id, e.source_document_id, e.source_chunk_id, e.chunk_index,
-                   LEFT(e.chunk_text, $5) AS chunk_text, e.metadata,
-                   1 - (embedding <=> $3::vector) AS score
-            FROM embedding_service.embeddings e
-            WHERE e.tenant_id = $1
-              AND e.collection_id = $2
-              AND 1 - (e.embedding <=> $3::vector) >= $4
-            ORDER BY e.embedding <=> $3::vector
-            LIMIT $6
-        """
-        args = [
-            payload.tenant_id,
-            payload.collection_id,
-            literal_vector,
-            settings.min_similarity_score,
-            settings.search_max_chunk_chars,
-            payload.top_k,
-        ]
+        target_collection_id = payload.collection_id
     else:
         pool = await get_pool()
         async with pool.acquire() as conn:
@@ -346,43 +353,48 @@ async def semantic_search(
 
         if latest_collection_id is None:
             raise HTTPException(status_code=404, detail="No active collection found for knowledge_base_id")
+        
+        target_collection_id = latest_collection_id
 
-        query = """
-            SELECT e.id, e.source_document_id, e.source_chunk_id, e.chunk_index,
-                   LEFT(e.chunk_text, $5) AS chunk_text, e.metadata,
-                   1 - (e.embedding <=> $3::vector) AS score
-            FROM embedding_service.embeddings e
-            WHERE e.tenant_id = $1
-              AND e.collection_id = $2
-              AND 1 - (e.embedding <=> $3::vector) >= $4
-            ORDER BY e.embedding <=> $3::vector
-            LIMIT $6
-        """
-        args = [
-            payload.tenant_id,
-            latest_collection_id,
-            literal_vector,
-            settings.min_similarity_score,
-            settings.search_max_chunk_chars,
-            payload.top_k,
+    # Add filter for tenant_id using qdrant filter
+    search_filter = Filter(
+        must=[
+            FieldCondition(
+                key="tenant_id",
+                match=MatchValue(value=str(payload.tenant_id))
+            )
         ]
+    )
 
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(query, *args)
+    results = await qdrant.search(
+        collection_name=str(target_collection_id),
+        query_vector=vector,
+        query_filter=search_filter,
+        limit=payload.top_k,
+        score_threshold=settings.min_similarity_score
+    )
 
-    items = [
-        SearchResult(
-            id=row["id"],
-            source_document_id=row["source_document_id"],
-            source_chunk_id=row["source_chunk_id"],
-            chunk_index=row["chunk_index"],
-            chunk_text=row["chunk_text"],
-            score=float(row["score"]),
-            metadata=row["metadata"] or {},
+    items = []
+    for point in results:
+        payload_data = point.payload or {}
+        chunk_text = payload_data.get("chunk_text", "")
+        # Apply truncation as requested via settings
+        if len(chunk_text) > settings.search_max_chunk_chars:
+            chunk_text = chunk_text[:settings.search_max_chunk_chars]
+
+        items.append(
+            SearchResult(
+                id=uuid.UUID(point.id) if isinstance(point.id, str) else uuid.uuid4(),
+                source_document_id=uuid.UUID(payload_data["source_document_id"]),
+                source_chunk_id=uuid.UUID(payload_data["source_chunk_id"]),
+                chunk_index=payload_data.get("chunk_index", 0),
+                chunk_text=chunk_text,
+                score=point.score,
+                metadata={k: v for k, v in payload_data.items() if k not in [
+                    "tenant_id", "collection_id", "source_document_id", "source_chunk_id", "chunk_index", "chunk_text"
+                ]},
+            )
         )
-        for row in rows
-    ]
 
     return SearchResponse(items=items)
 
@@ -422,72 +434,85 @@ async def embed_from_document_service(
     if not payload.chunks:
         raise HTTPException(status_code=400, detail="Chunks are required")
 
-    collection = await _resolve_collection_by_kb(payload.knowledge_base_id)
-    tenant_id = collection["tenant_id"]
-    collection_id = collection["id"]
-    target_dimension = int(collection["dimension"])
+    try:
+        collection = await _resolve_collection_by_kb(payload.tenant_id, payload.knowledge_base_id)
+        tenant_id = collection["tenant_id"]
+        collection_id = collection["id"]
+        target_dimension = int(collection["dimension"])
+        await _ensure_qdrant_collection(str(collection_id), target_dimension)
 
-    pool = await get_pool()
-    job_id = uuid.uuid4()
-    results: list[EmbedResultResponse] = []
+        pool = await get_pool()
+        job_id = uuid.uuid4()
+        results: list[EmbedResultResponse] = []
 
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            await conn.execute(
-                """
-                INSERT INTO embedding_service.embedding_jobs
-                (id, tenant_id, collection_id, source_document_id, source_chunk_count, status, started_at)
-                VALUES ($1, $2, $3, $4, $5, 'RUNNING', CURRENT_TIMESTAMP)
-                """,
-                job_id,
-                tenant_id,
-                collection_id,
-                payload.document_id,
-                len(payload.chunks),
-            )
-
-            chunk_contents = [chunk.content for chunk in payload.chunks]
-            literal_vectors = await _embed_texts_to_literals(chunk_contents, target_dimension)
-
-            for idx, chunk in enumerate(payload.chunks):
-                source_chunk_id = uuid.uuid4()
-                literal_vector = literal_vectors[idx]
-                row_metadata: dict[str, Any] = {
-                    "knowledge_base_id": str(payload.knowledge_base_id),
-                    "document_id": str(payload.document_id),
-                }
-                if payload.document_name:
-                    row_metadata["document_name"] = payload.document_name
-                if chunk.page is not None:
-                    row_metadata["page"] = chunk.page
-
+        async with pool.acquire() as conn:
+            async with conn.transaction():
                 await conn.execute(
                     """
-                    INSERT INTO embedding_service.embeddings
-                    (tenant_id, collection_id, source_document_id, source_chunk_id, chunk_index, chunk_text, embedding, metadata)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7::vector, $8::jsonb)
+                    INSERT INTO embedding_service.embedding_jobs
+                    (id, tenant_id, collection_id, source_document_id, source_chunk_count, status, started_at)
+                    VALUES ($1, $2, $3, $4, $5, 'RUNNING', CURRENT_TIMESTAMP)
                     """,
+                    job_id,
                     tenant_id,
                     collection_id,
                     payload.document_id,
-                    source_chunk_id,
-                    chunk.index,
-                    chunk.content,
-                    literal_vector,
-                    row_metadata,
+                    len(payload.chunks),
                 )
 
-                results.append(
-                    EmbedResultResponse(index=chunk.index, embedding_id=str(source_chunk_id))
+                chunk_contents = [chunk.content for chunk in payload.chunks]
+                vectors = await _embed_texts_to_vectors(chunk_contents, target_dimension)
+
+                points = []
+                for idx, chunk in enumerate(payload.chunks):
+                    source_chunk_id = str(uuid.uuid4())
+                    row_metadata: dict[str, Any] = {
+                        "knowledge_base_id": str(payload.knowledge_base_id),
+                        "document_id": str(payload.document_id),
+                        "tenant_id": str(tenant_id),
+                        "collection_id": str(collection_id),
+                        "source_document_id": str(payload.document_id),
+                        "source_chunk_id": source_chunk_id,
+                        "chunk_index": chunk.index,
+                        "chunk_text": chunk.content
+                    }
+                    if payload.document_name:
+                        row_metadata["document_name"] = payload.document_name
+                    if chunk.page is not None:
+                        row_metadata["page"] = chunk.page
+
+                    points.append(PointStruct(
+                        id=source_chunk_id,
+                        vector=vectors[idx],
+                        payload=row_metadata
+                    ))
+
+                    results.append(
+                        EmbedResultResponse(index=chunk.index, embedding_id=source_chunk_id)
+                    )
+
+                qdrant = await get_qdrant()
+                await qdrant.upsert(
+                    collection_name=str(collection_id),
+                    points=points
                 )
 
-            await conn.execute(
-                """
-                UPDATE embedding_service.embedding_jobs
-                SET status='SUCCESS', finished_at=CURRENT_TIMESTAMP
-                WHERE id=$1
-                """,
-                job_id,
-            )
+                await conn.execute(
+                    """
+                    UPDATE embedding_service.embedding_jobs
+                    SET status='SUCCESS', finished_at=CURRENT_TIMESTAMP
+                    WHERE id=$1
+                    """,
+                    job_id,
+                )
 
-    return EmbedResponse(results=results)
+        return EmbedResponse(results=results)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception(
+            "Failed to embed document %s for knowledge base %s",
+            payload.document_id,
+            payload.knowledge_base_id,
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to embed document: {exc}") from exc

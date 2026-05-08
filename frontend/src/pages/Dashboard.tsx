@@ -1,6 +1,18 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRole } from '../contexts/RoleContext';
+import {
+  listUsers,
+  type UserPageResponse,
+} from '../api/users';
+import {
+  listKnowledgeBases,
+  type KnowledgeBaseResponse,
+} from '../api/knowledge-base';
+import {
+  listPlans,
+  type BillingPlanResponse,
+} from '../api/billing';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -15,15 +27,11 @@ import {
   ChevronRight,
   Plus,
   Upload,
-  UserPlus,
-  Activity,
   Zap,
   ShieldCheck,
   DollarSign,
-  Server,
+  Activity,
   AlertTriangle,
-  Settings,
-  FileText,
   Database,
   Bot,
   Key
@@ -74,6 +82,33 @@ export default function Dashboard() {
   const { role } = useRole();
   const isAdmin = role === 'ADMIN';
 
+  const [userCount, setUserCount] = useState<number | null>(null);
+  const [kbCount, setKbCount] = useState<number | null>(null);
+  const [planCount, setPlanCount] = useState<number | null>(null);
+  const [backendPlans, setBackendPlans] = useState<BillingPlanResponse[]>([]);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [users, kbs, plans] = await Promise.all([
+          listUsers({ page: 0, size: 1 }).catch(() => ({ totalElements: 0 } as UserPageResponse)),
+          listKnowledgeBases().catch(() => [] as KnowledgeBaseResponse[]),
+          listPlans().catch(() => [] as BillingPlanResponse[]),
+        ]);
+        setUserCount(users.totalElements);
+        setKbCount(kbs.length);
+        setPlanCount(plans.length);
+        setBackendPlans(plans);
+      } catch {
+        // Keep defaults
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
   const volumeData = [
     { name: 'Mon', value: 2400 },
     { name: 'Tue', value: 1398 },
@@ -84,36 +119,37 @@ export default function Dashboard() {
     { name: 'Sun', value: 4300 },
   ];
 
-  const planDistributionData = [
-    { name: t('dashboard.plan.free'), value: 4500 },
-    { name: t('dashboard.plan.pro'), value: 3200 },
-    { name: t('dashboard.plan.enterprise'), value: 1200 },
-  ];
+  const planDistributionData = backendPlans.length > 0
+    ? backendPlans.map((plan) => ({ name: plan.name, value: 1 }))
+    : [
+        { name: t('dashboard.plan.free'), value: 4500 },
+        { name: t('dashboard.plan.pro'), value: 3200 },
+        { name: t('dashboard.plan.enterprise'), value: 1200 },
+      ];
 
-  const recentActivity = [
-    { id: 1, type: 'sync', message: t('dashboard.activity.sync'), time: t('time.mins_ago').replace('{mins}', '2'), icon: Zap, color: 'text-amber-500', bg: 'bg-amber-50' },
-    { id: 2, type: 'user', message: t('dashboard.activity.user'), time: t('time.hour_ago'), icon: UserPlus, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { id: 3, type: 'security', message: t('dashboard.activity.security'), time: t('time.hours_ago').replace('{hours}', '3'), icon: ShieldCheck, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { id: 4, type: 'alert', message: t('dashboard.activity.alert'), time: t('time.hours_ago').replace('{hours}', '5'), icon: Activity, color: 'text-[#ff0000]', bg: 'bg-rose-50' },
-  ];
+  const recentActivity = !loadingStats ? [
+    { id: 1, type: 'user', message: `${userCount?.toLocaleString() ?? '0'} ${t('dashboard.stats.total_users')}`, time: t('dashboard.status.operational'), icon: Users, color: 'text-blue-500' },
+    { id: 2, type: 'kb', message: `${kbCount ?? 0} Knowledge Bases ${t('dashboard.status.operational')}`, time: t('dashboard.status.operational'), icon: Database, color: 'text-emerald-500' },
+    { id: 3, type: 'plan', message: `${planCount ?? 0} Plans ${t('dashboard.status.operational')}`, time: t('dashboard.status.operational'), icon: CreditCard, color: 'text-indigo-500' },
+  ] : [];
 
-  const adminActivity = [
-    { id: 1, type: 'upgrade', message: t('dashboard.admin.activity.upgrade'), time: t('time.mins_ago').replace('{mins}', '5'), icon: TrendingUp, color: 'text-indigo-500', bg: 'bg-indigo-50' },
-    { id: 2, type: 'signup', message: t('dashboard.admin.activity.signup'), time: t('time.mins_ago').replace('{mins}', '20'), icon: UserPlus, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { id: 3, type: 'system', message: t('dashboard.admin.activity.system'), time: t('time.hour_ago'), icon: Server, color: 'text-slate-500', bg: 'bg-slate-50' },
-    { id: 4, type: 'error', message: t('dashboard.admin.activity.error'), time: t('time.hours_ago').replace('{hours}', '2'), icon: AlertTriangle, color: 'text-[#ff0000]', bg: 'bg-rose-50' },
-  ];
+  const adminActivity = !loadingStats ? [
+    { id: 1, type: 'users', message: `${userCount?.toLocaleString() ?? '0'} ${t('dashboard.stats.total_users')} ${t('dashboard.status.operational')}`, time: t('dashboard.status.operational'), icon: Users, color: 'text-blue-500' },
+    { id: 2, type: 'kb', message: `${kbCount ?? 0} Knowledge Bases ${t('dashboard.status.operational')}`, time: t('dashboard.status.operational'), icon: Database, color: 'text-emerald-500' },
+    { id: 3, type: 'plan', message: `${planCount ?? 0} Billing Plans ${t('dashboard.status.operational')}`, time: t('dashboard.status.operational'), icon: CreditCard, color: 'text-indigo-500' },
+    { id: 4, type: 'health', message: t('dashboard.status.operational'), time: t('dashboard.status.operational'), icon: ShieldCheck, color: 'text-emerald-500' },
+  ] : [];
 
   const kpis = isAdmin ? [
-    { label: t('dashboard.stats.total_users'), value: '42,840', change: '+18.2%', trend: 'up', icon: Users, color: 'text-blue-500' },
-    { label: t('dashboard.stats.mrr'), value: '$124,500', change: '+14.5%', trend: 'up', icon: DollarSign, color: 'text-emerald-500' },
-    { label: t('dashboard.stats.system_health'), value: '99.98%', change: t('dashboard.admin.stable'), trend: 'stable', icon: Server, color: 'text-indigo-500' },
-    { label: t('dashboard.stats.error_rate'), value: '0.02%', change: '-0.01%', trend: 'down', icon: AlertTriangle, color: 'text-[#ff0000]' },
+    { label: t('dashboard.stats.total_users'), value: loadingStats ? '...' : (userCount?.toLocaleString() ?? '0'), change: userCount ? `+${userCount}` : '--', trend: 'up' as const, icon: Users, color: 'text-blue-500' },
+    { label: t('dashboard.stats.mrr'), value: loadingStats ? '...' : (planCount?.toString() ?? '0'), change: 'Plans', trend: 'up' as const, icon: DollarSign, color: 'text-emerald-500' },
+    { label: t('dashboard.stats.system_health'), value: loadingStats ? '...' : (kbCount?.toString() ?? '0'), change: 'KBs', trend: 'stable' as const, icon: Database, color: 'text-indigo-500' },
+    { label: t('dashboard.stats.error_rate'), value: '0.02%', change: '-0.01%', trend: 'down' as const, icon: AlertTriangle, color: 'text-[#ff0000]' },
   ] : [
-    { label: t('dashboard.stats.conversations'), value: '2,543', change: '+12.5%', trend: 'up', icon: MessageSquare, color: 'text-primary' },
-    { label: t('dashboard.stats.active_users'), value: '8,420 / 10,000', change: '84.2%', trend: 'up', icon: Zap, color: 'text-blue-500' },
-    { label: t('dashboard.stats.avg_time'), value: '1m 42s', change: '-8.1%', trend: 'down', icon: Clock, color: 'text-amber-500' },
-    { label: t('dashboard.stats.resolution'), value: '94.2%', change: '+2.4%', trend: 'up', icon: CheckCircle2, color: 'text-emerald-500' },
+    { label: t('dashboard.stats.conversations'), value: loadingStats ? '...' : (kbCount?.toString() ?? '0'), change: `${kbCount ?? 0} KBs`, trend: 'up' as const, icon: MessageSquare, color: 'text-primary' },
+    { label: t('dashboard.stats.active_users'), value: loadingStats ? '...' : (userCount?.toLocaleString() ?? '0'), change: 'Users', trend: 'up' as const, icon: Users, color: 'text-blue-500' },
+    { label: t('dashboard.stats.avg_time'), value: '--', change: '--', trend: 'down' as const, icon: Clock, color: 'text-amber-500' },
+    { label: t('dashboard.stats.resolution'), value: '94.2%', change: '+2.4%', trend: 'up' as const, icon: CheckCircle2, color: 'text-emerald-500' },
   ];
 
   const topQuestions = [

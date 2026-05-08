@@ -33,7 +33,7 @@ import Logo from './Logo';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { role } = useRole();
+  const { role, logout } = useRole();
   const { t } = useLanguage();
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
@@ -67,8 +67,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   ];
 
-  const handleSignOut = () => {
-    // In a real app, clear tokens/session here
+  const handleSignOut = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -283,9 +283,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 function SidebarContent({ filteredItems, role, t, location, isCollapsed = false, onToggleCollapse }: any) {
   const navigate = useNavigate();
+  const { logout } = useRole();
 
-  const handleSignOut = () => {
-    // In a real app, clear tokens/session here
+  const handleSignOut = async () => {
+    await logout();
     navigate('/login');
   };
 

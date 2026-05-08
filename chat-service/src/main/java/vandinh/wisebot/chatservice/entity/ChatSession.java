@@ -48,8 +48,9 @@ public class ChatSession {
     @Column(nullable = false, length = 20)
     private String status;
 
-    @Column(name = "metadata", columnDefinition = "jsonb")
+    @Column(name = "metadata", columnDefinition = "jsonb", insertable = false)
     private String metadata;
+
 
     @CreationTimestamp
     @Column(name = "started_at", updatable = false)

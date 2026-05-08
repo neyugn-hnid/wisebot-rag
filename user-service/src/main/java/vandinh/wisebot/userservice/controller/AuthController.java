@@ -18,6 +18,7 @@ import vandinh.wisebot.userservice.common.response.ApiResponse;
 import vandinh.wisebot.userservice.common.response.TokenResponse;
 import vandinh.wisebot.userservice.dto.request.InviteRequest;
 import vandinh.wisebot.userservice.dto.request.LoginRequest;
+import vandinh.wisebot.userservice.dto.request.RefreshTokenRequest;
 import vandinh.wisebot.userservice.dto.request.RegisterRequest;
 import vandinh.wisebot.userservice.entity.UserEntity;
 import vandinh.wisebot.userservice.service.AuthService;
@@ -32,32 +33,39 @@ import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 public class AuthController {
     private final AuthService authService;
 
-    @Operation(summary = "Login", description = "Get access token and refresh token by username/email and password")
+    @Operation(summary = "Login", description = "Xác thực người dùng và trả về mã truy cập và mã làm mới.")
     @PostMapping("/login")
     public TokenResponse login(@RequestBody @Valid LoginRequest request) {
-        log.info("Login request with payload: {}", request);
+        log.info("Yêu cầu đăng nhập: {}", request);
         return authService.login(request);
     }
 
-    @Operation(summary = "Register", description = "Create new account")
+    @Operation(summary = "Refresh token", description = "Làm mới mã truy cập bằng cách sử dụng mã làm mới hợp lệ.")
+    @PostMapping("/refresh")
+    public TokenResponse refresh(@RequestBody @Valid RefreshTokenRequest request) {
+        log.info("Yêu cầu làm mới token: {}", request);
+        return authService.refreshToken(request);
+    }
+
+    @Operation(summary = "Register", description = "Tạo tài khoản mới cho người dùng.")
     @PostMapping("/register")
     public ApiResponse register(@RequestBody @Valid RegisterRequest request) {
-        log.info("Register request: {}", request.getEmail());
+        log.info("Yêu cầu đăng ký: {}", request.getEmail());
         authService.register(request);
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("User registered successfully")
+            .message("Đăng ký tài khoản thành công")
                 .data(null)
                 .build();
     }
 
-    @Operation(summary = "Logout", description = "Revoke access token by adding it to blacklist")
+    @Operation(summary = "Logout", description = "Thu hồi mã truy cập bằng cách thêm nó vào danh sách đen.")
     @PostMapping("/logout")
     public ApiResponse logout(@RequestHeader(value = AUTHORIZATION, required = false) String authorizationHeader) {
         return authService.logout(authorizationHeader);
     }
 
-    @Operation(summary = "Invite user", description = "Create invite token for a user to join tenant")
+    @Operation(summary = "Invite user", description = "Tạo mã mời cho người dùng để tham gia tenant")
     @PostMapping("/invite")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse invite(@RequestBody @Valid InviteRequest request, Authentication authentication) {

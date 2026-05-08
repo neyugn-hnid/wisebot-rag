@@ -46,8 +46,8 @@ class OllamaClient:
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         res = await self._post_with_retry(
-            f"{self._base_url}/api/embeddings",
-            {"model": self._model, "prompt": texts},
+            f"{self._base_url}/api/embed",
+            {"model": self._model, "input": texts},
         )
         payload = res.json()
 

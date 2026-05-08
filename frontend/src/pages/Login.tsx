@@ -1,28 +1,103 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
+import { useRole } from '../contexts/RoleContext';
+import { storeTokens } from '../lib/auth';
+import { login } from '../api/auth';
 import Logo from '../components/Logo';
 import { 
   Mail, 
   Lock, 
   Eye,
-  EyeOff,
-  CheckCircle2
+  EyeOff
 } from 'lucide-react';
 import { GoogleIcon, GithubIcon } from '../components/SocialIcons';
 
 export default function Login() {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const { syncFromAccessToken } = useRole();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [serverError, setServerError] = useState('');
 
-  const handleLogin = (e: React.MouseEvent) => {
+  const validateField = (name: string, value: string) => {
+    switch (name) {
+      case 'email':
+        if (!value.trim()) return t('validation.required');
+        return undefined;
+      case 'password':
+        if (!value) return t('validation.required');
+        return undefined;
+      default:
+        return undefined;
+    }
+  };
+
+  const handleBlur = (field: string) => (e: React.FocusEvent<HTMLInputElement>) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setErrors(prev => ({ ...prev, [field]: validateField(field, e.target.value) }));
+  };
+
+  const handleChange = (field: string, setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setter(e.target.value);
+    if (serverError) setServerError('');
+    if (touched[field]) {
+      setErrors(prev => ({ ...prev, [field]: validateField(field, e.target.value) }));
+    }
+  };
+
+  const inputClass = (field: string) =>
+    `w-full bg-transparent border pl-10 pr-4 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all rounded-[8px] focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40 ${
+      touched[field] && errors[field]
+        ? 'border-[#ff0000] focus:border-[#ff0000]'
+        : 'border-[rgba(255,255,255,0.3)] focus:border-primary'
+    }`;
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    showToast(t('toast.login_success'), 'success');
-    setTimeout(() => {
-      window.location.href = '/dashboard';
-    }, 500);
+
+    const newErrors: Record<string, string | undefined> = {
+      email: validateField('email', email),
+      password: validateField('password', password),
+    };
+    setErrors(newErrors);
+    setTouched({ email: true, password: true });
+    if (newErrors.email || newErrors.password) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const payload = await login({
+        username: email.trim(),
+        password,
+      });
+
+      if (!payload.accessToken || !payload.refreshToken) {
+        throw new Error(t('validation.login_failed'));
+      }
+
+      storeTokens({
+        accessToken: payload.accessToken,
+        refreshToken: payload.refreshToken,
+      }, rememberMe ? 'local' : 'session');
+      syncFromAccessToken(payload.accessToken);
+
+      showToast(t('toast.login_success'), 'success');
+      navigate('/dashboard');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('toast.server_error');
+      setServerError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -35,7 +110,7 @@ export default function Login() {
         </div>
 
         <div className="bg-[#000000] p-8 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 space-y-6">
-          <div className="space-y-4">
+          <form className="space-y-5" onSubmit={handleLogin} noValidate>
             <div className="space-y-1.5">
               <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">{t('auth.email')}</label>
               <div className="relative">
@@ -43,9 +118,16 @@ export default function Login() {
                 <input 
                   type="email" 
                   placeholder="name@company.com"
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] pl-10 pr-4 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all placeholder:/40 rounded-[8px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40"
+                  value={email}
+                  onChange={handleChange('email', setEmail)}
+                  onBlur={handleBlur('email')}
+                  className={inputClass('email')}
+                  autoComplete="email"
                 />
               </div>
+              {touched.email && errors.email && (
+                <p className="text-[11px] text-[#ff0000] font-medium mt-1">{errors.email}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -58,7 +140,11 @@ export default function Login() {
                 <input 
                   type={showPassword ? "text" : "password"} 
                   placeholder="••••••••"
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] pl-10 pr-10 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all placeholder:/40 rounded-[8px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40"
+                  value={password}
+                  onChange={handleChange('password', setPassword)}
+                  onBlur={handleBlur('password')}
+                  className={`${inputClass('password')} pr-10`}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
@@ -68,20 +154,36 @@ export default function Login() {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {touched.password && errors.password && (
+                <p className="text-[11px] text-[#ff0000] font-medium mt-1">{errors.password}</p>
+              )}
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="remember" className="rounded-[4px]-[4px] border border-[rgba(255,255,255,0.3)] bg-transparent text-[#f0f0f0] focus:ring-2 focus:ring-primary/20 focus:ring-offset-0" />
-            <label htmlFor="remember" className="text-[14px] text-[#a1a4a5] font-medium cursor-pointer">{t('auth.remember_me')}</label>
-          </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="remember"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="rounded-[4px]-[4px] border border-[rgba(255,255,255,0.3)] bg-transparent text-[#f0f0f0] focus:ring-2 focus:ring-primary/20 focus:ring-offset-0"
+              />
+              <label htmlFor="remember" className="text-[14px] text-[#a1a4a5] font-medium cursor-pointer">{t('auth.remember_me')}</label>
+            </div>
 
-          <button 
-            onClick={handleLogin}
-            className="w-full bg-[#ffffff] text-[#000000] py-3 rounded-full font-semibold text-[14px] hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-2"
-          >
-            {t('auth.sign_in')}
-          </button>
+            <button 
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-[#ffffff] text-[#000000] py-3 rounded-full font-semibold text-[14px] hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Đang đăng nhập...' : t('auth.sign_in')}
+            </button>
+
+            {serverError && (
+              <div className="rounded-[8px] text-center px-4 py-2.5 text-[12px] font-medium text-[#ff0000] bg-[rgba(255,0,0,0.05)] border border-[rgba(255,0,0,0.15)]">
+                {serverError}
+              </div>
+            )}
+          </form>
 
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center">

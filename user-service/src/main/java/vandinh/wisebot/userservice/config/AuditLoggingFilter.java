@@ -42,14 +42,14 @@ public class AuditLoggingFilter extends OncePerRequestFilter {
 
         AuditLogEntry entry = AuditLogEntry.builder()
                 .userId(userId)
-            .action("HTTP_REQUEST")
-            .resource("API")
+                .action("HTTP_REQUEST")
+                .resource("API")
                 .endpoint(request.getRequestURI())
                 .method(request.getMethod())
                 .timestamp(Instant.now().toString())
                 .status(response.getStatus())
-            .ipAddress(resolveClientIp(request))
-            .userAgent(request.getHeader("User-Agent"))
+                .ipAddress(resolveClientIp(request))
+                .userAgent(request.getHeader("User-Agent"))
                 .build();
 
         auditLogService.enqueue(entry);

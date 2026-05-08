@@ -65,8 +65,8 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
 
             String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
             if (!StringUtils.hasText(authHeader) || !authHeader.startsWith("Bearer ")) {
-                log.warn("Missing or invalid Authorization header for path: {}", path);
-                return unauthorized(exchange, "Missing or invalid Authorization header");
+                log.warn("Thiếu hoặc sai header Authorization tại path: {}", path);
+                return unauthorized(exchange, "Thiếu hoặc sai header Authorization");
             }
 
             String token = authHeader.substring(7);
@@ -74,21 +74,39 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
             try {
                 Claims claims = parseClaims(token);
                 if (isExpired(claims)) {
-                    return unauthorized(exchange, "Token expired");
+                    return unauthorized(exchange, "Token đã hết hạn");
                 }
-                log.debug("JWT token validated for path: {}", path);
-            } catch (ExpiredJwtException e) {
-                log.warn("JWT expired for path {}: {}", path, e.getMessage());
-                return unauthorized(exchange, "Token expired");
-            } catch (JwtException e) {
-                log.warn("JWT invalid for path {}: {}", path, e.getMessage());
-                return unauthorized(exchange, "Invalid token");
-            } catch (Exception e) {
-                log.error("JWT filter error for path {}: {}", path, e.getMessage());
-                return unauthorized(exchange, "Token validation error");
-            }
+                log.debug("JWT token đã được xác thực cho path: {}", path);
+                
+                String userId = claims.get("userId", String.class);
+                String tenantId = claims.get("tenantId", String.class);
+                Object roleObj = claims.get("role");
+                String roles = "";
+                if (roleObj instanceof java.util.List) {
+                    roles = String.join(",", (java.util.List<String>) roleObj);
+                } else if (roleObj instanceof String) {
+                    roles = (String) roleObj;
+                }
 
-            return chain.filter(exchange);
+                org.springframework.http.server.reactive.ServerHttpRequest mutatedRequest = exchange.getRequest()
+                        .mutate()
+                        .header("X-User-Id", userId)
+                        .header("X-Tenant-Id", tenantId == null ? "" : tenantId)
+                        .header("X-User-Roles", roles)
+                        .build();
+                
+                ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
+                return chain.filter(mutatedExchange);
+            } catch (ExpiredJwtException e) {
+                log.warn("JWT đã hết hạn tại path {}: {}", path, e.getMessage());
+                return unauthorized(exchange, "Token đã hết hạn");
+            } catch (JwtException e) {
+                log.warn("JWT không hợp lệ tại path {}: {}", path, e.getMessage());
+                return unauthorized(exchange, "Token không hợp lệ");
+            } catch (Exception e) {
+                log.error("Lỗi filter JWT tại path {}: {}", path, e.getMessage());
+                return unauthorized(exchange, "Lỗi xác thực token");
+            }
         };
     }
 

@@ -9,4 +9,5 @@ public class AskRequest {
     private String question;
     private int topK = 5;
     private double temperature = 0.2;
+    private java.util.UUID knowledgeBaseId;
 }

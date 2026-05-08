@@ -1,23 +1,117 @@
 import React, { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
+import { register } from '../api/auth';
 import Logo from '../components/Logo';
 import { 
   Mail, 
   Lock, 
   User,
   Eye,
-  EyeOff,
-  CheckCircle2
+  EyeOff
 } from 'lucide-react';
 import { GoogleIcon, GithubIcon } from '../components/SocialIcons';
 
+type FieldErrors = Record<string, string | undefined>;
+const GMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+
 export default function Register() {
   const { t } = useLanguage();
+  const { showToast } = useToast();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialEmail = searchParams.get('email') || '';
+  const inviteToken = searchParams.get('inviteToken') || searchParams.get('token') || '';
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = React.useState(initialEmail);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const validateField = (name: string, value: string, passwordRef?: string) => {
+    switch (name) {
+      case 'fullName':
+        if (!value.trim()) return t('validation.required');
+        if (value.trim().length < 2) return t('validation.name_min').replace('{min}', '2');
+        return undefined;
+      case 'email':
+        if (!value.trim()) return t('validation.required');
+        if (!GMAIL_REGEX.test(value.trim())) return t('validation.email');
+        return undefined;
+      case 'password':
+        if (!value) return t('validation.required');
+        if (value.length < 8) return t('validation.password_min').replace('{min}', '8');
+        return undefined;
+      case 'confirmPassword':
+        if (!value) return t('validation.required');
+        if (value !== passwordRef) return t('validation.password_match');
+        return undefined;
+      default:
+        return undefined;
+    }
+  };
+
+  const handleBlur = (field: string) => (e: React.FocusEvent<HTMLInputElement>) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setErrors(prev => ({ ...prev, [field]: validateField(field, e.target.value, password) }));
+  };
+
+  const handleChange = (field: string, setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setter(e.target.value);
+    if (touched[field]) {
+      setErrors(prev => ({ ...prev, [field]: validateField(field, e.target.value, password) }));
+    }
+  };
+
+  const inputClass = (field: string) =>
+    `w-full bg-transparent border pl-10 pr-4 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all rounded-[8px] focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40 ${
+      touched[field] && errors[field]
+        ? 'border-[#ff0000] focus:border-[#ff0000]'
+        : 'border-[rgba(255,255,255,0.3)] focus:border-primary'
+    }`;
+
+  const validateAll = (): boolean => {
+    const newErrors: FieldErrors = {
+      fullName: validateField('fullName', fullName),
+      email: validateField('email', email),
+      password: validateField('password', password),
+      confirmPassword: validateField('confirmPassword', confirmPassword, password),
+    };
+    if (!acceptedTerms) newErrors.terms = t('validation.terms');
+    setErrors(newErrors);
+    setTouched({ fullName: true, email: true, password: true, confirmPassword: true, terms: true });
+    return !Object.values(newErrors).some(Boolean);
+  };
+
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!validateAll()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const payload = await register({
+        fullName: fullName.trim(),
+        email: email.trim(),
+        password,
+        confirmPassword,
+        inviteToken: inviteToken || undefined,
+      });
+
+      showToast(payload.message || 'Đăng ký thành công.', 'success');
+      navigate('/verify-email');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể kết nối đến máy chủ.';
+      showToast(message, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#000000] flex items-center justify-center p-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
@@ -29,7 +123,7 @@ export default function Register() {
         </div>
 
         <div className="bg-[#000000] p-8 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 space-y-6">
-          <div className="space-y-4">
+          <form className="space-y-5" onSubmit={handleRegister} noValidate>
             <div className="space-y-1.5">
               <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">{t('auth.register.full_name')}</label>
               <div className="relative">
@@ -37,9 +131,16 @@ export default function Register() {
                 <input 
                   type="text" 
                   placeholder="John Doe"
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] pl-10 pr-4 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all placeholder:/40 rounded-[8px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40"
+                  value={fullName}
+                  onChange={handleChange('fullName', setFullName)}
+                  onBlur={handleBlur('fullName')}
+                  className={inputClass('fullName')}
+                  autoComplete="name"
                 />
               </div>
+              {touched.fullName && errors.fullName && (
+                <p className="text-[11px] text-[#ff0000] font-medium mt-1">{errors.fullName}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -49,11 +150,16 @@ export default function Register() {
                 <input 
                   type="email" 
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] pl-10 pr-4 py-3 text-[14px] text-[#f0f0f0] focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-[#a1a4a5]/40"
+                  onChange={handleChange('email', setEmail)}
+                  onBlur={handleBlur('email')}
+                  placeholder="example@gmail.com"
+                  className={inputClass('email')}
+                  autoComplete="email"
                 />
               </div>
+              {touched.email && errors.email && (
+                <p className="text-[11px] text-[#ff0000] font-medium mt-1">{errors.email}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -63,7 +169,11 @@ export default function Register() {
                 <input 
                   type={showPassword ? "text" : "password"} 
                   placeholder="••••••••"
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] pl-10 pr-10 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all placeholder:/40 rounded-[8px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40"
+                  value={password}
+                  onChange={handleChange('password', setPassword)}
+                  onBlur={handleBlur('password')}
+                  className={`${inputClass('password')} pr-10`}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -73,19 +183,57 @@ export default function Register() {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {touched.password && errors.password && (
+                <p className="text-[11px] text-[#ff0000] font-medium mt-1">{errors.password}</p>
+              )}
             </div>
-          </div>
 
-          <div className="flex items-start gap-2">
-            <input type="checkbox" id="terms" className="mt-1 rounded-[4px]-[4px] border border-[rgba(255,255,255,0.3)] bg-transparent text-[#f0f0f0] focus:ring-2 focus:ring-primary/20" />
-            <label htmlFor="terms" className="text-[14px] text-[#a1a4a5] leading-relaxed">
-              I agree to the <a href="#" className="text-[#f0f0f0] font-semibold hover:underline">Terms of Service</a> and <a href="#" className="text-[#f0f0f0] font-semibold hover:underline">Privacy Policy</a>.
-            </label>
-          </div>
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">Confirm Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={handleChange('confirmPassword', setConfirmPassword)}
+                  onBlur={handleBlur('confirmPassword')}
+                  className={inputClass('confirmPassword')}
+                  autoComplete="new-password"
+                />
+              </div>
+              {touched.confirmPassword && errors.confirmPassword && (
+                <p className="text-[11px] text-[#ff0000] font-medium mt-1">{errors.confirmPassword}</p>
+              )}
+            </div>
 
-          <Link to="/verify-email" className="w-full bg-[#ffffff] text-[#000000] py-3 rounded-full font-semibold text-[14px] hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-2">
-            {t('auth.register.submit')}
-          </Link>
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                id="terms"
+                checked={acceptedTerms}
+                onChange={(e) => {
+                  setAcceptedTerms(e.target.checked);
+                  if (e.target.checked) setErrors(prev => ({ ...prev, terms: undefined }));
+                }}
+                className="mt-1 rounded border-[rgba(255,255,255,0.3)] bg-transparent focus:ring-2 focus:ring-primary/20"
+              />
+              <label htmlFor="terms" className="text-[14px] text-[#a1a4a5] leading-relaxed">
+                I agree to the <a href="#" className="text-[#f0f0f0] font-semibold hover:underline">Terms of Service</a> and <a href="#" className="text-[#f0f0f0] font-semibold hover:underline">Privacy Policy</a>.
+              </label>
+            </div>
+            {touched.terms && errors.terms && (
+              <p className="text-[11px] text-[#ff0000] font-medium -mt-4 ml-2">{errors.terms}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-[#ffffff] text-[#000000] py-3 rounded-full font-semibold text-[14px] hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Đang đăng ký...' : t('auth.register.submit')}
+            </button>
+          </form>
 
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center">

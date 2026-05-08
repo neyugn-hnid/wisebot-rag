@@ -45,6 +45,13 @@ spring:
                 - JwtAuthenticationFilter
 
             # Chat service REST (protected)
+            - id: chat-service-public
+              uri: ${CHAT_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/chat/public/**
+              filters:
+                - StripPrefix=2
+
             - id: chat-service
               uri: ${CHAT_SERVICE_URL:http://localhost:8082}
               predicates:
@@ -62,6 +69,13 @@ spring:
                 - JwtAuthenticationFilter
 
             # Widget service (protected)
+            - id: widget-service-public
+              uri: ${WIDGET_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/widget/public/**
+              filters:
+                - StripPrefix=2
+
             - id: widget-service
               uri: ${WIDGET_SERVICE_URL:http://localhost:8084}
               predicates:

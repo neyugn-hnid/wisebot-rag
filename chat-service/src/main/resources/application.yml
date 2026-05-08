@@ -37,6 +37,9 @@ integration:
     ask-path: /v1/rag/ask
     stream-path: /v1/rag/stream
     service-token: ${AI_SERVICE_TOKEN:}
+  document:
+    base-url: ${DOCUMENT_BASE_URL:http://localhost:8081}
+    knowledge-bases-path: /knowledge-bases
 
 realtime:
   websocket-endpoint: /ws/chat

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
-import { 
-  Users, 
-  UserPlus, 
-  MoreVertical, 
-  Shield, 
+import {
+  Users,
+  UserPlus,
+  Shield,
   Activity,
   ChevronLeft,
   ChevronRight,
@@ -13,15 +12,21 @@ import {
   Edit2,
   Trash2,
   Lock,
-  Eye,
-  Mail,
-  Calendar,
+  LockOpen,
   Search,
   Filter,
   ArrowUpDown,
-  Briefcase
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import {
+  listUsers,
+  adminUpdateUser,
+  deleteUser,
+  changeUserStatus,
+  type UserResponse,
+  type UserPageResponse,
+} from '../api/users';
+import { inviteUser } from '../api/auth';
 import DeleteModal from '../components/DeleteModal';
 
 type SystemUser = {
@@ -29,90 +34,281 @@ type SystemUser = {
   name: string;
   email: string;
   phone: string;
-  location: string;
   globalRole: string;
-  status: string;
+  status: 'Active' | 'Suspended' | 'Pending';
   avatar: string;
-  workspaces: number;
   lastLogin: string;
 };
 
-const initialUsers: SystemUser[] = [
-  { id: '1', name: 'Alex Johnson', email: 'alex@company.com', phone: '+1 234 567 8900', location: 'New York, USA', globalRole: 'ADMIN', status: 'Active', avatar: 'https://picsum.photos/seed/alex/100/100', workspaces: 5, lastLogin: '2 mins ago' },
-  { id: '2', name: 'Sarah Chen', email: 'sarah@company.com', phone: '+1 234 567 8901', location: 'San Francisco, USA', globalRole: 'ADMIN', status: 'Active', avatar: 'https://picsum.photos/seed/sarah/100/100', workspaces: 2, lastLogin: '1 hour ago' },
-  { id: '3', name: 'Michael Smith', email: 'michael@company.com', phone: '+44 20 7123 4567', location: 'London, UK', globalRole: 'USER', status: 'Suspended', avatar: 'https://picsum.photos/seed/michael/100/100', workspaces: 1, lastLogin: '5 days ago' },
-  { id: '4', name: 'Emily Brown', email: 'emily@company.com', phone: '+61 2 9876 5432', location: 'Sydney, Australia', globalRole: 'USER', status: 'Active', avatar: 'https://picsum.photos/seed/emily/100/100', workspaces: 3, lastLogin: 'Just now' },
-  { id: '5', name: 'David Wilson', email: 'david@company.com', phone: '+1 234 567 8902', location: 'Chicago, USA', globalRole: 'USER', status: 'Active', avatar: 'https://picsum.photos/seed/david/100/100', workspaces: 1, lastLogin: '2 days ago' },
-];
+const DEFAULT_PAGE_SIZE = 10;
 
 export default function UserManagement() {
   const { t, language } = useLanguage();
   const { showToast } = useToast();
-  const [users, setUsers] = useState<SystemUser[]>(initialUsers);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [users, setUsers] = useState<SystemUser[]>([]);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
   const [selectedUser, setSelectedUser] = useState<SystemUser | null>(null);
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', globalRole: 'USER', status: 'Active' });
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    globalRole: 'USER',
+    status: 'Active' as SystemUser['status'],
+  });
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [appliedSearchKeyword, setAppliedSearchKeyword] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'owner' | 'user'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'suspended'>('all');
+  const [sortOption, setSortOption] = useState<'newest' | 'oldest' | 'name_asc' | 'name_desc'>('newest');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusActionUserId, setStatusActionUserId] = useState<string | null>(null);
 
-  const stats = [
-    { label: t('users.stats.total'), value: users.length.toString(), icon: Users },
-    { label: t('users.stats.admins'), value: users.filter(u => u.globalRole === 'ADMIN').length.toString(), icon: Shield },
-    { label: t('users.stats.active'), value: users.filter(u => u.status === 'Active').length.toString(), icon: Activity, color: 'text-green-500' },
-    { label: t('users.stats.suspended'), value: users.filter(u => u.status === 'Suspended').length.toString(), icon: Lock, color: 'text-[#ff0000]' },
-  ];
-
-  const handleOpenModal = (user?: SystemUser) => {
-    if (user) {
-      setEditingUser(user);
-      setFormData({ name: user.name, email: user.email, phone: user.phone, globalRole: user.globalRole, status: user.status });
-    } else {
-      setEditingUser(null);
-      setFormData({ name: '', email: '', phone: '', globalRole: 'USER', status: 'Active' });
-    }
-    setIsModalOpen(true);
+  const toDisplayStatus = (status?: string): SystemUser['status'] => {
+    if (status === 'DISABLED') return 'Suspended';
+    if (status === 'PENDING') return 'Pending';
+    return 'Active';
   };
 
-  const handleOpenDeleteConfirm = (user: SystemUser) => {
+  const toApiStatus = (status: SystemUser['status']) => {
+    if (status === 'Suspended') return 'DISABLED';
+    if (status === 'Pending') return 'PENDING';
+    return 'ACTIVE';
+  };
+
+  const formatLastLogin = (value?: string | null) => {
+    if (!value) {
+      return 'Never';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return 'Never';
+    }
+
+    const diffMs = Date.now() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin} mins ago`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour} hours ago`;
+    const diffDay = Math.floor(diffHour / 24);
+    return `${diffDay} days ago`;
+  };
+
+  const mapUser = (user: UserResponse): SystemUser => ({
+    id: user.id,
+    name: user.fullName || user.username || user.email,
+    email: user.email,
+    phone: user.phone || 'N/A',
+    globalRole: user.role || 'USER',
+    status: toDisplayStatus(user.status),
+    avatar: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName || user.email)}&background=111111&color=f0f0f0`,
+    lastLogin: formatLastLogin(user.lastLogin),
+  });
+
+  const resolveSortQuery = () => {
+    switch (sortOption) {
+      case 'oldest':
+        return 'createdAt:asc';
+      case 'name_asc':
+        return 'fullName:asc';
+      case 'name_desc':
+        return 'fullName:desc';
+      default:
+        return 'createdAt:desc';
+    }
+  };
+
+  const loadUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const pageData = await listUsers({
+        page: currentPage,
+        size: pageSize,
+        sort: resolveSortQuery(),
+        keyword: appliedSearchKeyword.trim() || undefined,
+        role: roleFilter !== 'all' ? roleFilter.toUpperCase() : undefined,
+        status: statusFilter !== 'all' ? (statusFilter === 'suspended' ? 'DISABLED' : statusFilter.toUpperCase()) : undefined,
+      });
+
+      setUsers((pageData.users || []).map(mapUser));
+      setTotalPages(Math.max(pageData.totalPages || 1, 1));
+      setTotalElements(pageData.totalElements || 0);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không tải được danh sách người dùng.';
+      showToast(message, 'error');
+      setUsers([]);
+      setTotalPages(1);
+      setTotalElements(0);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadUsers();
+  }, [appliedSearchKeyword, roleFilter, statusFilter, currentPage, pageSize, sortOption]);
+
+  const stats = [
+    { label: t('users.stats.total'), value: totalElements.toString(), icon: Users },
+    { label: t('users.stats.admins'), value: users.filter((u) => u.globalRole === 'ADMIN').length.toString(), icon: Shield },
+    { label: t('users.stats.active'), value: users.filter((u) => u.status === 'Active').length.toString(), icon: Activity, color: 'text-green-500' },
+    { label: t('users.stats.suspended'), value: users.filter((u) => u.status === 'Suspended').length.toString(), icon: Lock, color: 'text-[#ff0000]' },
+  ];
+
+  const openInviteModal = () => {
+    setInviteEmail('');
+    setIsInviteModalOpen(true);
+  };
+
+  const openEditModal = (user: SystemUser) => {
+    setSelectedUser(user);
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      phone: user.phone === 'N/A' ? '' : user.phone,
+      globalRole: user.globalRole,
+      status: user.status,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const openDeleteConfirm = (user: SystemUser) => {
     setSelectedUser(user);
     setIsDeleteConfirmOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingUser(null);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleInviteSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (editingUser) {
-      // Update
-      setUsers(users.map(u => u.id === editingUser.id ? { ...u, ...formData } : u));
-      showToast(t('toast.user_updated'), 'success');
-    } else {
-      // Create
-      const newUser: SystemUser = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...formData,
-        location: 'Unknown',
-        avatar: `https://picsum.photos/seed/${formData.name.replace(/\s+/g, '').toLowerCase()}/100/100`,
-        workspaces: 0,
-        lastLogin: 'Never'
-      };
-      setUsers([...users, newUser]);
-      showToast(t('toast.user_created'), 'success');
+    if (!inviteEmail.trim()) {
+      showToast('Vui lòng nhập email người dùng.', 'error');
+      return;
     }
-    handleCloseModal();
+
+    setIsSubmittingInvite(true);
+    try {
+      await inviteUser({ email: inviteEmail.trim() });
+
+      showToast(t('toast.user_created') || 'Đã gửi lời mời người dùng.', 'success');
+      setIsInviteModalOpen(false);
+      setInviteEmail('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể gửi lời mời người dùng.';
+      showToast(message, 'error');
+    } finally {
+      setIsSubmittingInvite(false);
+    }
   };
 
-  const handleDelete = () => {
-    if (selectedUser) {
-      setUsers(users.filter(u => u.id !== selectedUser.id));
-      showToast(t('toast.user_deleted'), 'success');
+  const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedUser) {
+      return;
+    }
+
+    setIsUpdatingStatus(true);
+    try {
+      await adminUpdateUser(selectedUser.id, {
+        fullName: editForm.name.trim(),
+        email: editForm.email.trim(),
+        phone: editForm.phone.trim(),
+        role: editForm.globalRole,
+        status: toApiStatus(editForm.status),
+      });
+
+      setUsers((prev) => prev.map((user) => (
+        user.id === selectedUser.id
+          ? {
+            ...user,
+            name: editForm.name.trim(),
+            email: editForm.email.trim(),
+            phone: editForm.phone.trim() || 'N/A',
+            globalRole: editForm.globalRole,
+            status: editForm.status,
+          }
+          : user
+      )));
+      showToast(t('toast.user_updated') || 'Cập nhật trạng thái thành công.', 'success');
+      setIsEditModalOpen(false);
+      setSelectedUser(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể cập nhật người dùng.';
+      showToast(message, 'error');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedUser) {
+      return;
+    }
+
+    setIsUpdatingStatus(true);
+    try {
+      await deleteUser(selectedUser.id);
+
+      setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id));
+      setTotalElements((prev) => Math.max(prev - 1, 0));
+      showToast(t('toast.user_deleted') || 'Xóa người dùng thành công.', 'success');
       setIsDeleteConfirmOpen(false);
       setSelectedUser(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể xóa người dùng.';
+      showToast(message, 'error');
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
+
+  const handleToggleUserStatus = async (user: SystemUser) => {
+    const nextStatus: SystemUser['status'] = user.status === 'Suspended' ? 'Active' : 'Suspended';
+    setStatusActionUserId(user.id);
+
+    try {
+      await changeUserStatus(user.id, toApiStatus(nextStatus));
+
+      if (statusFilter === 'all') {
+        setUsers((prev) => prev.map((item) => (
+          item.id === user.id
+            ? { ...item, status: nextStatus }
+            : item
+        )));
+      } else {
+        await loadUsers();
+      }
+
+      showToast(
+        nextStatus === 'Suspended'
+          ? 'Đã khóa tài khoản người dùng.'
+          : 'Đã mở khóa tài khoản người dùng.',
+        'success',
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể cập nhật trạng thái người dùng.';
+      showToast(message, 'error');
+    } finally {
+      setStatusActionUserId(null);
+    }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setAppliedSearchKeyword(searchKeyword);
+    setCurrentPage(1);
+  };
+
+  const displayedCount = users.length;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -120,8 +316,8 @@ export default function UserManagement() {
         <div>
           <h2 className="text-[24px] font-display font-medium tracking-tight tracking-tight text-[#f0f0f0]">{t('users.title')}</h2>
         </div>
-        <button 
-          onClick={() => handleOpenModal()}
+        <button
+          onClick={openInviteModal}
           className="inline-flex items-center gap-2 bg-[#ffffff] text-[#000000] px-6 py-2.5 rounded-[12px] font-bold shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all transform active:scale-95"
         >
           <UserPlus size={18} />
@@ -134,7 +330,7 @@ export default function UserManagement() {
           <div key={stat.label} className="bg-[#000000] p-4 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
             <p className="text-[10px] font-bold text-[#a1a4a5] uppercase tracking-widest">{stat.label}</p>
             <div className="flex items-center justify-between mt-1">
-              <p className={cn("text-2xl font-black", stat.color || "text-[#f0f0f0]")}>{stat.value}</p>
+              <p className={cn('text-2xl font-black', stat.color || 'text-[#f0f0f0]')}>{stat.value}</p>
               <stat.icon size={20} className="text-[rgba(255,255,255,0.3)]" />
             </div>
           </div>
@@ -142,27 +338,59 @@ export default function UserManagement() {
       </div>
 
       <div className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] overflow-hidden shadow-md shadow-black/40">
-        {/* Table Controls */}
         <div className="p-4 border-b border-[rgba(255,255,255,0.3)] flex flex-col sm:flex-row gap-4 justify-between items-center bg-[rgba(255,255,255,0.02)]/50">
-          <div className="relative w-full sm:w-72">
+          <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
-            <input 
-              type="text" 
-              placeholder={t('common.search')} 
+            <input
+              type="text"
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              placeholder={t('common.search')}
               className="w-full pl-9 pr-4 py-2 border border-[rgba(255,255,255,0.3)] outline-none transition-all bg-transparent rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40"
             />
-          </div>
+          </form>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <div className="relative w-full sm:w-auto">
-              <select className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40">
+              <select
+                value={roleFilter}
+                onChange={(e) => {
+                  setRoleFilter(e.target.value as typeof roleFilter);
+                  setCurrentPage(1);
+                }}
+                className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40"
+              >
                 <option value="all" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Tất cả vai trò' : 'All Roles'}</option>
                 <option value="admin" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Quản trị viên' : 'Admin'}</option>
+                <option value="owner" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Chủ sở hữu' : 'Owner'}</option>
                 <option value="user" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Người dùng' : 'User'}</option>
               </select>
               <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={14} />
             </div>
             <div className="relative w-full sm:w-auto">
-              <select className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40">
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value as typeof statusFilter);
+                  setCurrentPage(1);
+                }}
+                className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40"
+              >
+                <option value="all" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Tất cả trạng thái' : 'All Statuses'}</option>
+                <option value="active" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Hoạt động' : 'Active'}</option>
+                <option value="pending" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Chờ kích hoạt' : 'Pending'}</option>
+                <option value="suspended" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Bị đình chỉ' : 'Suspended'}</option>
+              </select>
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={14} />
+            </div>
+            <div className="relative w-full sm:w-auto">
+              <select
+                value={sortOption}
+                onChange={(e) => {
+                  setSortOption(e.target.value as typeof sortOption);
+                  setCurrentPage(1);
+                }}
+                className="w-full sm:w-auto appearance-none bg-transparent border border-[rgba(255,255,255,0.3)] pl-9 pr-8 py-2 outline-none cursor-pointer hover:bg-transparent transition-colors rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40"
+              >
                 <option value="newest" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Mới nhất trước' : 'Newest First'}</option>
                 <option value="oldest" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Cũ nhất trước' : 'Oldest First'}</option>
                 <option value="name_asc" className="bg-[#000000] text-[#f0f0f0]">{language === 'vi' ? 'Tên (A-Z)' : 'Name (A-Z)'}</option>
@@ -185,13 +413,21 @@ export default function UserManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[rgba(255,255,255,0.3)]">
-              {users.map((user) => (
+              {isLoadingUsers ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={`user-skeleton-${index}`}>
+                    <td colSpan={5} className="px-6 py-4">
+                      <div className="h-12 animate-pulse rounded-[12px] bg-[rgba(255,255,255,0.04)]" />
+                    </td>
+                  </tr>
+                ))
+              ) : users.map((user) => (
                 <tr key={user.id} className="hover:bg-[rgba(255,255,255,0.02)]/50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
-                      <img 
-                        src={user.avatar} 
-                        alt={user.name} 
+                      <img
+                        src={user.avatar}
+                        alt={user.name}
                         className="size-8 rounded-full bg-[rgba(255,255,255,0.05)] object-cover border border-[rgba(255,255,255,0.3)]"
                         referrerPolicy="no-referrer"
                       />
@@ -203,11 +439,11 @@ export default function UserManagement() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={cn(
-                      "inline-flex items-center px-0 py-0.5 text-xs font-black uppercase tracking-wider",
-                      user.globalRole === 'ADMIN' ? "text-blue-500" : 
-                      user.globalRole === 'OWNER' ? "text-purple-500" : "text-[#a1a4a5]"
+                      'inline-flex items-center px-0 py-0.5 text-xs font-black uppercase tracking-wider',
+                      user.globalRole === 'ADMIN' ? 'text-blue-500' :
+                        user.globalRole === 'OWNER' ? 'text-purple-500' : 'text-[#a1a4a5]'
                     )}>
-                      {language === 'vi' 
+                      {language === 'vi'
                         ? (user.globalRole === 'ADMIN' ? 'QUẢN TRỊ VIÊN' : user.globalRole === 'USER' ? 'NGƯỜI DÙNG' : user.globalRole === 'OWNER' ? 'CHỦ SỞ HỮU' : user.globalRole)
                         : user.globalRole}
                     </span>
@@ -215,35 +451,57 @@ export default function UserManagement() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
                       <span className={cn(
-                        "size-2 rounded-full",
-                        user.status === 'Active' ? "bg-green-500" : "bg-rose-500"
+                        'size-2 rounded-full',
+                        user.status === 'Active' ? 'bg-green-500' : user.status === 'Pending' ? 'bg-amber-500' : 'bg-rose-500'
                       )}></span>
                       <span className={cn(
-                        "text-sm font-medium",
-                        user.status === 'Suspended' ? "text-[#ff0000]" : "text-[#f0f0f0]"
+                        'text-sm font-medium',
+                        user.status === 'Suspended' ? 'text-[#ff0000]' : user.status === 'Pending' ? 'text-amber-400' : 'text-[#f0f0f0]'
                       )}>
                         {language === 'vi'
-                          ? (user.status === 'Active' ? 'Hoạt động' : user.status === 'Suspended' ? 'Bị đình chỉ' : user.status)
+                          ? (user.status === 'Active' ? 'Hoạt động' : user.status === 'Suspended' ? 'Bị đình chỉ' : 'Chờ kích hoạt')
                           : user.status}
                       </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[#a1a4a5]">
-                    {language === 'vi' 
-                      ? user.lastLogin.replace('mins ago', 'phút trước').replace('hour ago', 'giờ trước').replace('days ago', 'ngày trước').replace('Just now', 'Vừa xong').replace('Never', 'Chưa từng') 
+                    {language === 'vi'
+                      ? user.lastLogin
+                        .replace('mins ago', 'phút trước')
+                        .replace('hours ago', 'giờ trước')
+                        .replace('days ago', 'ngày trước')
+                        .replace('Just now', 'Vừa xong')
+                        .replace('Never', 'Chưa từng')
                       : user.lastLogin}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button 
-                        onClick={() => handleOpenModal(user)}
+                      <button
+                        onClick={() => handleToggleUserStatus(user)}
+                        disabled={statusActionUserId === user.id}
+                        className={cn(
+                          'p-2 rounded-[12px] transition-all disabled:opacity-60',
+                          user.status === 'Suspended'
+                            ? 'text-orange-400 hover:bg-orange-500/10'
+                            : 'text-emerald-400 hover:bg-emerald-500/10'
+                        )}
+                        title={
+                          language === 'vi'
+                            ? user.status === 'Suspended' ? 'Mở khóa tài khoản' : 'Khóa tài khoản'
+                            : user.status === 'Suspended' ? 'Unlock user' : 'Lock user'
+                        }
+                      >
+                        {user.status === 'Suspended' ? <Lock size={18} /> : <LockOpen size={18} />}
+                      </button>
+                      <button
+                        onClick={() => openEditModal(user)}
                         className="p-2 text-[#3b9eff] hover:bg-[rgba(59,158,255,0.05)] rounded-[12px] transition-all"
                         title={t('common.edit')}
                       >
                         <Edit2 size={18} />
                       </button>
-                      <button 
-                        onClick={() => handleOpenDeleteConfirm(user)}
+                      <button
+                        onClick={() => openDeleteConfirm(user)}
                         className="p-2 text-[#ff0000] hover:bg-[#ff0000]/10 rounded-[12px] transition-all"
                         title={t('common.delete')}
                       >
@@ -253,9 +511,9 @@ export default function UserManagement() {
                   </td>
                 </tr>
               ))}
-              {users.length === 0 && (
+              {!isLoadingUsers && users.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-[#a1a4a5] text-sm">
+                  <td colSpan={5} className="px-6 py-8 text-center text-[#a1a4a5] text-sm">
                     {t('users.no_users')}
                   </td>
                 </tr>
@@ -264,93 +522,67 @@ export default function UserManagement() {
           </table>
         </div>
         <div className="px-6 py-4 bg-[rgba(255,255,255,0.02)] border-t border-[rgba(255,255,255,0.3)] flex items-center justify-between">
-          <p className="text-sm text-[#a1a4a5]">{t('users.showing')} {users.length} {t('users.users')}</p>
+          <p className="text-sm text-[#a1a4a5]">{t('users.showing')} {displayedCount} / {totalElements} {t('users.users')}</p>
           <div className="flex gap-2">
-            <button className="px-4 py-1.5 text-sm font-bold bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-md disabled:opacity-50" disabled>
+            <button
+              className="px-4 py-1.5 text-sm font-bold bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-md disabled:opacity-50"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            >
               <ChevronLeft size={16} />
             </button>
-            <button className="px-4 py-1.5 text-sm font-bold bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-md disabled:opacity-50" disabled>
+            <button
+              className="px-4 py-1.5 text-sm font-bold bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-md disabled:opacity-50"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            >
               <ChevronRight size={16} />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Modal Overlay */}
-      {isModalOpen && (
+      {isInviteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#f0f0f0]">
-                {editingUser ? t('users.edit') : t('users.create')}
-              </h3>
-              <button 
-                onClick={handleCloseModal}
+              <h3 className="text-lg font-bold text-[#f0f0f0]">{t('users.create')}</h3>
+              <button
+                onClick={() => setIsInviteModalOpen(false)}
                 className="text-[#a1a4a5] hover:text-[#a1a4a5] p-1 rounded-md hover:bg-[rgba(255,255,255,0.05)] transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('team.full_name')}</label>
-                <input 
-                  type="text" 
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  placeholder="e.g. Jane Doe"
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none" 
-                />
-              </div>
+            <form onSubmit={handleInviteSubmit} className="p-6 space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-[#f0f0f0]">{t('team.email_address')}</label>
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   required
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="jane@example.com"
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none" 
+                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">Phone Number</label>
-                <input 
-                  type="tel" 
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  placeholder="+1 234 567 8900"
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none" 
-                />
-              </div>
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-[#f0f0f0]">{t('users.table.status')}</label>
-                  <select 
-                    value={formData.status}
-                    onChange={(e) => setFormData({...formData, status: e.target.value})}
-                    className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
-                  >
-                    <option value="Active" className="bg-[#000000] text-[#f0f0f0]">Active</option>
-                    <option value="Suspended" className="bg-[#000000] text-[#f0f0f0]">Suspended</option>
-                  </select>
-                </div>
-              </div>
+              <p className="text-xs text-[#a1a4a5]">
+                {language === 'vi' ? 'Hệ thống sẽ gửi lời mời tham gia tenant hiện tại qua email.' : 'The system will send an invitation to join the current tenant by email.'}
+              </p>
               <div className="pt-4 flex gap-3">
-                <button 
+                <button
                   type="button"
-                  onClick={handleCloseModal}
+                  onClick={() => setIsInviteModalOpen(false)}
                   className="flex-1 px-4 py-2.5 text-sm font-bold text-[#a1a4a5] bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.05)] rounded-md transition-colors"
                 >
                   {t('common.cancel')}
                 </button>
-                <button 
+                <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[#000000] bg-[#ffffff] hover:bg-[#f0f0f0] rounded-md shadow-md shadow-black/40 shadow-primary/20 transition-all"
+                  disabled={isSubmittingInvite}
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[#000000] bg-[#ffffff] hover:bg-[#f0f0f0] rounded-md shadow-md shadow-black/40 shadow-primary/20 transition-all disabled:opacity-60"
                 >
-                  {editingUser ? t('common.save') : t('users.create')}
+                  {isSubmittingInvite ? 'Đang gửi...' : t('users.create')}
                 </button>
               </div>
             </form>
@@ -358,15 +590,118 @@ export default function UserManagement() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {isEditModalOpen && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#f0f0f0]">{t('users.edit')}</h3>
+              <button
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setSelectedUser(null);
+                }}
+                className="text-[#a1a4a5] hover:text-[#a1a4a5] p-1 rounded-md hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-[#f0f0f0]">{t('team.full_name')}</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-[#f0f0f0]">{t('team.email_address')}</label>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-[#f0f0f0]">Phone Number</label>
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
+                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-[#f0f0f0]">{t('users.table.role')}</label>
+                <select
+                  value={editForm.globalRole}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, globalRole: e.target.value }))}
+                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
+                >
+                  <option value="ADMIN" className="bg-[#000000] text-[#f0f0f0]">ADMIN</option>
+                  <option value="OWNER" className="bg-[#000000] text-[#f0f0f0]">OWNER</option>
+                  <option value="USER" className="bg-[#000000] text-[#f0f0f0]">USER</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-[#f0f0f0]">Last Login</label>
+                <input
+                  type="text"
+                  value={selectedUser.lastLogin}
+                  readOnly
+                  className="w-full bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.2)] rounded-[8px] px-4 py-2.5 text-sm text-[#a1a4a5] outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-[#f0f0f0]">{t('users.table.status')}</label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, status: e.target.value as SystemUser['status'] }))}
+                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
+                >
+                  <option value="Active" className="bg-[#000000] text-[#f0f0f0]">Active</option>
+                  <option value="Pending" className="bg-[#000000] text-[#f0f0f0]">Pending</option>
+                  <option value="Suspended" className="bg-[#000000] text-[#f0f0f0]">Suspended</option>
+                </select>
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setSelectedUser(null);
+                  }}
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[#a1a4a5] bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.05)] rounded-md transition-colors"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingStatus}
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[#000000] bg-[#ffffff] hover:bg-[#f0f0f0] rounded-md shadow-md shadow-black/40 shadow-primary/20 transition-all disabled:opacity-60"
+                >
+                  {isUpdatingStatus ? 'Đang lưu...' : t('common.save')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <DeleteModal
         isOpen={isDeleteConfirmOpen}
-        onClose={() => setIsDeleteConfirmOpen(false)}
+        onClose={() => {
+          setIsDeleteConfirmOpen(false);
+          setSelectedUser(null);
+        }}
         onConfirm={handleDelete}
+        isDeleting={isUpdatingStatus}
         title={t('users.confirm.delete.title')}
         description={`${t('users.confirm.delete.msg')} "${selectedUser?.name}"?`}
         warningText={t('users.confirm.delete.undone')}
-        confirmText={t('common.confirm')}
+        confirmText={t('common.delete')}
       />
     </div>
   );

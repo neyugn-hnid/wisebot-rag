@@ -1,15 +1,21 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRole } from '../contexts/RoleContext';
+import {
+  listUsers,
+  type UserPageResponse,
+} from '../api/users';
+import {
+  listKnowledgeBases,
+  type KnowledgeBaseResponse,
+} from '../api/knowledge-base';
+import {
+  listPlans,
+  type BillingPlanResponse,
+} from '../api/billing';
 import { 
-  Zap, 
-  UserPlus, 
-  ShieldCheck, 
-  Activity, 
-  TrendingUp, 
-  Server, 
-  AlertTriangle, 
   DollarSign,
+  Database,
   Clock,
   Search,
   Filter,
@@ -26,27 +32,41 @@ export default function ActivityLog() {
   const { role } = useRole();
   const isAdmin = role === 'ADMIN';
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [loading, setLoading] = useState(true);
+  const [userCount, setUserCount] = useState(0);
+  const [kbCount, setKbCount] = useState(0);
+  const [planCount, setPlanCount] = useState(0);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [users, kbs, plans] = await Promise.all([
+          listUsers({ page: 0, size: 1 }).catch(() => ({ totalElements: 0 } as UserPageResponse)),
+          listKnowledgeBases().catch(() => [] as KnowledgeBaseResponse[]),
+          listPlans().catch(() => [] as BillingPlanResponse[]),
+        ]);
+        setUserCount(users.totalElements);
+        setKbCount(kbs.length);
+        setPlanCount(plans.length);
+      } catch {
+        // keep defaults
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const recentActivity = [
-    { id: 1, type: 'sync', message: t('dashboard.activity.sync'), time: t('time.mins_ago').replace('{mins}', '2'), icon: Zap, color: 'text-amber-500', bg: 'bg-amber-50' },
-    { id: 2, type: 'user', message: t('dashboard.activity.user'), time: t('time.hour_ago'), icon: UserPlus, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { id: 3, type: 'security', message: t('dashboard.activity.security'), time: t('time.hours_ago').replace('{hours}', '3'), icon: ShieldCheck, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { id: 4, type: 'alert', message: t('dashboard.activity.alert'), time: t('time.hours_ago').replace('{hours}', '5'), icon: Activity, color: 'text-[#ff0000]', bg: 'bg-rose-50' },
-    { id: 5, type: 'bot', message: t('dashboard.activity.bot'), time: t('time.hours_ago').replace('{hours}', '6'), icon: Zap, color: 'text-indigo-500', bg: 'bg-indigo-50' },
-    { id: 6, type: 'team', message: t('dashboard.activity.team'), time: t('time.hours_ago').replace('{hours}', '8'), icon: Users, color: 'text-[#a1a4a5]', bg: 'bg-[rgba(255,255,255,0.02)]' },
-    { id: 7, type: 'knowledge', message: t('dashboard.activity.knowledge'), time: t('time.hours_ago').replace('{hours}', '10'), icon: Clock, color: 'text-[#a1a4a5]', bg: 'bg-[rgba(255,255,255,0.02)]' },
-    { id: 8, type: 'alert', message: t('dashboard.activity.alert2'), time: t('time.day_ago'), icon: Activity, color: 'text-blue-400', bg: 'bg-blue-50' },
+    { id: 1, type: 'user', message: `${userCount.toLocaleString()} users registered`, time: 'Active', icon: Users, color: 'text-blue-500' },
+    { id: 2, type: 'kb', message: `${kbCount} Knowledge Bases active`, time: 'Active', icon: Database, color: 'text-emerald-500' },
+    { id: 3, type: 'plan', message: `${planCount} Billing Plans available`, time: 'Active', icon: DollarSign, color: 'text-indigo-500' },
   ];
 
   const adminActivity = [
-    { id: 1, type: 'upgrade', message: t('dashboard.admin.activity.upgrade'), time: t('time.mins_ago').replace('{mins}', '5'), icon: TrendingUp, color: 'text-indigo-500', bg: 'bg-indigo-50' },
-    { id: 2, type: 'signup', message: t('dashboard.admin.activity.signup'), time: t('time.mins_ago').replace('{mins}', '20'), icon: UserPlus, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { id: 3, type: 'system', message: t('dashboard.admin.activity.system'), time: t('time.hour_ago'), icon: Server, color: 'text-[#a1a4a5]', bg: 'bg-[rgba(255,255,255,0.02)]' },
-    { id: 4, type: 'error', message: t('dashboard.admin.activity.error'), time: t('time.hours_ago').replace('{hours}', '2'), icon: AlertTriangle, color: 'text-[#ff0000]', bg: 'bg-rose-50' },
-    { id: 5, type: 'security', message: t('dashboard.admin.activity.security'), time: t('time.hours_ago').replace('{hours}', '4'), icon: ShieldCheck, color: 'text-[#ff0000]', bg: 'bg-rose-50' },
-    { id: 6, type: 'billing', message: t('dashboard.admin.activity.billing'), time: t('time.hours_ago').replace('{hours}', '6'), icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { id: 7, type: 'system', message: t('dashboard.admin.activity.system2'), time: t('time.hours_ago').replace('{hours}', '8'), icon: Server, color: 'text-[#a1a4a5]', bg: 'bg-[rgba(255,255,255,0.02)]' },
-    { id: 8, type: 'user', message: t('dashboard.admin.activity.user'), time: t('time.hours_ago').replace('{hours}', '12'), icon: UserPlus, color: 'text-[#a1a4a5]', bg: 'bg-[rgba(255,255,255,0.02)]' },
+    { id: 1, type: 'user', message: `${userCount.toLocaleString()} total platform users`, time: 'Active', icon: Users, color: 'text-blue-500' },
+    { id: 2, type: 'kb', message: `${kbCount} Knowledge Bases managed`, time: 'Active', icon: Database, color: 'text-emerald-500' },
+    { id: 3, type: 'plan', message: `${planCount} Billing Plans configured`, time: 'Active', icon: DollarSign, color: 'text-indigo-500' },
   ];
 
   const activities = isAdmin ? adminActivity : recentActivity;
@@ -94,7 +114,7 @@ export default function ActivityLog() {
                 key={activity.id} 
                 className="p-6 flex gap-6 hover:bg-[rgba(255,255,255,0.02)]/50 transition-colors group"
               >
-                <div className={cn("w-14 h-14 rounded-[16px] flex items-center justify-center shrink-0 shadow-md shadow-black/40", activity.bg, activity.color)}>
+                <div className={cn("w-14 h-14 rounded-[16px] flex items-center justify-center shrink-0 shadow-md shadow-black/40 bg-[rgba(255,255,255,0.05)]", activity.color)}>
                   <activity.icon size={24} />
                 </div>
                 <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">

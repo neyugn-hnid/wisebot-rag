@@ -5,8 +5,11 @@ class Settings(BaseSettings):
     app_name: str = "ai-service"
     app_port: int = 8002
     database_url: str = "postgresql://postgres:password@localhost:5432/wisebot_ai_database"
+    embedding_base_url: str = "http://localhost:8001"
+    embedding_search_path: str = "/v1/search"
+    qdrant_url: str = "http://localhost:6333"
     ollama_base_url: str = "http://localhost:11434"
-    ollama_llm_model: str = "llama3-8b"
+    ollama_llm_model: str = "llama3:latest"
     ollama_embedding_model: str = "nomic-embed-text"
     embedding_dimension: int = 1536
     default_top_k: int = 5

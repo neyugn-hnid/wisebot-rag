@@ -13,5 +13,6 @@ public class UserPageResponse implements Serializable {
     private int pageSize;
     private long totalElements;
     private int totalPages;
+    private UserListStatsResponse stats;
     private List<UserResponse> users;
 }

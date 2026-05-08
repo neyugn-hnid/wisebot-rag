@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     app_name: str = "embedding-service"
     app_port: int = 8001
     database_url: str = "postgresql://postgres:password@localhost:5432/wisebot_embedding_database"
+    qdrant_url: str = "http://localhost:6333"
     ollama_base_url: str = "http://localhost:11434"
     ollama_embedding_model: str = "nomic-embed-text"
     embedding_dimension: int = 1536
@@ -20,7 +21,7 @@ class Settings(BaseSettings):
     service_jwt_algorithm: str = "HS256"
     service_jwt_issuer: str = "wisebot"
     service_jwt_audience: str = ""
-    allowed_service_subjects: str = "api-gateway,document-service,chat-service"
+    allowed_service_subjects: str = "api-gateway,document-service,chat-service,ai-service"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

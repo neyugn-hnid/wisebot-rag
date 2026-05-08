@@ -5,87 +5,36 @@ import { useToast } from '../contexts/ToastContext';
 import { 
   CreditCard, 
   CheckCircle2, 
-  ArrowUpRight, 
   Download, 
   Zap,
-  Clock,
-  AlertCircle,
   Users,
   TrendingUp,
   DollarSign,
-  Plus,
-  Trash2,
-  MapPin,
-  Globe,
   X,
-  ChevronRight,
   ShieldCheck,
-  ToggleLeft,
-  ToggleRight,
   Loader2,
-  LayoutDashboard,
-  Bell,
   History
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useRole } from '../contexts/RoleContext';
+import {
+  listPlans,
+  listPlanPrices,
+  getMySubscription,
+  mySubscribe,
+  listMyInvoices,
+  BillingPlanResponse,
+  BillingPlanPriceResponse,
+  SubscriptionResponse,
+  BillingInvoiceResponse,
+} from '../api/billing';
 
-const userInvoices = [
-  { id: 'INV-2024-001', date: 'Jun 01, 2024', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2024-002', date: 'May 01, 2024', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2024-003', date: 'Apr 01, 2024', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2024-004', date: 'Mar 01, 2024', amount: '$49.00', status: 'REFUNDED' },
-  { id: 'INV-2024-005', date: 'Feb 01, 2024', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2024-006', date: 'Jan 01, 2024', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2023-012', date: 'Dec 01, 2023', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2023-011', date: 'Nov 01, 2023', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2023-010', date: 'Oct 01, 2023', amount: '$49.00', status: 'PAID' },
-  { id: 'INV-2023-009', date: 'Sep 01, 2023', amount: '$49.00', status: 'PAID' },
-];
-
-const adminSubscriptions = [
-  { user: 'Alex Rivet', plan: 'Pro', amount: '$49.00', status: 'Active', date: 'Jun 01, 2024' },
-  { user: 'Sarah Chen', plan: 'Enterprise', amount: '$299.00', status: 'Active', date: 'May 28, 2024' },
-  { user: 'Mike Johnson', plan: 'Starter', amount: '$19.00', status: 'Past Due', date: 'May 15, 2024' },
-  { user: 'Emma Wilson', plan: 'Pro', amount: '$49.00', status: 'Canceled', date: 'May 10, 2024' },
-];
-
-const defaultPaymentMethods = [
-  { id: 'pm_1', type: 'Visa', last4: '4242', exp: '12/26', isPrimary: true },
-  { id: 'pm_2', type: 'Mastercard', last4: '8888', exp: '08/25', isPrimary: false },
-];
-
-const loadPaymentMethods = () => {
-  try {
-    const saved = localStorage.getItem('paymentMethods');
-    if (saved) return JSON.parse(saved);
-  } catch (e) {}
-  return defaultPaymentMethods;
-};
-
-const availablePlans = [
-  { 
-    id: 'free', 
-    name: 'Free', 
-    price: 0, 
-    features: ['billing.plans.free.f1', 'billing.plans.free.f2', 'billing.plans.free.f3'],
-    color: 'slate'
-  },
-  { 
-    id: 'plus', 
-    name: 'Plus', 
-    price: 19, 
-    features: ['billing.plans.plus.f1', 'billing.plans.plus.f2', 'billing.plans.plus.f3', 'billing.plans.plus.f4'],
-    color: 'primary'
-  },
-  { 
-    id: 'pro', 
-    name: 'Pro', 
-    price: 49, 
-    features: ['billing.plans.pro.f1', 'billing.plans.pro.f2', 'billing.plans.pro.f3', 'billing.plans.pro.f4', 'billing.plans.pro.f5'],
-    color: 'indigo'
-  },
-];
+interface Invoice {
+  id: string;
+  date: string;
+  amount: string;
+  status: string;
+}
 
 export default function Billing() {
   const { t, language } = useLanguage();
@@ -94,73 +43,123 @@ export default function Billing() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [currentPlan, setCurrentPlan] = useState('Free');
   const [upgradeStep, setUpgradeStep] = useState<'selection' | 'checkout'>('selection');
-  const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<any>(null);
-  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
-  const [paymentMethodsList, setPaymentMethodsList] = useState(loadPaymentMethods);
-  const [invoices, setInvoices] = useState(userInvoices);
+  const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string; price: number } | null>(null);
+  const [newCard, setNewCard] = useState({ number: '', expiry: '', cvc: '', name: '' });
+  const [billingAddress, setBillingAddress] = useState({ line1: '', line2: '', city: '', country: 'US', zip: '' });
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
-  useEffect(() => {
-    localStorage.setItem('paymentMethods', JSON.stringify(paymentMethodsList));
-  }, [paymentMethodsList]);
+  // --- Backend state ---
+  const [backendPlans, setBackendPlans] = useState<BillingPlanResponse[]>([]);
+  const [backendPlanPrices, setBackendPlanPrices] = useState<BillingPlanPriceResponse[]>([]);
+  const [backendSubscription, setBackendSubscription] = useState<SubscriptionResponse | null>(null);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [loadingSub, setLoadingSub] = useState(true);
+  // --- End backend state ---
 
   useEffect(() => {
     if (location.state?.selectedPlanId) {
-      const plan = availablePlans.find(p => p.id === location.state.selectedPlanId);
-      if (plan) {
-        setSelectedPlanForUpgrade(plan);
-        setIsUpgradeModalOpen(true);
-        if (plan.id !== 'free') {
-          setUpgradeStep('checkout');
-        }
-      }
+      setIsUpgradeModalOpen(true);
     }
   }, [location.state]);
 
-  const handleSelectPlan = (planId: string, planName: string) => {
-    const plan = availablePlans.find(p => p.id === planId);
-    if (!plan || (planId === 'free' && currentPlan === 'Free')) return;
-    
-    if (planId === 'free') {
-      // Downgrade to free is instant in this demo
-      setCurrentPlan('Free');
-      setIsUpgradeModalOpen(false);
-      showToast(t('billing.downgrade_success'), 'info');
-      return;
+  // --- Fetch backend data ---
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchBackendData() {
+      try {
+        const [plans, subscription, invoicesResult] = await Promise.all([
+          listPlans().catch(() => [] as BillingPlanResponse[]),
+          getMySubscription().catch(() => null as SubscriptionResponse | null),
+          listMyInvoices().catch(() => [] as BillingInvoiceResponse[]),
+        ]);
+
+        if (cancelled) return;
+
+        setBackendPlans(plans);
+        setBackendSubscription(subscription);
+
+        // Fetch prices for each plan
+        if (plans.length > 0) {
+          const prices = await Promise.all(
+            plans.map(p => listPlanPrices(p.id).catch(() => [] as BillingPlanPriceResponse[]))
+          );
+          setBackendPlanPrices(prices.flat());
+        }
+
+        // Set current plan from subscription
+        if (subscription && plans.length > 0) {
+          const activePlan = plans.find(p => p.id === subscription.planId);
+          if (activePlan) setCurrentPlan(activePlan.name);
+        }
+
+        // Map backend invoices to display format
+        if (invoicesResult.length > 0) {
+          setInvoices(invoicesResult.map(inv => ({
+            id: inv.invoiceNo || inv.id,
+            date: new Date(inv.issuedAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+            amount: `$${(inv.totalCents / 100).toFixed(2)}`,
+            status: inv.status,
+          })));
+        }
+      } catch {
+        // backend unavailable, plans will show empty state
+      } finally {
+        if (!cancelled) {
+          setLoadingPlans(false);
+          setLoadingSub(false);
+        }
+      }
     }
 
-    setSelectedPlanForUpgrade(plan);
+    fetchBackendData();
+    return () => { cancelled = true; };
+  }, []);
+  // --- End fetch backend data ---
+
+  const handleSelectPlan = (planId: string, planName: string, planPrice: number) => {
+    if (currentPlan && planName === currentPlan) return;
+
+    const backendPlan = backendPlans.find(p => p.id === planId);
+    const priceInfo = backendPlanPrices.find(p => p.planId === planId);
+    const monthlyPrice = priceInfo ? (priceInfo.amountCents / 100) : planPrice;
+
+    setSelectedPlan({ id: planId, name: planName, price: monthlyPrice });
     setUpgradeStep('checkout');
   };
 
-  const handleConfirmPayment = () => {
-    if (!selectedPlanForUpgrade) return;
-    
-    setIsProcessing(selectedPlanForUpgrade.id);
-    
-    // Simulate payment processing
-    setTimeout(() => {
-      const amount = billingCycle === 'yearly' ? Math.floor(selectedPlanForUpgrade.price * 0.8) : selectedPlanForUpgrade.price;
-      const newInvoice = {
-        id: `INV-${new Date().getFullYear()}-${String(invoices.length + 1).padStart(3, '0')}`,
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-        amount: `$${amount}.00`,
-        status: 'PAID'
-      };
+  const handleCheckoutConfirm = async () => {
+    if (!selectedPlan) return;
 
-      setInvoices(prev => [newInvoice, ...prev]);
-      setIsProcessing(null);
-      setCurrentPlan(selectedPlanForUpgrade.name);
+    if (!newCard.number.trim() || !newCard.expiry.trim() || !newCard.cvc.trim()) {
+      showToast('Please fill in card details', 'error');
+      return;
+    }
+
+    const { id, name } = selectedPlan;
+
+    try {
+      setIsProcessing(id);
+      
+      // TODO: Integrate real payment gateway (VNPay, Stripe) here
+      // For now, subscribe directly
+      const sub = await mySubscribe(id);
+      setBackendSubscription(sub);
+      setCurrentPlan(name);
       setIsUpgradeModalOpen(false);
       setUpgradeStep('selection');
-      showToast(t('billing.upgrade_success').replace('{plan}', selectedPlanForUpgrade.name), 'success');
-      
-      // Clear navigation state
+      setSelectedPlan(null);
+      setNewCard({ number: '', expiry: '', cvc: '', name: '' });
+      showToast(t('billing.upgrade_success').replace('{plan}', name), 'success');
       navigate(location.pathname, { replace: true, state: {} });
-    }, 2000);
+    } catch (err: any) {
+      showToast(err.message || 'Subscription failed', 'error');
+    } finally {
+      setIsProcessing(null);
+    }
   };
 
   const handleDownloadInvoice = (invoiceId: string) => {
@@ -178,19 +177,279 @@ export default function Billing() {
   };
 
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [pushAlerts, setPushAlerts] = useState(false);
 
-  if (role === 'admin') {
+  const planPrice = billingCycle === 'yearly' 
+    ? Math.floor((selectedPlan?.price ?? 0) * 0.8 * 100) / 100 
+    : (selectedPlan?.price ?? 0);
+  const planPriceDisplay = planPrice.toFixed(2);
+
+  const renderCheckout = () => (
+    <div className="max-w-lg mx-auto space-y-6 py-2 animate-in slide-in-from-right-4 duration-300">
+      {/* Order Summary */}
+      <div className="bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)] p-5 space-y-3">
+        <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.order_summary') || 'Order Summary'}</h5>
+        <div className="flex justify-between text-sm">
+          <span className="text-[#a1a4a5]">{selectedPlan?.name} Plan ({billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')})</span>
+          <span className="font-bold text-[#f0f0f0]">${planPriceDisplay}</span>
+        </div>
+        <div className="border-t border-[rgba(255,255,255,0.1)] pt-3 flex justify-between text-sm">
+          <span className="font-black text-[#f0f0f0]">{t('billing.total_due') || 'Total due'}</span>
+          <span className="font-black text-[#f0f0f0]">${planPriceDisplay}</span>
+        </div>
+        <button 
+          onClick={() => setUpgradeStep('selection')}
+          className="text-[10px] font-bold text-[#3b9eff] hover:underline"
+        >
+          ← {t('common.change')}
+        </button>
+      </div>
+
+      {/* Payment Method */}
+      <div className="space-y-3">
+        <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.payment_method') || 'Payment method'}</h5>
+        
+        <div className="bg-[rgba(255,255,255,0.02)] rounded-[12px] border border-[rgba(255,255,255,0.3)] p-4 space-y-3">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-[#a1a4a5] uppercase tracking-wider">Card Number</label>
+            <input
+              type="text"
+              placeholder="1234 5678 9012 3456"
+              value={newCard.number}
+              onChange={(e) => setNewCard(p => ({ ...p, number: e.target.value }))}
+              maxLength={19}
+              className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-[#a1a4a5] uppercase tracking-wider">Expiry</label>
+              <input
+                type="text"
+                placeholder="MM/YY"
+                value={newCard.expiry}
+                onChange={(e) => setNewCard(p => ({ ...p, expiry: e.target.value }))}
+                maxLength={5}
+                className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-[#a1a4a5] uppercase tracking-wider">CVC</label>
+              <input
+                type="text"
+                placeholder="123"
+                value={newCard.cvc}
+                onChange={(e) => setNewCard(p => ({ ...p, cvc: e.target.value }))}
+                maxLength={4}
+                className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-[#a1a4a5] uppercase tracking-wider">Cardholder Name</label>
+            <input
+              type="text"
+              placeholder="John Doe"
+              value={newCard.name}
+              onChange={(e) => setNewCard(p => ({ ...p, name: e.target.value }))}
+              className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Billing Address */}
+      <div className="space-y-3">
+        <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.details.address') || 'Billing address'}</h5>
+        <div className="space-y-2">
+          <input
+            type="text"
+            placeholder="Address line 1"
+            value={billingAddress.line1}
+            onChange={(e) => setBillingAddress(p => ({ ...p, line1: e.target.value }))}
+            className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
+          />
+          <input
+            type="text"
+            placeholder="Address line 2 (optional)"
+            value={billingAddress.line2}
+            onChange={(e) => setBillingAddress(p => ({ ...p, line2: e.target.value }))}
+            className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="text"
+              placeholder="City"
+              value={billingAddress.city}
+              onChange={(e) => setBillingAddress(p => ({ ...p, city: e.target.value }))}
+              className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
+            />
+            <select
+              value={billingAddress.country}
+              onChange={(e) => setBillingAddress(p => ({ ...p, country: e.target.value }))}
+              className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary appearance-none"
+            >
+              <option value="US" className="bg-[#000000]">United States</option>
+              <option value="VN" className="bg-[#000000]">Vietnam</option>
+              <option value="GB" className="bg-[#000000]">United Kingdom</option>
+              <option value="CA" className="bg-[#000000]">Canada</option>
+              <option value="AU" className="bg-[#000000]">Australia</option>
+            </select>
+          </div>
+          <input
+            type="text"
+            placeholder="ZIP / Postal code"
+            value={billingAddress.zip}
+            onChange={(e) => setBillingAddress(p => ({ ...p, zip: e.target.value }))}
+            className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
+          />
+        </div>
+      </div>
+
+      {/* Subscribe Button */}
+      <button 
+        onClick={handleCheckoutConfirm}
+        disabled={isProcessing !== null}
+        className="w-full py-4 bg-[#ffffff] text-[#000000] rounded-[16px] font-black shadow-xl shadow-primary/20 hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isProcessing ? (
+          <><Loader2 size={20} className="animate-spin" />{t('common.processing')}</>
+        ) : (
+          <><ShieldCheck size={20} />{t('billing.pay_now') || 'Subscribe'}</>
+        )}
+      </button>
+      <p className="text-[10px] text-center text-[#a1a4a5] leading-relaxed -mt-4">
+        {t('billing.secure_note') || 'Your payment info is encrypted and secure. You can cancel anytime.'}
+      </p>
+    </div>
+  );
+
+  const renderPlansGrid = () => {
+    if (loadingPlans) {
+      return (
+        <div className="col-span-full flex justify-center py-12">
+          <Loader2 size={32} className="animate-spin text-[#a1a4a5]" />
+        </div>
+      );
+    }
+    if (backendPlans.length === 0) {
+      // Show fallback message with static plans if backend unavailable
+      return (
+        <div className="col-span-full space-y-6">
+          <div className="text-center py-4 text-[#a1a4a5] text-sm">
+            {loadingPlans ? 'Loading plans...' : (t('billing.no_plans') || 'Backend unavailable, showing default plans')}
+          </div>
+          {!loadingPlans && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                { id: 'free', name: 'Free', price: 0 },
+                { id: 'plus', name: 'Plus', price: 19 },
+                { id: 'pro', name: 'Pro', price: 49 },
+              ].map((plan) => {
+                const displayPrice = billingCycle === 'yearly' ? Math.floor(plan.price * 0.8) : plan.price;
+                const isActive = plan.name === currentPlan;
+                return (
+                  <div key={plan.id} className={cn(
+                    "relative p-6 rounded-[16px] transition-all",
+                    isActive ? "bg-[rgba(59,158,255,0.05)]" : "bg-[#000000]"
+                  )}>
+                    <h4 className="text-lg font-black text-[#f0f0f0]">{plan.name}</h4>
+                    <div className="mt-4 flex items-baseline gap-1">
+                      <span className="text-3xl font-black text-[#f0f0f0]">${displayPrice}</span>
+                      <span className="text-sm font-medium text-[#a1a4a5]">/mo</span>
+                    </div>
+                    <p className="text-xs text-[#a1a4a5] mt-2">{t('billing.plans.billed')} {billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')}</p>
+                    <button 
+                      onClick={() => !isActive && handleSelectPlan(plan.id, plan.name, plan.price)}
+                      disabled={isActive}
+                      className={cn(
+                        "w-full mt-6 py-3 rounded-[16px] font-black text-sm transition-all",
+                        isActive ? "bg-[rgba(255,255,255,0.05)] text-[#a1a4a5] cursor-not-allowed" : "bg-[#ffffff] text-[#000000] shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0]"
+                      )}
+                    >
+                      {isActive ? t('billing.plans.current') : t('billing.plans.select')}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+    return backendPlans.map((plan) => {
+      const price = backendPlanPrices.find(p => p.planId === plan.id);
+      const monthlyPrice = price ? (price.amountCents / 100).toFixed(0) : '--';
+      const yearlyPrice = price ? ((price.amountCents / 100) * 0.8).toFixed(0) : '--';
+      const displayPrice = billingCycle === 'yearly' ? yearlyPrice : monthlyPrice;
+      const isActive = backendSubscription?.planId === plan.id || plan.name === currentPlan;
+
+      return (
+        <div 
+          key={plan.id}
+          className={cn(
+            "relative p-6 rounded-[16px] transition-all group",
+            isActive
+              ? "bg-[rgba(59,158,255,0.05)]" 
+              : "bg-[#000000] hover:shadow-xl"
+          )}
+        >
+          <h4 className="text-lg font-black text-[#f0f0f0]">{plan.name}</h4>
+          <div className="mt-4 flex items-baseline gap-1">
+            <span className="text-3xl font-black text-[#f0f0f0]">
+              ${displayPrice}
+            </span>
+            <span className="text-sm font-medium text-[#a1a4a5]">/mo</span>
+          </div>
+          <p className="text-xs text-[#a1a4a5] mt-2">{t('billing.plans.billed')} {billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')}</p>
+
+          <button 
+            onClick={() => handleSelectPlan(plan.id, plan.name, price ? (price.amountCents / 100) : 0)}
+            disabled={isProcessing !== null || isActive}
+            className={cn(
+              "w-full mt-6 py-3 rounded-[16px] font-black text-sm transition-all flex items-center justify-center gap-2",
+              isActive 
+                ? "bg-[rgba(255,255,255,0.05)] text-[#a1a4a5] cursor-not-allowed" 
+                : "bg-[#ffffff] text-[#000000] shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0]"
+            )}
+          >
+            {isProcessing === plan.id ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : isActive ? t('billing.plans.current') : t('billing.plans.select')}
+          </button>
+
+          {plan.description && (
+            <div className="mt-8 space-y-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-[#a1a4a5]">{t('billing.plans.features')}</p>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                <span className="text-xs text-[#a1a4a5] font-medium">{plan.description}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
+
+  if (role === 'ADMIN') {
     return (
+      <>
       <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-[24px] font-display font-medium tracking-tight tracking-tight text-[#f0f0f0]">{t('billing.title')}</h2>
           </div>
-          <button className="px-4 py-2 bg-[#ffffff] text-[#000000] rounded-md text-sm font-bold shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all">
-            {t('billing.create_plan')}
-          </button>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setIsUpgradeModalOpen(true)}
+              className="px-4 py-2 bg-[#ffffff] text-[#000000] rounded-[12px] text-sm font-bold shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all"
+            >
+              {t('billing.upgrade')}
+            </button>
+            <button className="px-4 py-2 bg-[#000000] text-[#f0f0f0] border border-[rgba(255,255,255,0.3)] rounded-md text-sm font-bold shadow-md shadow-black/40 hover:bg-[rgba(255,255,255,0.02)] transition-all">
+              {t('billing.create_plan')}
+            </button>
+          </div>
         </div>
 
         {/* Admin Stats */}
@@ -201,9 +460,9 @@ export default function Billing() {
               <h3 className="font-bold text-sm">{t('billing.mrr')}</h3>
             </div>
             <div className="flex items-end gap-3">
-              <p className="text-3xl font-black text-[#f0f0f0]">$12,450</p>
+              <p className="text-3xl font-black text-[#f0f0f0]">$0</p>
               <span className="flex items-center text-emerald-500 text-sm font-bold mb-1">
-                <TrendingUp size={16} className="mr-1" /> +14%
+                <TrendingUp size={16} className="mr-1" /> --
               </span>
             </div>
           </div>
@@ -213,9 +472,9 @@ export default function Billing() {
               <h3 className="font-bold text-sm">{t('billing.active_subs')}</h3>
             </div>
             <div className="flex items-end gap-3">
-              <p className="text-3xl font-black text-[#f0f0f0]">842</p>
+              <p className="text-3xl font-black text-[#f0f0f0]">0</p>
               <span className="flex items-center text-emerald-500 text-sm font-bold mb-1">
-                <TrendingUp size={16} className="mr-1" /> +5%
+                <TrendingUp size={16} className="mr-1" /> --
               </span>
             </div>
           </div>
@@ -225,9 +484,9 @@ export default function Billing() {
               <h3 className="font-bold text-sm">{t('billing.failed_payments')}</h3>
             </div>
             <div className="flex items-end gap-3">
-              <p className="text-3xl font-black text-[#f0f0f0]">12</p>
+              <p className="text-3xl font-black text-[#f0f0f0]">0</p>
               <span className="flex items-center text-[#ff0000] text-sm font-bold mb-1">
-                <TrendingUp size={16} className="mr-1" /> +2%
+                <TrendingUp size={16} className="mr-1" /> --
               </span>
             </div>
           </div>
@@ -252,31 +511,116 @@ export default function Billing() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[rgba(255,255,255,0.3)]">
-                {adminSubscriptions.map((sub, idx) => (
-                  <tr key={idx} className="hover:bg-[rgba(255,255,255,0.02)]/50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-bold text-[#f0f0f0]">{sub.user}</td>
-                    <td className="px-6 py-4 text-sm text-[#a1a4a5]">{sub.plan}</td>
-                    <td className="px-6 py-4 text-sm text-[#f0f0f0] font-black">{sub.amount}</td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "inline-flex items-center gap-1 px-0 py-0.5 text-xs font-black uppercase tracking-wider",
-                        sub.status === 'Active' ? "text-emerald-500" : 
-                        sub.status === 'Past Due' ? "text-amber-500" : "text-[#a1a4a5]"
-                      )}>
-                        {sub.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-[#a1a4a5]">{sub.date}</td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-xs font-bold text-[#3b9eff] hover:underline">{t('billing.manage')}</button>
-                    </td>
-                  </tr>
-                ))}
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <History size={24} className="text-[#a1a4a5]" />
+                      <p className="text-sm text-[#a1a4a5] font-medium">{t('billing.no_data') || 'No subscriptions yet'}</p>
+                    </div>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
         </div>
       </div>
+
+      {/* Upgrade Modal */}
+      {isUpgradeModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-4 sm:p-8 border-b border-[rgba(255,255,255,0.3)] sticky top-0 bg-[#000000] z-10">
+              <div>
+                <h3 className="text-2xl font-black text-[#f0f0f0]">{t('billing.upgrade')}</h3>
+              </div>
+              <button 
+                onClick={() => { setIsUpgradeModalOpen(false); setUpgradeStep('selection'); setSelectedPlan(null); }}
+                className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-[16px] transition-colors"
+              >
+                <X size={24} className="text-[#a1a4a5]" />
+              </button>
+            </div>
+            <div className="p-4 sm:p-8">
+              {upgradeStep === 'selection' ? (
+                <div>
+                  <div className="flex justify-center mb-10">
+                    <div className="flex items-center gap-1 bg-[rgba(255,255,255,0.05)] p-1 rounded-[16px] border border-[rgba(255,255,255,0.3)]">
+                      <button 
+                        onClick={() => setBillingCycle('monthly')}
+                        className={cn(
+                          "px-6 py-2 text-xs font-black rounded-[12px] transition-all",
+                          billingCycle === 'monthly' ? "bg-[#000000] text-[#f0f0f0] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#f0f0f0]"
+                        )}
+                      >
+                        {t('billing.plans.monthly')}
+                      </button>
+                      <button 
+                        onClick={() => setBillingCycle('yearly')}
+                        className={cn(
+                          "px-6 py-2 text-xs font-black rounded-[12px] transition-all flex items-center gap-2",
+                          billingCycle === 'yearly' ? "bg-[#000000] text-[#f0f0f0] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#f0f0f0]"
+                        )}
+                      >
+                        {t('billing.plans.yearly')}
+                        <span className="text-[#ff0000]">{t('billing.plans.save_20')}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {renderPlansGrid()}
+                  </div>
+                </div>
+              ) : (
+                <div className="max-w-md mx-auto space-y-8 py-4 animate-in slide-in-from-right-4 duration-300">
+                  <div className="flex items-center gap-4 p-4 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)]">
+                    <div className="w-12 h-12 rounded-[16px] bg-[rgba(59,158,255,0.1)] flex items-center justify-center text-[#3b9eff]">
+                      <Zap size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-black text-[#f0f0f0]">{selectedPlan?.name} Plan</h4>
+                      <p className="text-xs text-[#a1a4a5]">{billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')} billing</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-black text-[#f0f0f0]">
+                        ${billingCycle === 'yearly' ? Math.floor((selectedPlan?.price ?? 0) * 0.8).toFixed(0) : (selectedPlan?.price ?? 0).toFixed(0)}
+                      </p>
+                      <button 
+                        onClick={() => setUpgradeStep('selection')}
+                        className="text-[10px] font-bold text-[#3b9eff] hover:underline"
+                      >
+                        {t('common.change')}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={handleCheckoutConfirm}
+                    disabled={isProcessing !== null}
+                    className="w-full py-4 bg-[#ffffff] text-[#000000] rounded-[16px] font-black shadow-xl shadow-primary/20 hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isProcessing ? (
+                      <><Loader2 size={20} className="animate-spin" />{t('common.processing')}</>
+                    ) : (
+                      <><ShieldCheck size={20} />{t('billing.pay_now') || 'Confirm & Subscribe'}</>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="p-6 bg-[rgba(255,255,255,0.02)] border-t border-[rgba(255,255,255,0.3)] flex items-center justify-center gap-8">
+              <div className="flex items-center gap-2 text-[#a1a4a5]">
+                <ShieldCheck size={18} />
+                <span className="text-xs font-bold">{t('billing.secure_ssl')}</span>
+              </div>
+              <div className="flex items-center gap-2 text-[#a1a4a5]">
+                <CreditCard size={18} />
+                <span className="text-xs font-bold">{t('billing.cancel_anytime')}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
     );
   }
 
@@ -289,12 +633,6 @@ export default function Billing() {
             <h2 className="text-[24px] font-display font-medium tracking-tight tracking-tight text-[#f0f0f0]">{t('billing.title')}</h2>
           </div>
           <div className="flex gap-3">
-            <button 
-              onClick={() => setIsPaymentModalOpen(true)}
-              className="px-4 py-2 bg-[#000000] text-[#f0f0f0] border border-[rgba(255,255,255,0.3)] rounded-[12px] text-sm font-bold shadow-md shadow-black/40 hover:bg-[rgba(255,255,255,0.02)] transition-all font-sans"
-            >
-              {t('billing.payment_methods.add')}
-            </button>
             <button 
               onClick={() => setIsUpgradeModalOpen(true)}
               className="px-4 py-2 bg-[#ffffff] text-[#000000] rounded-[12px] text-sm font-bold shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all"
@@ -322,42 +660,23 @@ export default function Billing() {
                           </h3>
                         </div>
                         <p className="text-sm text-[#a1a4a5] mt-1">
-                          {currentPlan === 'Free' ? t('billing.free_forever') : `${t('billing.billed_monthly')} • ${t('billing.next_renewal')} July 1, 2024`}
+                          {currentPlan === 'Free' ? t('billing.free_forever') : `${t('billing.billed_monthly')}`}
                         </p>
                       </div>
                     </div>
                     <div className="text-left sm:text-right">
                       <p className="text-3xl font-black text-[#f0f0f0]">
-                        ${currentPlan === 'Free' ? '0' : currentPlan === 'Plus' ? '19' : '49'}
-                        <span className="text-sm font-medium text-[#a1a4a5]">/mo</span>
+                        {loadingSub ? (
+                          <Loader2 size={24} className="animate-spin inline" />
+                        ) : backendSubscription ? (
+                          <>${((backendPlanPrices.find(p => p.planId === backendSubscription.planId)?.amountCents ?? 0) / 100).toFixed(0)}<span className="text-sm font-medium text-[#a1a4a5]">/mo</span></>
+                        ) : (
+                          <>{currentPlan === 'Free' ? '$0' : '--'}<span className="text-sm font-medium text-[#a1a4a5]">/mo</span></>
+                        )}
                       </p>
-                      {currentPlan !== 'Free' && (
+                      {backendSubscription && (
                         <button className="text-xs font-bold text-[#ff0000] hover:underline mt-1">{t('billing.cancel')}</button>
                       )}
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 sm:p-8 grid grid-cols-1 sm:grid-cols-2 gap-8">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-[#f0f0f0]">{t('billing.usage.messages')}</span>
-                        <span className="text-xs font-black text-[#f0f0f0]">8,420 / 10,000</span>
-                      </div>
-                      <div className="h-2 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
-                        <div className="h-full bg-primary rounded-full" style={{ width: '84.2%' }}></div>
-                      </div>
-                      <p className="text-[10px] text-[#a1a4a5] font-medium">{t('billing.usage.reset')} 12 days</p>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-[#f0f0f0]">{t('billing.usage.storage')}</span>
-                        <span className="text-xs font-black text-[#f0f0f0]">1.2 GB / 5 GB</span>
-                      </div>
-                      <div className="h-2 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: '24%' }}></div>
-                      </div>
-                      <p className="text-[10px] text-[#a1a4a5] font-medium">24% {t('billing.usage.capacity')}</p>
                     </div>
                   </div>
                 </div>
@@ -433,7 +752,7 @@ export default function Billing() {
                   <h3 className="text-2xl font-black text-[#f0f0f0]">{t('billing.upgrade')}</h3>
                 </div>
                 <button 
-                  onClick={() => setIsUpgradeModalOpen(false)}
+                  onClick={() => { setIsUpgradeModalOpen(false); setUpgradeStep('selection'); setSelectedPlan(null); }}
                   className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-[16px] transition-colors"
                 >
                   <X size={24} className="text-[#a1a4a5]" />
@@ -442,8 +761,8 @@ export default function Billing() {
 
               <div className="p-4 sm:p-8">
                 {upgradeStep === 'selection' ? (
-                  <>
-                    {/* ... (Billing Cycle Switcher and Plans Grid) */}
+                  <div>
+                    {/* Billing Cycle Switcher */}
                     <div className="flex justify-center mb-10">
                       <div className="flex items-center gap-1 bg-[rgba(255,255,255,0.05)] p-1 rounded-[16px] border border-[rgba(255,255,255,0.3)]">
                         <button 
@@ -469,183 +788,13 @@ export default function Billing() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {availablePlans.map((plan) => (
-                        <div 
-                          key={plan.id}
-                          className={cn(
-                            "relative p-6 rounded-[16px] border-2 transition-all group hover:shadow-xl",
-                            (location.state?.selectedPlanId === plan.id || (!location.state?.selectedPlanId && plan.id === 'plus')) 
-                              ? "border border-primary bg-[rgba(59,158,255,0.05)]" 
-                              : "border border-[rgba(255,255,255,0.3)] hover:border-[rgba(255,255,255,0.3)] bg-[#000000]"
-                          )}
-                        >
-                          {(location.state?.selectedPlanId === plan.id || (!location.state?.selectedPlanId && plan.id === 'plus')) && (
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#ffffff] text-[#000000] text-[10px] font-black uppercase tracking-widest rounded-full shadow-md shadow-black/40">
-                              {plan.id === 'plus' ? t('billing.plans.popular') : t('billing.plans.selected')}
-                            </div>
-                          )}
-                          <h4 className="text-lg font-black text-[#f0f0f0]">{t(`billing.plans.${plan.id}`)}</h4>
-                          <div className="mt-4 flex items-baseline gap-1">
-                            <span className="text-3xl font-black text-[#f0f0f0]">
-                              ${billingCycle === 'yearly' ? Math.floor(plan.price * 0.8) : plan.price}
-                            </span>
-                            <span className="text-sm font-medium text-[#a1a4a5]">/mo</span>
-                          </div>
-                          <p className="text-xs text-[#a1a4a5] mt-2">{t('billing.plans.billed')} {billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')}</p>
-
-                          <button 
-                            onClick={() => handleSelectPlan(plan.id, plan.name)}
-                            disabled={isProcessing !== null || (plan.name === currentPlan)}
-                            className={cn(
-                              "w-full mt-6 py-3 rounded-[16px] font-black text-sm transition-all flex items-center justify-center gap-2",
-                              plan.id === 'plus' 
-                                ? "bg-[#ffffff] text-[#000000] shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0]" 
-                                : "bg-[rgba(255,255,255,0.05)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.05)]",
-                              (plan.name === currentPlan) && "opacity-50 cursor-default"
-                            )}
-                          >
-                            {plan.name === currentPlan ? t('billing.plans.current') : t('billing.plans.select')}
-                          </button>
-
-                          <div className="mt-8 space-y-4">
-                            <p className="text-[10px] font-black uppercase tracking-wider text-[#a1a4a5]">{t('billing.plans.features')}</p>
-                            {plan.features.map((feature, i) => (
-                              <div key={i} className="flex items-start gap-3">
-                                <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                                <span className="text-xs text-[#a1a4a5] font-medium">{t(feature)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                      {renderPlansGrid()}
                     </div>
-                  </>
-                ) : (
-                  <div className="max-w-md mx-auto space-y-8 py-4 animate-in slide-in-from-right-4 duration-300">
-                    <div className="flex items-center gap-4 p-4 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)]">
-                      <div className="w-12 h-12 rounded-[16px] bg-[rgba(59,158,255,0.1)] flex items-center justify-center text-[#3b9eff]">
-                        <Zap size={24} />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-black text-[#f0f0f0]">
-                          {language === 'vi' 
-                            ? (selectedPlanForUpgrade?.name === 'Free' ? 'Gói Miễn phí' : `Gói ${selectedPlanForUpgrade?.name}`)
-                            : `${selectedPlanForUpgrade?.name} Plan`}
-                        </h4>
-                        <p className="text-xs text-[#a1a4a5]">{billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')} billing</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-black text-[#f0f0f0]">
-                          ${billingCycle === 'yearly' ? Math.floor(selectedPlanForUpgrade?.price * 0.8) : selectedPlanForUpgrade?.price}
-                        </p>
-                        <button 
-                          onClick={() => setUpgradeStep('selection')}
-                          className="text-[10px] font-bold text-[#3b9eff] hover:underline"
-                        >
-                          {t('common.change')}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.payment_methods')}</h5>
-                      
-                      {paymentMethodsList.length > 0 ? (
-                        <div className="space-y-3">
-                          {paymentMethodsList.map((method) => (
-                            <button
-                              key={method.id}
-                              onClick={() => setSelectedPaymentMethodId(method.id)}
-                              className={cn(
-                                "w-full flex items-center gap-4 p-4 rounded-[16px] border-2 transition-all text-left",
-                                selectedPaymentMethodId === method.id 
-                                  ? "border border-primary bg-[rgba(59,158,255,0.05)]" 
-                                  : "border border-[rgba(255,255,255,0.3)] bg-[#000000] hover:border-[rgba(255,255,255,0.3)]"
-                              )}
-                            >
-                              <div className="w-10 h-10 rounded-[12px] bg-[rgba(255,255,255,0.05)] flex items-center justify-center text-[#a1a4a5]">
-                                <CreditCard size={20} />
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-sm font-bold text-[#f0f0f0]">•••• •••• •••• {method.last4}</p>
-                                <p className="text-[10px] text-[#a1a4a5]">{t('billing.payment_methods.expires')} {method.expiry}</p>
-                              </div>
-                              {selectedPaymentMethodId === method.id && (
-                                <CheckCircle2 size={20} className="text-[#3b9eff]" />
-                              )}
-                            </button>
-                          ))}
-                          <button 
-                            onClick={() => {
-                              setIsUpgradeModalOpen(false);
-                              setIsPaymentModalOpen(true);
-                            }}
-                            className="w-full py-3 border-2 border-dashed border border-[rgba(255,255,255,0.3)] rounded-[16px] text-[#a1a4a5] text-xs font-bold hover:border-primary hover:text-[#3b9eff] transition-all flex items-center justify-center gap-2"
-                          >
-                            <Plus size={16} />
-                            {t('billing.payment_methods.add')}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="p-8 border-2 border-dashed border border-[rgba(255,255,255,0.3)] rounded-[16px] text-center space-y-4">
-                          <div className="w-12 h-12 rounded-full bg-[rgba(255,255,255,0.05)] flex items-center justify-center text-[#a1a4a5] mx-auto">
-                            <CreditCard size={24} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-[#f0f0f0]">{t('billing.no_payment_methods')}</p>
-                          </div>
-                          <button 
-                            onClick={() => {
-                              setIsUpgradeModalOpen(false);
-                              setIsPaymentModalOpen(true);
-                            }}
-                            className="px-6 py-2 bg-[#ffffff] text-[#000000] rounded-[16px] text-xs font-black shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all"
-                          >
-                            {t('billing.payment_methods.add')}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-4">
-                      <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.details.address')}</h5>
-                      <div className="p-4 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)] flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-[12px] bg-[#000000] flex items-center justify-center text-[#a1a4a5] border border-[rgba(255,255,255,0.3)]">
-                          <MapPin size={20} />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-bold text-[#f0f0f0]">Alex Rivet</p>
-                          <p className="text-xs text-[#a1a4a5] mt-0.5">123 Innovation Drive, Suite 400</p>
-                          <p className="text-xs text-[#a1a4a5]">San Francisco, CA 94103, USA</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button 
-                      onClick={handleConfirmPayment}
-                      disabled={isProcessing !== null || !selectedPaymentMethodId}
-                      className="w-full py-4 bg-[#ffffff] text-[#000000] rounded-[16px] font-black shadow-xl shadow-primary/20 hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 size={20} className="animate-spin" />
-                          {t('common.processing')}
-                        </>
-                      ) : (
-                        <>
-                          <ShieldCheck size={20} />
-                          {t('billing.pay_now')}
-                        </>
-                      )}
-                    </button>
-
-                    <p className="text-[10px] text-center text-[#a1a4a5] leading-relaxed">
-                      By clicking "Pay Now", you agree to our Terms of Service and authorize us to charge your payment method on a recurring basis.
-                    </p>
                   </div>
+                ) : (
+                  renderCheckout()
                 )}
               </div>
-
               <div className="p-6 bg-[rgba(255,255,255,0.02)] border-t border-[rgba(255,255,255,0.3)] flex items-center justify-center gap-8">
                 <div className="flex items-center gap-2 text-[#a1a4a5]">
                   <ShieldCheck size={18} />
@@ -655,69 +804,6 @@ export default function Billing() {
                   <CreditCard size={18} />
                   <span className="text-xs font-bold">{t('billing.cancel_anytime')}</span>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Payment Method Modal */}
-        {isPaymentModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.3)]">
-                <h3 className="text-lg font-bold text-[#f0f0f0]">{t('billing.payment_methods.add')}</h3>
-                <button onClick={() => setIsPaymentModalOpen(false)} className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-[12px]">
-                  <X size={20} className="text-[#a1a4a5]" />
-                </button>
-              </div>
-              <div className="p-6 space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-[#f0f0f0]">{t('billing.payment_methods.cardholder_name')}</label>
-                    <input type="text" placeholder="John Doe" className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] px-4 py-2.5 outline-none rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-[#f0f0f0]">{t('billing.payment_methods.card_number')}</label>
-                    <div className="relative">
-                      <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={18} />
-                      <input type="text" placeholder="•••• •••• •••• ••••" className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] pl-10 pr-4 py-2.5 outline-none rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-[#f0f0f0]">{t('billing.payment_methods.expiry')}</label>
-                      <input type="text" placeholder="MM / YY" className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] px-4 py-2.5 outline-none rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-[#f0f0f0]">{t('billing.payment_methods.cvc')}</label>
-                      <input type="text" placeholder="•••" className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] px-4 py-2.5 outline-none rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-[#f0f0f0]">{t('billing.payment_methods.billing_address')}</label>
-                    <input type="text" placeholder="123 AI Street, San Francisco, CA" className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] px-4 py-2.5 outline-none rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40" />
-                  </div>
-                </div>
-              </div>
-              <div className="p-6 bg-[rgba(255,255,255,0.02)] border-t border-[rgba(255,255,255,0.3)] flex justify-end gap-3">
-                <button onClick={() => setIsPaymentModalOpen(false)} className="px-4 py-2 text-sm font-bold text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.05)] rounded-md transition-colors">{t('common.cancel')}</button>
-                <button 
-                  onClick={() => {
-                    const newMethod = {
-                      id: `pm_${Date.now()}`,
-                      type: 'Visa',
-                      last4: '1234',
-                      exp: '12/28',
-                      isPrimary: paymentMethodsList.length === 0
-                    };
-                    setPaymentMethodsList([...paymentMethodsList, newMethod]);
-                    setIsPaymentModalOpen(false);
-                    showToast(t('billing.payment_methods.add_success'), 'success');
-                  }}
-                  className="px-6 py-2 bg-[#ffffff] text-[#000000] text-sm font-bold rounded-md shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all"
-                >
-                  {t('common.save')}
-                </button>
               </div>
             </div>
           </div>

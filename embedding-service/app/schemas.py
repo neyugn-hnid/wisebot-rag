@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CreateCollectionRequest(BaseModel):
@@ -66,6 +66,9 @@ class EmbedChunkRequest(BaseModel):
 
 
 class EmbedRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    tenant_id: UUID = Field(alias="tenantId")
     knowledge_base_id: UUID = Field(alias="knowledgeBaseId")
     document_id: UUID = Field(alias="documentId")
     document_name: str | None = Field(default=None, alias="documentName")
@@ -73,6 +76,8 @@ class EmbedRequest(BaseModel):
 
 
 class EmbedResultResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     index: int
     embedding_id: str = Field(alias="embeddingId")
 

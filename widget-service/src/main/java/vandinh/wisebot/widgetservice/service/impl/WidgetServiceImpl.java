@@ -1,15 +1,20 @@
 package vandinh.wisebot.widgetservice.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vandinh.wisebot.widgetservice.dto.WidgetAppearanceConfig;
 import vandinh.wisebot.widgetservice.dto.request.AddDomainRequest;
 import vandinh.wisebot.widgetservice.dto.request.CreateApiKeyRequest;
 import vandinh.wisebot.widgetservice.dto.request.CreateWidgetSessionRequest;
 import vandinh.wisebot.widgetservice.dto.request.CreateWidgetRequest;
 import vandinh.wisebot.widgetservice.dto.request.TrackEventRequest;
+import vandinh.wisebot.widgetservice.dto.request.UpdateWidgetRequest;
 import vandinh.wisebot.widgetservice.dto.response.ApiKeyResponse;
 import vandinh.wisebot.widgetservice.dto.response.DomainResponse;
+import vandinh.wisebot.widgetservice.dto.response.PublicWidgetResponse;
 import vandinh.wisebot.widgetservice.dto.response.WidgetEventResponse;
 import vandinh.wisebot.widgetservice.dto.response.WidgetResponse;
 import vandinh.wisebot.widgetservice.dto.response.WidgetSessionResponse;
@@ -39,6 +44,7 @@ public class WidgetServiceImpl implements WidgetService {
     private final WidgetAllowedDomainRepository domainRepository;
     private final WidgetApiKeyRepository apiKeyRepository;
     private final WidgetSessionRepository sessionRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -49,11 +55,52 @@ public class WidgetServiceImpl implements WidgetService {
                 .code(request.getCode())
                 .status("ACTIVE")
                 .welcomeMessage(request.getWelcomeMessage())
-                .publicConfig("{}")
+                .publicConfig(writeAppearanceConfig(request.getAppearanceConfig()))
                 .privateConfig("{}")
                 .createdBy(request.getCreatedBy())
                 .build();
         return mapWidget(widgetRepository.save(widget));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WidgetResponse updateWidget(UUID widgetId, UpdateWidgetRequest request) {
+        Widget widget = widgetRepository.findById(widgetId)
+                .orElseThrow(() -> new ResourceNotFoundException("Widget not found: " + widgetId));
+
+        widget.setName(request.getName());
+        widget.setWelcomeMessage(request.getWelcomeMessage());
+        widget.setPublicConfig(writeAppearanceConfig(request.getAppearanceConfig()));
+
+        return mapWidget(widgetRepository.save(widget));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PublicWidgetResponse getPublicWidgetByCode(String code) {
+        Widget widget = findWidgetByCode(code);
+        return PublicWidgetResponse.builder()
+                .id(widget.getId())
+                .tenantId(widget.getTenantId())
+                .code(widget.getCode())
+                .name(widget.getName())
+                .welcomeMessage(widget.getWelcomeMessage())
+                .appearanceConfig(readAppearanceConfig(widget.getPublicConfig()))
+                .build();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WidgetSessionResponse createPublicSession(String code, CreateWidgetSessionRequest request) {
+        Widget widget = findWidgetByCode(code);
+        return createSession(widget.getId(), request);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WidgetEventResponse trackPublicEvent(String code, TrackEventRequest request) {
+        Widget widget = findWidgetByCode(code);
+        return trackEvent(widget.getId(), request);
     }
 
     @Override
@@ -181,8 +228,34 @@ public class WidgetServiceImpl implements WidgetService {
                 .code(widget.getCode())
                 .status(widget.getStatus())
                 .welcomeMessage(widget.getWelcomeMessage())
+                .appearanceConfig(readAppearanceConfig(widget.getPublicConfig()))
                 .createdAt(widget.getCreatedAt())
                 .build();
+    }
+
+    private Widget findWidgetByCode(String code) {
+        return widgetRepository.findByCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException("Widget not found with code: " + code));
+    }
+
+    private String writeAppearanceConfig(WidgetAppearanceConfig appearanceConfig) {
+        try {
+            return objectMapper.writeValueAsString(appearanceConfig == null ? new WidgetAppearanceConfig() : appearanceConfig);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalArgumentException("Unable to serialize widget appearance config", exception);
+        }
+    }
+
+    private WidgetAppearanceConfig readAppearanceConfig(String publicConfig) {
+        if (publicConfig == null || publicConfig.isBlank()) {
+            return new WidgetAppearanceConfig();
+        }
+
+        try {
+            return objectMapper.readValue(publicConfig, WidgetAppearanceConfig.class);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalArgumentException("Unable to deserialize widget appearance config", exception);
+        }
     }
 
     private WidgetEventResponse mapEvent(WidgetEvent event) {

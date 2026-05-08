@@ -1,16 +1,22 @@
 import time
 import uuid
 import json
+import base64
+import hmac
+import hashlib
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
+import httpx
+
+from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 
 from app.config import settings
-from app.db import close_db_pool, get_pool, init_db_pool
-from app.ollama_client import OllamaClient, ensure_dimension, vector_to_literal
+from app.db import close_db_pool, get_pool, init_db_pool, init_qdrant, close_qdrant, get_qdrant
+from app.ollama_client import OllamaClient, ensure_dimension
 from app.schemas import AskRequest, AskResponse, Citation, RagRequestDetail
 from app.security import require_service_auth
 
@@ -25,7 +31,9 @@ ollama_client = OllamaClient(
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db_pool()
+    await init_qdrant()
     yield
+    await close_qdrant()
     await close_db_pool()
 
 
@@ -63,39 +71,86 @@ def _build_prompts(question: str, retrieved_chunks: list[dict]) -> tuple[str, st
     return system_prompt, user_prompt
 
 
-async def _retrieve_context(tenant_id: uuid.UUID, vector_literal: str, top_k: int, collection_id: uuid.UUID) -> list[dict]:
-    pool = await get_pool()
+def _generate_service_token() -> str:
+    now = int(time.time())
+    header = base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}').decode().rstrip("=")
+    payload = base64.urlsafe_b64encode(
+        json.dumps(
+            {
+                "sub": settings.app_name,
+                "iss": settings.service_jwt_issuer,
+                "iat": now,
+                "exp": now + 60,
+            },
+            separators=(",", ":"),
+        ).encode()
+    ).decode().rstrip("=")
+    message = f"{header}.{payload}"
+    signature = hmac.new(
+        settings.service_jwt_secret.encode(),
+        message.encode(),
+        hashlib.sha256,
+    ).digest()
+    signature_b64 = base64.urlsafe_b64encode(signature).decode().rstrip("=")
+    return f"{message}.{signature_b64}"
 
-    sql = """
-        SELECT source_document_id, source_chunk_id, chunk_index, chunk_text,
-               1 - (embedding <=> $3::vector) AS score
-        FROM embedding_service.embeddings
-        WHERE tenant_id=$1 AND collection_id=$2
-          AND 1 - (embedding <=> $3::vector) >= $4
-        ORDER BY embedding <=> $3::vector
-        LIMIT $5
-    """
-    args = [
-        tenant_id,
-        collection_id,
-        vector_literal,
-        settings.min_similarity_score,
-        top_k,
-    ]
 
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(sql, *args)
+async def _retrieve_context(
+    tenant_id: uuid.UUID,
+    question: str,
+    top_k: int,
+    collection_id: uuid.UUID | None,
+    knowledge_base_id: uuid.UUID | None,
+) -> list[dict]:
+    if not collection_id and not knowledge_base_id:
+        raise HTTPException(status_code=400, detail="Either collection_id or knowledge_base_id is required")
 
-    return [
-        {
-            "source_document_id": row["source_document_id"],
-            "source_chunk_id": row["source_chunk_id"],
-            "chunk_index": row["chunk_index"],
-            "chunk_text": row["chunk_text"],
-            "score": float(row["score"]),
-        }
-        for row in rows
-    ]
+    payload: dict[str, Any] = {
+        "tenant_id": str(tenant_id),
+        "query": question,
+        "top_k": top_k,
+    }
+    if collection_id:
+        payload["collection_id"] = str(collection_id)
+    if knowledge_base_id:
+        payload["knowledge_base_id"] = str(knowledge_base_id)
+
+    headers = {
+        "Authorization": f"Bearer {_generate_service_token()}",
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        response = await client.post(
+            f"{settings.embedding_base_url}{settings.embedding_search_path}",
+            json=payload,
+            headers=headers,
+        )
+        response.raise_for_status()
+        body = response.json()
+
+    items = body.get("items")
+    if not isinstance(items, list):
+        return []
+
+    retrieved: list[dict] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        source_document_id = item.get("source_document_id")
+        source_chunk_id = item.get("source_chunk_id")
+        if not source_document_id or not source_chunk_id:
+            continue
+        retrieved.append(
+            {
+                "source_document_id": uuid.UUID(str(source_document_id)),
+                "source_chunk_id": uuid.UUID(str(source_chunk_id)),
+                "chunk_index": int(item.get("chunk_index", 0)),
+                "chunk_text": str(item.get("chunk_text", "")),
+                "score": float(item.get("score", 0.0)),
+            }
+        )
+    return retrieved
 
 
 @app.post("/v1/rag/ask", response_model=AskResponse)
@@ -127,15 +182,12 @@ async def rag_ask(
 
     llm_start = time.perf_counter()
     try:
-        question_vector = await ollama_client.embed(payload.question)
-        question_vector = ensure_dimension(question_vector, settings.embedding_dimension)
-        vector_literal = vector_to_literal(question_vector)
-
         retrieved = await _retrieve_context(
             tenant_id=payload.tenant_id,
-            vector_literal=vector_literal,
+            question=payload.question,
             top_k=payload.top_k,
             collection_id=payload.collection_id,
+            knowledge_base_id=payload.knowledge_base_id,
         )
 
         if not retrieved:
@@ -291,15 +343,12 @@ async def rag_ask_stream(
         final_llm: dict[str, Any] = {}
 
         try:
-            question_vector = await ollama_client.embed(payload.question)
-            question_vector = ensure_dimension(question_vector, settings.embedding_dimension)
-            vector_literal = vector_to_literal(question_vector)
-
             nonlocal_retrieved = await _retrieve_context(
                 tenant_id=payload.tenant_id,
-                vector_literal=vector_literal,
+                question=payload.question,
                 top_k=payload.top_k,
                 collection_id=payload.collection_id,
+                knowledge_base_id=payload.knowledge_base_id,
             )
             retrieved.extend(nonlocal_retrieved)
 
