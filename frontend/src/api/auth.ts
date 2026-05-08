@@ -100,3 +100,52 @@ export async function inviteUser(request: InviteRequest): Promise<{ message: str
   });
   return handleResponse<{ message: string }>(res);
 }
+
+
+export interface VerifyEmailRequest {
+  email: string;
+  otp: string;
+}
+
+export async function verifyEmail(request: VerifyEmailRequest): Promise<{ message: string }> {
+  const res = await fetch(`${AUTH_BASE}/verify-email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<{ message: string }>(res);
+}
+
+export async function resendVerifyEmail(email: string): Promise<{ message: string }> {
+  const res = await fetch(`${AUTH_BASE}/resend-verification?email=${encodeURIComponent(email)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  return handleResponse<{ message: string }>(res);
+}
+
+
+export interface ForgotPasswordRequest {
+  email: string;
+  otp?: string;
+  newPassword?: string;
+  confirmNewPassword?: string;
+}
+
+export async function forgotPassword(request: ForgotPasswordRequest): Promise<{ message: string }> {
+  const res = await fetch(`${AUTH_BASE}/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<{ message: string }>(res);
+}
+
+export async function resetPassword(request: ForgotPasswordRequest): Promise<{ message: string }> {
+  const res = await fetch(`${AUTH_BASE}/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<{ message: string }>(res);
+}

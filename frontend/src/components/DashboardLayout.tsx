@@ -117,7 +117,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex h-screen overflow-hidden bg-[#000000] selection:bg-[#ff801f] selection:text-[#ffffff]">
       {/* Desktop Sidebar */}
       <aside className={cn(
-        "hidden lg:flex border-r border-[rgba(255,255,255,0.3)] bg-[#000000] flex-col shrink-0 overflow-y-auto transition-all duration-300",
+        "hidden lg:flex border-r border-[rgba(255,255,255,0.3)] bg-[#2c2c2e] flex-col shrink-0 overflow-y-auto transition-all duration-300",
         isDesktopSidebarCollapsed ? "w-20" : "w-64"
       )}>
         <SidebarContent 
@@ -146,7 +146,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-72 bg-[#000000] z-[70] lg:hidden flex flex-col shadow-[rgba(176,199,217,0.145)_1px_0px_0px_0px]"
+              className="fixed inset-y-0 left-0 w-72 bg-[#2c2c2e] z-[70] lg:hidden flex flex-col shadow-[rgba(176,199,217,0.145)_1px_0px_0px_0px]"
             >
               <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.3)]">
                 <Logo theme="dark" size="sm" />

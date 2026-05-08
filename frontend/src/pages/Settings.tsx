@@ -28,9 +28,11 @@ import {
   Eye,
   EyeOff,
   Plus,
-  Trash2
+  Trash2,
+  LogOut
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useNavigate } from 'react-router-dom';
 import { useRole } from '../contexts/RoleContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -52,7 +54,8 @@ const loadPaymentMethods = () => {
 import DeleteModal from '../components/DeleteModal';
 
 export default function Settings() {
-  const { role } = useRole();
+  const navigate = useNavigate();
+  const { role, logout } = useRole();
   const { language, setLanguage, t } = useLanguage();
   const { theme, setTheme } = useTheme();
   const { showToast } = useToast();
@@ -107,6 +110,13 @@ export default function Settings() {
               {item.label}
             </button>
           ))}
+          <button
+            onClick={async () => { await logout(); navigate('/login'); }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold rounded-[16px] transition-all text-[#ff0000] hover:bg-[rgba(255,0,0,0.05)]"
+          >
+            <LogOut size={18} />
+            {t('profile.sign_out')}
+          </button>
         </aside>
 
         {/* Settings Content */}

@@ -324,7 +324,7 @@ export default function KnowledgeBase() {
             
             if (context) {
               // @ts-ignore - Handle potential version differences in pdfjs-dist types
-              await page.render({ canvasContext: context, viewport }).promise;
+              await page.render({ canvasContext: context, canvas, viewport }).promise;
               pages.push(canvas.toDataURL());
             }
           }
