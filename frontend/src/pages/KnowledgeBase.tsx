@@ -871,10 +871,10 @@ export default function KnowledgeBase() {
       )}
       {/* Create / Edit Knowledge Base Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.3)]">
-              <h3 className="text-lg font-bold text-[#f0f0f0]">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)]">
+              <h3 className="text-lg font-bold text-[#ffffff]">
                 {formMode === 'create' ? t('kb.modal.create') : t('kb.modal.edit')}
               </h3>
               <button 
@@ -927,10 +927,10 @@ export default function KnowledgeBase() {
 
       {/* Details Modal */}
       {isDetailsModalOpen && selectedUpload && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.3)]">
-              <h3 className="text-lg font-bold text-[#f0f0f0]">{t('common.view_details')}</h3>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)]">
+              <h3 className="text-lg font-bold text-[#ffffff]">{t('common.view_details')}</h3>
               <button 
                 onClick={() => setIsDetailsModalOpen(false)}
                 className="text-[#a1a4a5] hover:text-[#a1a4a5] transition-colors"
@@ -1000,9 +1000,9 @@ export default function KnowledgeBase() {
 
       {/* Preview Modal */}
       {isPreviewModalOpen && previewData && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col h-[90vh]">
-            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.3)] shrink-0">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col h-[90vh]">
+            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)] shrink-0">
               <div>
                 <h3 className="text-lg font-bold text-[#f0f0f0]">{t('kb.preview')}</h3>
                 <p className="text-xs text-[#a1a4a5] mt-0.5">{previewData.name}</p>
@@ -1086,8 +1086,8 @@ export default function KnowledgeBase() {
 
       {/* Confirmation Modal */}
       {confirmModal.isOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 text-center">
               <div className={`size-16 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmModal.type.startsWith('delete') ? 'bg-[#ff0000]/10 text-[#ff0000]' : 'bg-[rgba(59,158,255,0.1)] text-[#3b9eff]'}`}>
                 {confirmModal.type.startsWith('delete') ? <Trash2 size={32} /> : <AlertCircle size={32} />}
