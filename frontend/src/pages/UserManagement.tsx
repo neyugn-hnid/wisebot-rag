@@ -543,10 +543,10 @@ export default function UserManagement() {
       </div>
 
       {isInviteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#f0f0f0]">{t('users.create')}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.08)] flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#ffffff]">{t('users.create')}</h3>
               <button
                 onClick={() => setIsInviteModalOpen(false)}
                 className="text-[#a1a4a5] hover:text-[#a1a4a5] p-1 rounded-md hover:bg-[rgba(255,255,255,0.05)] transition-colors"
@@ -591,10 +591,10 @@ export default function UserManagement() {
       )}
 
       {isEditModalOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#f0f0f0]">{t('users.edit')}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.08)] flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#ffffff]">{t('users.edit')}</h3>
               <button
                 onClick={() => {
                   setIsEditModalOpen(false);
