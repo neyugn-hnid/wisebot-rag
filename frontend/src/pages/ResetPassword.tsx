@@ -46,14 +46,14 @@ export default function ResetPassword() {
   }, [countdown]);
 
   const inputClass = (field: string) =>
-    `w-full bg-[rgba(255,255,255,0.06)] border rounded-[8px] px-4 py-2.5 pr-28 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none placeholder:text-[rgba(255,255,255,0.38)] ${
+    `w-full bg-[rgba(255,255,255,0.06)] border pl-2 pr-4 py-3 text-[14px] text-[#ffffff] outline-none transition-all rounded-[8px] focus:border-white focus:ring-2 focus:ring-white/30 placeholder:text-[rgba(255,255,255,0.38)] ${
       touched[field] && errors[field]
         ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-[#ff0000]/30'
         : 'border-[rgba(255,255,255,0.12)]'
     }`;
 
   const pwInputClass = (field: string) =>
-    `w-full bg-[rgba(255,255,255,0.06)] border rounded-[8px] px-4 py-2.5 pr-12 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none placeholder:text-[rgba(255,255,255,0.38)] ${
+    `w-full bg-[rgba(255,255,255,0.06)] border pl-2 pr-4 py-3 text-[14px] text-[#ffffff] outline-none transition-all rounded-[8px] focus:border-white focus:ring-2 focus:ring-white/30 placeholder:text-[rgba(255,255,255,0.38)] ${
       touched[field] && errors[field]
         ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-[#ff0000]/30'
         : 'border-[rgba(255,255,255,0.12)]'
@@ -169,10 +169,10 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-[#000000] flex items-center justify-center p-6">
-      <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
-        <div className="text-center space-y-2 flex flex-col items-center">
-          <Logo size="lg" className="mb-4" />
+    <div className="min-h-screen bg-[#000000] flex items-start justify-center px-6 pt-10 pb-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
+      <div className="max-w-md w-full space-y-4 animate-in fade-in zoom-in-95 duration-500">
+        <div className="text-center flex flex-col items-center">
+          <Logo theme="dark" customSize={142} className="mb-0" />
           <h1 className="text-3xl font-black text-[#f0f0f0] tracking-tight">{t('auth.reset.title')}</h1>
           <p className="text-[#a1a4a5]">{t('auth.reset.desc')}</p>
         </div>

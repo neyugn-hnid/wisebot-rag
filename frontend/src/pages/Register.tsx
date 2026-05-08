@@ -69,10 +69,10 @@ export default function Register() {
   };
 
   const inputClass = (field: string) =>
-    `w-full bg-transparent border pl-10 pr-4 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all rounded-[8px] focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40 ${
+    `w-full bg-[rgba(255,255,255,0.06)] border pl-10 pr-4 py-3 text-[14px] text-[#ffffff] outline-none transition-all rounded-[8px] focus:border-white focus:ring-2 focus:ring-white/30 placeholder:text-[rgba(255,255,255,0.38)] ${
       touched[field] && errors[field]
-        ? 'border-[#ff0000] focus:border-[#ff0000]'
-        : 'border-[rgba(255,255,255,0.3)] focus:border-primary'
+        ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-[#ff0000]/30'
+        : 'border-[rgba(255,255,255,0.12)]'
     }`;
 
   const validateAll = (): boolean => {
@@ -114,15 +114,13 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-[#000000] flex items-center justify-center p-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
-      <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
-        <div className="text-center space-y-2 flex flex-col items-center">
-          <Logo theme="dark" size="lg" className="mb-4" />
-          <h1 className="text-[32px] font-display font-medium text-[#f0f0f0] tracking-tight">{t('auth.register.title')}</h1>
-          <p className="text-[14px] text-[#a1a4a5]">{t('auth.register.desc')}</p>
-        </div>
+    <div className="min-h-screen bg-[#000000] flex items-start justify-center px-6 pt-10 pb-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
+          <div className="max-w-md w-full space-y-4 animate-in fade-in zoom-in-95 duration-500">
+            <div className="text-center flex flex-col items-center">
+              <Logo theme="dark" customSize={142} className="mb-0" />
+            </div>
 
-        <div className="bg-[#000000] p-8 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 space-y-6">
+        <div className="bg-[#000000] p-8 rounded-[16px] space-y-6">
           <form className="space-y-5" onSubmit={handleRegister} noValidate>
             <div className="space-y-1.5">
               <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">{t('auth.register.full_name')}</label>
@@ -255,7 +253,7 @@ export default function Register() {
         </div>
 
         <p className="text-center text-[14px] text-[#a1a4a5]">
-          {t('auth.register.have_account')} <Link to="/login" className="text-[#f0f0f0] font-semibold hover:underline">{t('auth.register.login')}</Link>
+          {t('auth.register.have_account')} <Link to="/login" className="text-[#f0f0f0] font-semibold">{t('auth.register.login')}</Link>
         </p>
       </div>
     </div>

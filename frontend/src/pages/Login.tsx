@@ -55,10 +55,10 @@ export default function Login() {
   };
 
   const inputClass = (field: string) =>
-    `w-full bg-transparent border pl-10 pr-4 py-3 text-[14px] text-[#f0f0f0] outline-none transition-all rounded-[8px] focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40 ${
+    `w-full bg-[rgba(255,255,255,0.06)] border pl-10 pr-4 py-3 text-[14px] text-[#ffffff] outline-none transition-all rounded-[8px] focus:border-white focus:ring-2 focus:ring-white/30 placeholder:text-[rgba(255,255,255,0.38)] ${
       touched[field] && errors[field]
-        ? 'border-[#ff0000] focus:border-[#ff0000]'
-        : 'border-[rgba(255,255,255,0.3)] focus:border-primary'
+        ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-[#ff0000]/30'
+        : 'border-[rgba(255,255,255,0.12)]'
     }`;
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -101,15 +101,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#000000] flex items-center justify-center p-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
-      <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
-        <div className="text-center space-y-2 flex flex-col items-center">
-          <Logo theme="dark" size="lg" className="mb-4" />
-          <h1 className="text-[32px] font-display font-medium text-[#f0f0f0] tracking-tight">{t('auth.welcome')}</h1>
-          <p className="text-[14px] text-[#a1a4a5]">{t('auth.welcome_desc')}</p>
+    <div className="min-h-screen bg-[#000000] flex items-start justify-center px-6 pt-10 pb-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
+      <div className="max-w-md w-full space-y-4 animate-in fade-in zoom-in-95 duration-500">
+        <div className="text-center flex flex-col items-center">
+          <Logo theme="dark" customSize={142} className="mb-0" />
         </div>
 
-        <div className="bg-[#000000] p-8 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 space-y-6">
+        <div className="bg-[#000000] p-8 rounded-[16px] space-y-6">
           <form className="space-y-5" onSubmit={handleLogin} noValidate>
             <div className="space-y-1.5">
               <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">{t('auth.email')}</label>
@@ -133,7 +131,7 @@ export default function Login() {
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
                 <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">{t('auth.password')}</label>
-                <Link to="/reset-password" title="Reset your password" className="text-[12px] font-medium text-[#3b9eff] hover:underline">{t('auth.forgot_password')}</Link>
+                <Link to="/reset-password" title="Reset your password" className="text-[12px] font-medium text-[#3b9eff]">{t('auth.forgot_password')}</Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
@@ -165,7 +163,7 @@ export default function Login() {
                 id="remember"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="rounded-[4px]-[4px] border border-[rgba(255,255,255,0.3)] bg-transparent text-[#f0f0f0] focus:ring-2 focus:ring-primary/20 focus:ring-offset-0"
+                className="rounded-[4px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] text-[#f0f0f0] focus:ring-2 focus:ring-white/30"
               />
               <label htmlFor="remember" className="text-[14px] text-[#a1a4a5] font-medium cursor-pointer">{t('auth.remember_me')}</label>
             </div>
@@ -187,25 +185,25 @@ export default function Login() {
 
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[rgba(255,255,255,0.3)]"></div>
+              <div className="w-full border-t border-[rgba(255,255,255,0.08)]"></div>
             </div>
             <div className="relative flex justify-center text-[12px]">
-              <span className="bg-[#000000] px-4 text-[#a1a4a5] font-semibold tracking-[0.5px]">{t('auth.or_continue')}</span>
+              <span className="bg-[#000000] px-4 text-[rgba(255,255,255,0.5)] font-semibold tracking-[0.5px]">{t('auth.or_continue')}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <button className="flex items-center justify-center gap-2 py-2.5 rounded-full bg-transparent border border-[rgba(255,255,255,0.3)] text-[14px] font-semibold text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.05)] transition-all">
+            <button className="flex items-center justify-center gap-2 py-2.5 rounded-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[14px] font-semibold text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] transition-all">
               <GoogleIcon size={16} /> Google
             </button>
-            <button className="flex items-center justify-center gap-2 py-2.5 rounded-full bg-transparent border border-[rgba(255,255,255,0.3)] text-[14px] font-semibold text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.05)] transition-all">
+            <button className="flex items-center justify-center gap-2 py-2.5 rounded-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[14px] font-semibold text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] transition-all">
               <GithubIcon size={16} className="text-[#f0f0f0]" /> GitHub
             </button>
           </div>
         </div>
 
         <p className="text-center text-[14px] text-[#a1a4a5]">
-          {t('auth.no_account')} <Link to="/register" className="text-[#f0f0f0] font-semibold hover:underline">{t('auth.create_account')}</Link>
+          {t('auth.no_account')} <Link to="/register" className="text-[#f0f0f0] font-semibold">{t('auth.create_account')}</Link>
         </p>
       </div>
     </div>
