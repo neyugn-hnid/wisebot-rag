@@ -189,13 +189,13 @@ export default function APIKeys() {
 
       {/* Generate Modal */}
       {isGenerateModalOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.3)]">
-              <h3 className="text-lg font-bold text-[#f0f0f0]">{t('api.modal.title')}</h3>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)]">
+              <h3 className="text-lg font-bold text-[#ffffff]">{t('api.modal.title')}</h3>
               <button 
                 onClick={closeGenerateModal}
-                className="text-[#a1a4a5] hover:text-[#a1a4a5] transition-colors"
+                className="text-[rgba(255,255,255,0.7)] hover:text-[#ffffff] p-1 rounded-md hover:bg-[rgba(255,255,255,0.04)] transition-colors"
               >
                 <X size={20} />
               </button>
@@ -204,7 +204,7 @@ export default function APIKeys() {
             <div className="p-6 space-y-4">
               {generatedKey ? (
                 <div className="space-y-4">
-                  <div className="space-y-4 bg-[rgba(255,255,255,0.02)] p-4 rounded-[16px] border border-[rgba(255,255,255,0.3)]">
+                  <div className="space-y-4 bg-[rgba(255,255,255,0.02)] p-4 rounded-[16px] border border-[rgba(255,255,255,0.08)]">
                     <div className="space-y-1">
                       <p className="text-[10px] font-bold text-[#a1a4a5] uppercase tracking-widest">
                         {t('api.table.name')}
@@ -217,12 +217,12 @@ export default function APIKeys() {
                         {t('api.table.key')}
                       </p>
                       <div className="flex gap-2">
-                        <code className="flex-1 p-3 bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[12px] text-sm font-mono text-[#f0f0f0] break-all">
+                        <code className="flex-1 p-3 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-[12px] text-sm font-mono text-[#f0f0f0] break-all">
                           {generatedKey}
                         </code>
                         <button 
                           onClick={() => handleCopy(generatedKey, 'generated')}
-                          className="p-3 bg-[#ffffff] text-[#000000] rounded-[12px] hover:bg-[#f0f0f0] transition-colors shadow-md shadow-black/40 shadow-primary/20 shrink-0"
+                          className="p-3 bg-[#ffffff] text-[#000000] rounded-[12px] hover:bg-[#f0f0f0] transition-colors shadow-md shadow-black/30 shrink-0"
                         >
                           {copyStatus === 'generated' ? <Check size={20} /> : <Copy size={20} />}
                         </button>
@@ -240,7 +240,7 @@ export default function APIKeys() {
               ) : (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-[#f0f0f0]">
+                    <label className="text-sm font-bold text-[#ffffff]">
                       {t('api.modal.name')}
                     </label>
                     <input 
@@ -248,7 +248,7 @@ export default function APIKeys() {
                       value={newKeyName}
                       onChange={(e) => setNewKeyName(e.target.value)}
                       placeholder={t('api.modal.placeholder')}
-                      className="w-full px-4 py-2.5 bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                      className="w-full px-4 py-2.5 bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none transition-all"
                       autoFocus
                     />
                   </div>
@@ -256,11 +256,11 @@ export default function APIKeys() {
               )}
             </div>
 
-            <div className="p-6 border-t border-[rgba(255,255,255,0.3)] bg-[#000000] flex justify-end gap-3">
+            <div className="p-6 border-t border-[rgba(255,255,255,0.08)] bg-[rgba(44,44,46,0.92)] flex justify-center gap-3">
               {generatedKey ? (
                 <button 
                   onClick={closeGenerateModal}
-                  className="px-6 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 shadow-primary/20"
+                  className="px-6 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/30"
                 >
                   {t('common.done')}
                 </button>
@@ -268,14 +268,14 @@ export default function APIKeys() {
                 <>
                   <button 
                     onClick={closeGenerateModal}
-                    className="px-6 py-2.5 text-sm font-bold bg-[#000000] border border-[rgba(255,255,255,0.3)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.02)] hover:text-[#f0f0f0] rounded-md transition-all"
+                    className="px-6 py-2.5 min-w-[160px] text-sm font-bold bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff] rounded-md transition-all"
                   >
                     {t('api.modal.cancel')}
                   </button>
                   <button 
                     onClick={handleGenerateKey}
                     disabled={!newKeyName.trim() || isGenerating}
-                    className="px-6 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-6 py-2.5 min-w-[160px] text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 justify-center"
                   >
                     {isGenerating && <Loader2 size={16} className="animate-spin" />}
                     {t('api.generate')}

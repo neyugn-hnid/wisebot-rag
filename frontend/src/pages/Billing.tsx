@@ -439,13 +439,7 @@ export default function Billing() {
           <div>
             <h2 className="text-[24px] font-display font-medium tracking-tight tracking-tight text-[#f0f0f0]">{t('billing.title')}</h2>
           </div>
-          <div className="flex gap-3">
-            <button 
-              onClick={() => setIsUpgradeModalOpen(true)}
-              className="px-4 py-2 bg-[#ffffff] text-[#000000] rounded-[12px] text-sm font-bold shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all"
-            >
-              {t('billing.upgrade')}
-            </button>
+          <div>
             <button className="px-4 py-2 bg-[#000000] text-[#f0f0f0] border border-[rgba(255,255,255,0.3)] rounded-md text-sm font-bold shadow-md shadow-black/40 hover:bg-[rgba(255,255,255,0.02)] transition-all">
               {t('billing.create_plan')}
             </button>
@@ -493,7 +487,7 @@ export default function Billing() {
         </div>
 
         {/* Recent Subscriptions */}
-        <div className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 overflow-hidden">
+        <div className="bg-[rgba(40,40,40,1)] rounded-[16px] overflow-hidden">
           <div className="p-6 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
             <h3 className="text-lg font-bold text-[#f0f0f0]">{t('billing.recent_subs')}</h3>
             <button className="text-xs font-bold text-[#3b9eff] hover:underline">{t('billing.view_all')}</button>
@@ -510,7 +504,7 @@ export default function Billing() {
                   <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider text-right">{t('billing.table.action')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[rgba(255,255,255,0.3)]">
+              <tbody className="divide-y divide-[rgba(255,255,255,0.3)] border-t border-[rgba(255,255,255,0.3)]">
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
@@ -524,102 +518,6 @@ export default function Billing() {
           </div>
         </div>
       </div>
-
-      {/* Upgrade Modal */}
-      {isUpgradeModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-4 sm:p-8 border-b border-[rgba(255,255,255,0.3)] sticky top-0 bg-[#000000] z-10">
-              <div>
-                <h3 className="text-2xl font-black text-[#f0f0f0]">{t('billing.upgrade')}</h3>
-              </div>
-              <button 
-                onClick={() => { setIsUpgradeModalOpen(false); setUpgradeStep('selection'); setSelectedPlan(null); }}
-                className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-[16px] transition-colors"
-              >
-                <X size={24} className="text-[#a1a4a5]" />
-              </button>
-            </div>
-            <div className="p-4 sm:p-8">
-              {upgradeStep === 'selection' ? (
-                <div>
-                  <div className="flex justify-center mb-10">
-                    <div className="flex items-center gap-1 bg-[rgba(255,255,255,0.05)] p-1 rounded-[16px] border border-[rgba(255,255,255,0.3)]">
-                      <button 
-                        onClick={() => setBillingCycle('monthly')}
-                        className={cn(
-                          "px-6 py-2 text-xs font-black rounded-[12px] transition-all",
-                          billingCycle === 'monthly' ? "bg-[#000000] text-[#f0f0f0] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#f0f0f0]"
-                        )}
-                      >
-                        {t('billing.plans.monthly')}
-                      </button>
-                      <button 
-                        onClick={() => setBillingCycle('yearly')}
-                        className={cn(
-                          "px-6 py-2 text-xs font-black rounded-[12px] transition-all flex items-center gap-2",
-                          billingCycle === 'yearly' ? "bg-[#000000] text-[#f0f0f0] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#f0f0f0]"
-                        )}
-                      >
-                        {t('billing.plans.yearly')}
-                        <span className="text-[#ff0000]">{t('billing.plans.save_20')}</span>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {renderPlansGrid()}
-                  </div>
-                </div>
-              ) : (
-                <div className="max-w-md mx-auto space-y-8 py-4 animate-in slide-in-from-right-4 duration-300">
-                  <div className="flex items-center gap-4 p-4 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)]">
-                    <div className="w-12 h-12 rounded-[16px] bg-[rgba(59,158,255,0.1)] flex items-center justify-center text-[#3b9eff]">
-                      <Zap size={24} />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-black text-[#f0f0f0]">{selectedPlan?.name} Plan</h4>
-                      <p className="text-xs text-[#a1a4a5]">{billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')} billing</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-black text-[#f0f0f0]">
-                        ${billingCycle === 'yearly' ? Math.floor((selectedPlan?.price ?? 0) * 0.8).toFixed(0) : (selectedPlan?.price ?? 0).toFixed(0)}
-                      </p>
-                      <button 
-                        onClick={() => setUpgradeStep('selection')}
-                        className="text-[10px] font-bold text-[#3b9eff] hover:underline"
-                      >
-                        {t('common.change')}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button 
-                    onClick={handleCheckoutConfirm}
-                    disabled={isProcessing !== null}
-                    className="w-full py-4 bg-[#ffffff] text-[#000000] rounded-[16px] font-black shadow-xl shadow-primary/20 hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isProcessing ? (
-                      <><Loader2 size={20} className="animate-spin" />{t('common.processing')}</>
-                    ) : (
-                      <><ShieldCheck size={20} />{t('billing.pay_now') || 'Confirm & Subscribe'}</>
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="p-6 bg-[rgba(255,255,255,0.02)] border-t border-[rgba(255,255,255,0.3)] flex items-center justify-center gap-8">
-              <div className="flex items-center gap-2 text-[#a1a4a5]">
-                <ShieldCheck size={18} />
-                <span className="text-xs font-bold">{t('billing.secure_ssl')}</span>
-              </div>
-              <div className="flex items-center gap-2 text-[#a1a4a5]">
-                <CreditCard size={18} />
-                <span className="text-xs font-bold">{t('billing.cancel_anytime')}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
     );
   }
@@ -634,10 +532,10 @@ export default function Billing() {
           </div>
           <div className="flex gap-3">
             <button 
-              onClick={() => setIsUpgradeModalOpen(true)}
+              onClick={() => navigate('/billing/upgrade')}
               className="px-4 py-2 bg-[#ffffff] text-[#000000] rounded-[12px] text-sm font-bold shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all"
             >
-              {t('billing.upgrade')}
+              {t('billing.upgrade') || 'Nâng cấp gói'}
             </button>
           </div>
         </div>
@@ -742,72 +640,6 @@ export default function Billing() {
 
           </div>
         </div>
-
-        {/* Upgrade Modal */}
-        {isUpgradeModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-              <div className="flex items-center justify-between p-4 sm:p-8 border-b border-[rgba(255,255,255,0.3)] sticky top-0 bg-[#000000] z-10">
-                <div>
-                  <h3 className="text-2xl font-black text-[#f0f0f0]">{t('billing.upgrade')}</h3>
-                </div>
-                <button 
-                  onClick={() => { setIsUpgradeModalOpen(false); setUpgradeStep('selection'); setSelectedPlan(null); }}
-                  className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-[16px] transition-colors"
-                >
-                  <X size={24} className="text-[#a1a4a5]" />
-                </button>
-              </div>
-
-              <div className="p-4 sm:p-8">
-                {upgradeStep === 'selection' ? (
-                  <div>
-                    {/* Billing Cycle Switcher */}
-                    <div className="flex justify-center mb-10">
-                      <div className="flex items-center gap-1 bg-[rgba(255,255,255,0.05)] p-1 rounded-[16px] border border-[rgba(255,255,255,0.3)]">
-                        <button 
-                          onClick={() => setBillingCycle('monthly')}
-                          className={cn(
-                            "px-6 py-2 text-xs font-black rounded-[12px] transition-all",
-                            billingCycle === 'monthly' ? "bg-[#000000] text-[#f0f0f0] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#f0f0f0]"
-                          )}
-                        >
-                          {t('billing.plans.monthly')}
-                        </button>
-                        <button 
-                          onClick={() => setBillingCycle('yearly')}
-                          className={cn(
-                            "px-6 py-2 text-xs font-black rounded-[12px] transition-all flex items-center gap-2",
-                            billingCycle === 'yearly' ? "bg-[#000000] text-[#f0f0f0] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#f0f0f0]"
-                          )}
-                        >
-                          {t('billing.plans.yearly')}
-                          <span className="text-[#ff0000]">{t('billing.plans.save_20')}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {renderPlansGrid()}
-                    </div>
-                  </div>
-                ) : (
-                  renderCheckout()
-                )}
-              </div>
-              <div className="p-6 bg-[rgba(255,255,255,0.02)] border-t border-[rgba(255,255,255,0.3)] flex items-center justify-center gap-8">
-                <div className="flex items-center gap-2 text-[#a1a4a5]">
-                  <ShieldCheck size={18} />
-                  <span className="text-xs font-bold">{t('billing.secure_ssl')}</span>
-                </div>
-                <div className="flex items-center gap-2 text-[#a1a4a5]">
-                  <CreditCard size={18} />
-                  <span className="text-xs font-bold">{t('billing.cancel_anytime')}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
     </>

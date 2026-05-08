@@ -543,10 +543,10 @@ export default function UserManagement() {
       </div>
 
       {isInviteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#f0f0f0]">{t('users.create')}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.08)] flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#ffffff]">{t('users.create')}</h3>
               <button
                 onClick={() => setIsInviteModalOpen(false)}
                 className="text-[#a1a4a5] hover:text-[#a1a4a5] p-1 rounded-md hover:bg-[rgba(255,255,255,0.05)] transition-colors"
@@ -563,7 +563,7 @@ export default function UserManagement() {
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="jane@example.com"
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none"
                 />
               </div>
               <p className="text-xs text-[#a1a4a5]">
@@ -573,7 +573,7 @@ export default function UserManagement() {
                 <button
                   type="button"
                   onClick={() => setIsInviteModalOpen(false)}
-                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[#a1a4a5] bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.05)] rounded-md transition-colors"
+                  className="flex-1 px-4 py-2.5 text-sm font-bold bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff] rounded-md transition-all"
                 >
                   {t('common.cancel')}
                 </button>
@@ -591,10 +591,10 @@ export default function UserManagement() {
       )}
 
       {isEditModalOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#f0f0f0]">{t('users.edit')}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.08)] flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#ffffff]">{t('users.edit')}</h3>
               <button
                 onClick={() => {
                   setIsEditModalOpen(false);
@@ -612,33 +612,33 @@ export default function UserManagement() {
                   type="text"
                   value={editForm.name}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm outline-none"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('team.email_address')}</label>
+                <label className="text-xs font-bold text-[#ffffff]">{t('team.email_address')}</label>
                 <input
                   type="email"
                   value={editForm.email}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm outline-none"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">Phone Number</label>
+                <label className="text-xs font-bold text-[#ffffff]">Phone Number</label>
                 <input
                   type="tel"
                   value={editForm.phone}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm outline-none"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('users.table.role')}</label>
+                <label className="text-xs font-bold text-[#ffffff]">{t('users.table.role')}</label>
                 <select
                   value={editForm.globalRole}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, globalRole: e.target.value }))}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none appearance-none"
                 >
                   <option value="ADMIN" className="bg-[#000000] text-[#f0f0f0]">ADMIN</option>
                   <option value="OWNER" className="bg-[#000000] text-[#f0f0f0]">OWNER</option>
@@ -659,11 +659,11 @@ export default function UserManagement() {
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, status: e.target.value as SystemUser['status'] }))}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
+                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none appearance-none"
                 >
-                  <option value="Active" className="bg-[#000000] text-[#f0f0f0]">Active</option>
-                  <option value="Pending" className="bg-[#000000] text-[#f0f0f0]">Pending</option>
-                  <option value="Suspended" className="bg-[#000000] text-[#f0f0f0]">Suspended</option>
+                  <option value="Active" className="bg-[#2c2c2e] text-[#f0f0f0]">Active</option>
+                  <option value="Pending" className="bg-[#2c2c2e] text-[#f0f0f0]">Pending</option>
+                  <option value="Suspended" className="bg-[#2c2c2e] text-[#f0f0f0]">Suspended</option>
                 </select>
               </div>
               <div className="pt-4 flex gap-3">
@@ -673,7 +673,7 @@ export default function UserManagement() {
                     setIsEditModalOpen(false);
                     setSelectedUser(null);
                   }}
-                  className="flex-1 px-4 py-2.5 text-sm font-bold text-[#a1a4a5] bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.05)] rounded-md transition-colors"
+                  className="flex-1 px-4 py-2.5 text-sm font-bold bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff] rounded-md transition-all"
                 >
                   {t('common.cancel')}
                 </button>

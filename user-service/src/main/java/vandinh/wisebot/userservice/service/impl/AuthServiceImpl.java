@@ -19,6 +19,8 @@ import vandinh.wisebot.userservice.common.response.TokenResponse;
 import vandinh.wisebot.userservice.dto.request.LoginRequest;
 import vandinh.wisebot.userservice.dto.request.RefreshTokenRequest;
 import vandinh.wisebot.userservice.dto.request.RegisterRequest;
+import vandinh.wisebot.userservice.dto.request.VerifyEmailRequest;
+import vandinh.wisebot.userservice.dto.request.ForgotPasswordRequest;
 import vandinh.wisebot.userservice.entity.Role;
 import vandinh.wisebot.userservice.entity.Tenant;
 import vandinh.wisebot.userservice.entity.TenantInvite;
@@ -29,6 +31,7 @@ import vandinh.wisebot.userservice.repository.TenantInviteRepository;
 import vandinh.wisebot.userservice.repository.TenantRepository;
 import vandinh.wisebot.userservice.repository.UserRepository;
 import vandinh.wisebot.userservice.service.AuthService;
+import vandinh.wisebot.userservice.service.EmailService;
 import vandinh.wisebot.userservice.service.JwtService;
 import vandinh.wisebot.userservice.service.security.JwtBlacklistService;
 import org.springframework.http.HttpStatus;
@@ -36,6 +39,7 @@ import org.springframework.http.HttpStatus;
 import java.util.Date;
 
 import java.time.LocalDateTime;
+import java.security.SecureRandom;
 import java.util.Map;
 import java.util.List;
 import java.util.Set;
@@ -49,6 +53,11 @@ import static vandinh.wisebot.userservice.common.enums.TokenType.REFRESH_TOKEN;
 public class AuthServiceImpl implements AuthService {
     private static final String INVALID_CREDENTIALS_MESSAGE = "Email hoặc mật khẩu không đúng.";
     private static final String LOCKED_ACCOUNT_MESSAGE = "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.";
+    private static final String UNVERIFIED_ACCOUNT_MESSAGE = "Tài khoản chưa được xác minh. Vui lòng kiểm tra email để lấy OTP.";
+    private static final int EMAIL_VERIFICATION_OTP_LENGTH = 6;
+    private static final int EMAIL_VERIFICATION_EXPIRES_MINUTES = 10;
+    private static final int PASSWORD_RESET_OTP_EXPIRES_MINUTES = 5;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final JwtService jwtService;
     private final JwtBlacklistService jwtBlacklistService;
@@ -58,6 +67,7 @@ public class AuthServiceImpl implements AuthService {
     private final TenantRepository tenantRepository;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -73,6 +83,10 @@ public class AuthServiceImpl implements AuthService {
 
             if (user.getStatus() == UserStatus.DISABLED) {
                 throw new DisabledException(LOCKED_ACCOUNT_MESSAGE);
+            }
+
+            if (!Boolean.TRUE.equals(user.getIsEmailVerified())) {
+                throw new DisabledException(UNVERIFIED_ACCOUNT_MESSAGE);
             }
 
             Authentication authentication = authenticationManager.authenticate(
@@ -203,6 +217,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String generatedUsername = generateUniqueUsername(request.getEmail());
+        String emailVerificationToken = generateVerificationOtp();
 
         UserEntity user = UserEntity.builder()
                 .fullName(request.getFullName())
@@ -213,8 +228,17 @@ public class AuthServiceImpl implements AuthService {
                 .roles(Set.of(role))
                 .tenant(tenant)
                 .isEmailVerified(false)
+                .emailVerificationToken(emailVerificationToken)
+                .emailVerificationExpiresAt(LocalDateTime.now().plusMinutes(EMAIL_VERIFICATION_EXPIRES_MINUTES))
                 .build();
         userRepository.save(user);
+
+        emailService.sendVerificationEmail(
+                user.getEmail(),
+                "Xác thực email",
+                user.getFullName(),
+                emailVerificationToken
+        );
     }
 
     private String generateUniqueUsername(String email) {
@@ -239,6 +263,70 @@ public class AuthServiceImpl implements AuthService {
         }
 
         return candidate;
+    }
+
+    private String generateVerificationOtp() {
+        int maxValue = (int) Math.pow(10, EMAIL_VERIFICATION_OTP_LENGTH);
+        int otp = SECURE_RANDOM.nextInt(maxValue);
+        return String.format("%0" + EMAIL_VERIFICATION_OTP_LENGTH + "d", otp);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ApiResponse verifyEmail(VerifyEmailRequest request) {
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new InvalidDataException("Thiếu email xác minh");
+        }
+        if (request.getOtp() == null || request.getOtp().isBlank()) {
+            throw new InvalidDataException("Thiếu OTP xác minh");
+        }
+        UserEntity user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new InvalidDataException("Không tìm thấy tài khoản"));
+        if (Boolean.TRUE.equals(user.getIsEmailVerified())) {
+            return ApiResponse.builder()
+                    .status(HttpStatus.OK.value())
+                    .message("Tài khoản đã được xác minh")
+                    .build();
+        }
+        if (user.getEmailVerificationToken() == null || !user.getEmailVerificationToken().equals(request.getOtp())) {
+            throw new InvalidDataException("OTP xác minh không hợp lệ");
+        }
+        if (user.getEmailVerificationExpiresAt() != null && user.getEmailVerificationExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new InvalidDataException("OTP xác minh đã hết hạn");
+        }
+        user.setIsEmailVerified(true);
+        user.setEmailVerificationToken(null);
+        user.setEmailVerificationExpiresAt(null);
+        userRepository.save(user);
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Xác minh email thành công")
+                .build();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ApiResponse resendVerificationEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new InvalidDataException("Thiếu email");
+        }
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new InvalidDataException("Không tìm thấy tài khoản"));
+        if (Boolean.TRUE.equals(user.getIsEmailVerified())) {
+            return ApiResponse.builder()
+                    .status(HttpStatus.OK.value())
+                    .message("Tài khoản đã được xác minh từ trước")
+                    .build();
+        }
+        String newOtp = generateVerificationOtp();
+        user.setEmailVerificationToken(newOtp);
+        user.setEmailVerificationExpiresAt(LocalDateTime.now().plusMinutes(EMAIL_VERIFICATION_EXPIRES_MINUTES));
+        userRepository.save(user);
+        emailService.sendVerificationEmail(user.getEmail(), "Xác thực email", user.getFullName(), newOtp);
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Đã gửi lại OTP. Vui lòng kiểm tra email")
+                .build();
     }
 
     @Override
@@ -302,6 +390,61 @@ public class AuthServiceImpl implements AuthService {
                         "token", invite.getToken(),
                         "expiresAt", invite.getExpiresAt()
                 ))
+                .build();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ApiResponse sendResetPasswordOtp(ForgotPasswordRequest request) {
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new InvalidDataException("Thiếu email");
+        }
+        UserEntity user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new InvalidDataException("Không tìm thấy tài khoản với email này"));
+        if (user.getStatus() == UserStatus.DISABLED) {
+            throw new InvalidDataException("Tài khoản đã bị khóa");
+        }
+        String resetOtp = generateVerificationOtp();
+        user.setPasswordResetToken(resetOtp);
+        user.setPasswordResetExpiresAt(LocalDateTime.now().plusMinutes(PASSWORD_RESET_OTP_EXPIRES_MINUTES));
+        userRepository.save(user);
+        emailService.sendResetPasswordEmail(user.getEmail(), "Đặt lại mật khẩu", user.getFullName(), resetOtp);
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Đã gửi mã OTP đặt lại mật khẩu. Vui lòng kiểm tra email")
+                .build();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ApiResponse resetPassword(ForgotPasswordRequest request) {
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new InvalidDataException("Thiếu email");
+        }
+        if (request.getOtp() == null || request.getOtp().isBlank()) {
+            throw new InvalidDataException("Thiếu OTP");
+        }
+        if (request.getNewPassword() == null || request.getNewPassword().isBlank()) {
+            throw new InvalidDataException("Thiếu mật khẩu mới");
+        }
+        if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
+            throw new InvalidDataException("Mật khẩu và xác nhận mật khẩu không khớp");
+        }
+        UserEntity user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new InvalidDataException("Không tìm thấy tài khoản"));
+        if (user.getPasswordResetToken() == null || !user.getPasswordResetToken().equals(request.getOtp())) {
+            throw new InvalidDataException("OTP không hợp lệ");
+        }
+        if (user.getPasswordResetExpiresAt() != null && user.getPasswordResetExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new InvalidDataException("OTP đã hết hạn");
+        }
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setPasswordResetToken(null);
+        user.setPasswordResetExpiresAt(null);
+        userRepository.save(user);
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Đặt lại mật khẩu thành công")
                 .build();
     }
 }

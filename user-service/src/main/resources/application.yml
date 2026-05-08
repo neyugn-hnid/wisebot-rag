@@ -48,6 +48,14 @@ jwt:
   accessKey: ${JWT_ACCESS_KEY:VYW20sDO+am1aOTsq/4Tn48CZ6oEV13ooo51rDrz7AI=}
   refreshKey: ${JWT_REFRESH_KEY:UYDDaHfHJxiTtOfyGkRbae6KlWwufFFvxA04gh/9uZI=}
 
+# SENDGRID CONFIG
+spring.sendGrid:
+  apiKey: ${SENDGRID_API_KEY:your-sendgrid-api-key}
+  fromEmail: ${SENDGRID_FROM_EMAIL:deannguyen.ptho@gmail.com}
+  templateId: ${SENDGRID_TEMPLATE_ID:d-0cad2bac5e0048d183c73a0a9b75d5d8}
+  resetTemplateId: ${SENDGRID_RESET_TEMPLATE_ID:}
+  verificationLink: ${SENDGRID_VERIFICATION_LINK:http://localhost:3000/verify-email?token={token}}
+
 # SWAGGER / OPENAPI
 springdoc:
   api-docs:
