@@ -443,7 +443,7 @@ export default function ChatbotPlayground() {
   const latestAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant' && m.sources);
 
   return (
-    <div className="-m-4 lg:-m-8 h-[calc(100vh-64px)] flex flex-col overflow-hidden bg-[#000000] relative w-[calc(100%+32px)] lg:w-[calc(100%+64px)]">
+    <div className="-m-4 lg:-m-8 h-screen flex flex-col overflow-hidden bg-[#000000] relative w-[calc(100%+32px)] lg:w-[calc(100%+64px)]">
       {showHistory && (
         <button
           type="button"
@@ -453,42 +453,7 @@ export default function ChatbotPlayground() {
         />
       )}
 
-      {/* Header */}
-      <div className="p-4 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between bg-[#000000] z-20">
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => setShowHistory((prev) => !prev)}
-            className="p-2 rounded-xl text-[#a1a4a5] hover:text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.06)] transition-colors"
-            aria-label="Mở lịch sử phiên chat"
-          >
-            <PanelLeft size={18} />
-          </button>
-          <span className="font-semibold text-[#f0f0f0] hidden sm:inline">{t('playground.title')}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleStartNewChat}
-            className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-[#f0f0f0] bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.12)] transition-colors"
-            type="button"
-          >
-            <SquarePen size={15} />
-            <span className="hidden sm:inline">Chat mới</span>
-          </button>
-          <button 
-            onClick={() => setShowSettings(!showSettings)}
-            className="lg:hidden p-2 text-[#a1a4a5] hover:text-[#f0f0f0] transition-colors"
-          >
-            <SettingsIcon size={18} />
-          </button>
-          <button 
-            onClick={handleClearChat}
-            className="flex items-center gap-2 text-xs font-semibold text-[#a1a4a5] hover:text-[#f0f0f0] transition-colors"
-          >
-            <RotateCcw size={14} /> <span className="hidden sm:inline">{t('playground.clear')}</span>
-          </button>
-        </div>
-      </div>
+      
 
       <div className="flex-1 flex overflow-hidden">
         <div
@@ -498,29 +463,14 @@ export default function ChatbotPlayground() {
           )}
         >
           <div className="flex h-full flex-col">
-            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-4 py-4">
-              <div>
-                <p className="text-sm font-semibold text-[#f0f0f0]">Lịch sử chat</p>
-                <p className="text-[11px] text-[#7f8487]">Chọn lại các phiên gần đây</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowHistory(false)}
-                className="rounded-lg p-2 text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#f0f0f0] transition-colors"
-                aria-label="Ẩn lịch sử phiên chat"
-              >
-                <ChevronLeft size={16} />
-              </button>
-            </div>
-
-            <div className="border-b border-[rgba(255,255,255,0.08)] p-3">
+            <div className="p-3 border-b border-[rgba(255,255,255,0.1)]">
               <button
                 type="button"
                 onClick={handleStartNewChat}
-                className="flex w-full items-center gap-3 rounded-2xl border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-left text-sm font-medium text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.08)]"
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-[#f0f0f0] transition-colors cursor-pointer"
               >
                 <SquarePen size={16} />
-                Phiên chat mới
+                Đoạn chat mới
               </button>
             </div>
 
@@ -591,9 +541,6 @@ export default function ChatbotPlayground() {
                   "space-y-1 max-w-[85%] sm:max-w-2xl",
                   msg.role === 'user' ? "text-right" : ""
                 )}>
-                  <p className="text-[10px] font-semibold text-[#a1a4a5] capitalize">
-                    {msg.role === 'assistant' ? t('playground.role.assistant') : t('playground.role.user')}
-                  </p>
                   <div className={cn(
                     "p-4 rounded-[16px] text-[14px] leading-relaxed whitespace-pre-wrap shadow-md shadow-black/40 font-messenger font-medium",
                     msg.role === 'assistant' 
@@ -611,9 +558,6 @@ export default function ChatbotPlayground() {
                   <Logo iconOnly size="sm" className="scale-75" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-semibold text-[#a1a4a5] capitalize">
-                    {t('playground.role.assistant')}
-                  </p>
                   <div className="bg-[rgba(255,255,255,0.05)] p-4 rounded-[16px] rounded-tl-none border border-[rgba(255,255,255,0.3)]/50 flex gap-1">
                     <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
                     <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
@@ -667,10 +611,13 @@ export default function ChatbotPlayground() {
           </button>
           {/* Source Citations */}
           <div className="flex-1 flex flex-col overflow-hidden border-b border-[rgba(255,255,255,0.3)]">
-            <div className="p-4 bg-[rgba(255,255,255,0.02)] font-semibold text-xs text-[#a1a4a5] flex items-center gap-2">
+            <div className="p-3 border-b border-[rgba(255,255,255,0.1)]">
+              <div className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-[#f0f0f0] transition-colors">
               <LinkIcon size={14} />
               {t('playground.sources')}
             </div>
+            </div>
+            
             <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide">
               {latestAssistantMessage?.sources ? (
                 latestAssistantMessage.sources.map((source, i) => (
@@ -711,7 +658,7 @@ export default function ChatbotPlayground() {
                   value={knowledgeBaseId}
                   onChange={(e) => setKnowledgeBaseId(e.target.value)}
                   disabled={isLoadingKnowledgeBases || knowledgeBases.length === 0 || knowledgeBases.length === 1}
-                  className="w-full bg-transparent border border-[rgba(255,255,255,0.3)] px-3 py-2 rounded-[12px] text-xs text-[#f0f0f0] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:text-[#a1a4a5] disabled:cursor-not-allowed"
+                  className="w-full mt-1 bg-transparent border border-[rgba(255,255,255,0.3)] px-3 py-2 rounded-[8px] text-xs text-[#f0f0f0] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:text-[#a1a4a5] disabled:cursor-not-allowed"
                 >
                   {isLoadingKnowledgeBases ? (
                     <option value="" className="text-black">

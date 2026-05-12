@@ -346,7 +346,7 @@ export default function WidgetCustomization() {
   ];
 
   return (
-    <div className="-m-4 lg:-m-8 h-[calc(100dvh-64px)] flex flex-col lg:flex-row overflow-hidden bg-[#000000] relative w-[calc(100%+32px)] lg:w-[calc(100%+64px)]">
+    <div className="-m-4 lg:-m-8 h-screen flex flex-col lg:flex-row overflow-hidden bg-[#000000] relative w-[calc(100%+32px)] lg:w-[calc(100%+64px)]">
       {/* Mobile Tab Switcher */}
       <div className="lg:hidden flex shrink-0 border-b border-[rgba(255,255,255,0.3)] bg-[#000000] z-20">
         <button 

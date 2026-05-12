@@ -69,34 +69,36 @@ export const CustomRobotLogo = ({ size, className }: { size: number, className?:
   </svg>
 );
 
-export default function Logo({ className, iconOnly = false, size = 'md', theme = 'dark' }: LogoProps) {
-  const sizeClasses = {
-    sm: { container: 'w-8 h-8 rounded-full', icon: 32, text: 'text-lg' },
-    md: { container: 'w-10 h-10 rounded-full', icon: 40, text: 'text-xl' },
-    lg: { container: 'w-12 h-12 rounded-full', icon: 48, text: 'text-2xl' },
-    xl: { container: 'w-16 h-16 rounded-full', icon: 64, text: 'text-4xl' },
+export default function Logo({ className, iconOnly = false, size = 'md', theme = 'dark', customSize }: LogoProps & { customSize?: number }) {
+  const sizeClasses: Record<string, number> = {
+    sm: 40,
+    md: 96,
+    lg: 140,
+    xl: 180,
   };
 
-  const currentSize = sizeClasses[size];
+  const iconSize = customSize ?? (sizeClasses[size] ?? 72);
 
-  return (
-    <div className={cn("flex items-center gap-3", className)}>
-      <div className={cn(
-        "flex items-center justify-center border",
-        "bg-transparent text-[#f0f0f0] border-transparent",
-        currentSize.container
-      )}>
-        <CustomRobotLogo size={currentSize.icon} />
+  if (iconOnly) {
+    return (
+      <div className={cn('flex items-center', className)}>
+        <CustomRobotLogo size={iconSize} />
       </div>
-      
-      {!iconOnly && (
-        <span className={cn(
-          "font-display font-medium tracking-[0.35px] text-[#f0f0f0]",
-          currentSize.text
-        )}>
-          WiseBot
-        </span>
-      )}
+    );
+  }
+
+  // Use maxWidth on the wrapper so the logo never forces the parent to expand.
+  // The image itself uses width:100% so it scales down to its container when needed.
+  return (
+    <div className={cn('flex items-center', className)}>
+      <div style={{ maxWidth: `${iconSize}px`, width: '100%' }}>
+        <img
+          src="/img/logo.png"
+          alt="WiseBot"
+          style={{ width: '100%', height: 'auto', display: 'block' }}
+          className="object-contain"
+        />
+      </div>
     </div>
   );
 }

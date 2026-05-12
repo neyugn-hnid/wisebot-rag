@@ -416,6 +416,31 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public ApiResponse verifyResetPasswordOtp(ForgotPasswordRequest request) {
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new InvalidDataException("Thiếu email");
+        }
+        if (request.getOtp() == null || request.getOtp().isBlank()) {
+            throw new InvalidDataException("Thiếu OTP");
+        }
+
+        UserEntity user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new InvalidDataException("Không tìm thấy tài khoản"));
+        if (user.getPasswordResetToken() == null || !user.getPasswordResetToken().equals(request.getOtp())) {
+            throw new InvalidDataException("OTP không hợp lệ");
+        }
+        if (user.getPasswordResetExpiresAt() != null && user.getPasswordResetExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new InvalidDataException("OTP đã hết hạn");
+        }
+
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("OTP hợp lệ")
+                .build();
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public ApiResponse resetPassword(ForgotPasswordRequest request) {
         if (request.getEmail() == null || request.getEmail().isBlank()) {

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { cn } from '../lib/utils';
+import { hasMinLength, isStrongPassword, isValidPhone } from '../lib/validation';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
 import {
@@ -34,6 +35,8 @@ type PasswordForm = {
   newPassword: string;
   confirmNewPassword: string;
 };
+
+type FieldErrors = Record<string, string | undefined>;
 
 export default function Profile() {
   const { t, language } = useLanguage();
@@ -54,6 +57,61 @@ export default function Profile() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [profileErrors, setProfileErrors] = useState<FieldErrors>({});
+  const [profileTouched, setProfileTouched] = useState<Record<string, boolean>>({});
+  const [passwordErrors, setPasswordErrors] = useState<FieldErrors>({});
+  const [passwordTouched, setPasswordTouched] = useState<Record<string, boolean>>({});
+
+  const validateProfileField = (name: 'fullName' | 'phone', value: string) => {
+    switch (name) {
+      case 'fullName':
+        if (!value.trim()) return 'Vui lòng nhập họ và tên.';
+        if (value.trim().length < 2) return 'Họ và tên phải có ít nhất 2 ký tự.';
+        return undefined;
+      case 'phone':
+        if (!value.trim()) return 'Vui lòng nhập số điện thoại.';
+        if (!isValidPhone(value)) return 'Số điện thoại không đúng định dạng.';
+        return undefined;
+      default:
+        return undefined;
+    }
+  };
+
+  const validatePasswordField = (name: keyof PasswordForm, value: string, nextPasswordForm = passwordForm) => {
+    switch (name) {
+      case 'currentPassword':
+        if (!value) return 'Vui lòng nhập mật khẩu hiện tại.';
+        return undefined;
+      case 'newPassword':
+        if (!value) return 'Vui lòng nhập mật khẩu mới.';
+        if (!hasMinLength(value, 8)) return 'Mật khẩu phải có ít nhất 8 ký tự.';
+        if (!isStrongPassword(value)) return 'Mật khẩu phải chứa ít nhất 1 chữ hoa và 1 số.';
+        if (value === nextPasswordForm.currentPassword) return 'Mật khẩu mới phải khác mật khẩu hiện tại.';
+        return undefined;
+      case 'confirmNewPassword':
+        if (!value) return 'Vui lòng xác nhận mật khẩu mới.';
+        if (value !== nextPasswordForm.newPassword) return 'Xác nhận mật khẩu mới không khớp.';
+        return undefined;
+      default:
+        return undefined;
+    }
+  };
+
+  const profileInputClass = (field: 'fullName' | 'phone', editable: boolean) => cn(
+    'w-full px-3 py-2 font-medium outline-none transition-all bg-transparent rounded-[8px] border text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40',
+    profileTouched[field] && profileErrors[field]
+      ? 'border-[#ff0000] text-[#f0f0f0] focus:border-[#ff0000] focus:ring-[#ff0000]/20'
+      : editable
+        ? 'border border-[rgba(255,255,255,0.2)] text-[#f0f0f0]'
+        : 'border border-[rgba(255,255,255,0.3)] text-[#a1a4a5]',
+  );
+
+  const passwordInputClass = (field: keyof PasswordForm) => cn(
+    'w-50 pl-3 pr-10 py-2 outline-none bg-transparent border rounded-[8px] text-[#f0f0f0] text-[14px] transition-all placeholder:text-[#a1a4a5]/40',
+    passwordTouched[field] && passwordErrors[field]
+      ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff0000]/20'
+      : 'border-[rgba(255,255,255,0.3)] focus:border-primary focus:ring-2 focus:ring-primary/20',
+  );
 
   const loadProfile = async () => {
     setIsLoadingProfile(true);
@@ -65,6 +123,8 @@ export default function Profile() {
         fullName: data.fullName || '',
         phone: data.phone || '',
       });
+      setProfileErrors({});
+      setProfileTouched({});
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không tải được hồ sơ người dùng.';
       showToast(message, 'error');
@@ -101,8 +161,13 @@ export default function Profile() {
 
   const handleProfileSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!profileForm.fullName.trim() || !profileForm.phone.trim()) {
-      showToast('Vui lòng nhập đầy đủ họ tên và số điện thoại.', 'error');
+    const nextErrors: FieldErrors = {
+      fullName: validateProfileField('fullName', profileForm.fullName),
+      phone: validateProfileField('phone', profileForm.phone),
+    };
+    setProfileErrors(nextErrors);
+    setProfileTouched({ fullName: true, phone: true });
+    if (nextErrors.fullName || nextErrors.phone) {
       return;
     }
 
@@ -134,18 +199,24 @@ export default function Profile() {
       fullName: profile?.fullName || '',
       phone: profile?.phone || '',
     });
+    setProfileErrors({});
+    setProfileTouched({});
   };
 
   const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmNewPassword) {
-      showToast('Vui lòng nhập đầy đủ thông tin mật khẩu.', 'error');
-      return;
-    }
-
-    if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
-      showToast('Xác nhận mật khẩu mới không khớp.', 'error');
+    const nextErrors: FieldErrors = {
+      currentPassword: validatePasswordField('currentPassword', passwordForm.currentPassword),
+      newPassword: validatePasswordField('newPassword', passwordForm.newPassword),
+      confirmNewPassword: validatePasswordField('confirmNewPassword', passwordForm.confirmNewPassword),
+    };
+    setPasswordErrors(nextErrors);
+    setPasswordTouched({
+      currentPassword: true,
+      newPassword: true,
+      confirmNewPassword: true,
+    });
+    if (nextErrors.currentPassword || nextErrors.newPassword || nextErrors.confirmNewPassword) {
       return;
     }
 
@@ -161,6 +232,8 @@ export default function Profile() {
       setShowCurrentPassword(false);
       setShowNewPassword(false);
       setShowConfirmPassword(false);
+      setPasswordErrors({});
+      setPasswordTouched({});
       showToast(t('profile.security.update_password') || 'Password updated successfully!', 'success');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể đổi mật khẩu.';
@@ -323,13 +396,24 @@ export default function Profile() {
                       <input
                         type="text"
                         value={profileForm.fullName}
-                        onChange={(e) => setProfileForm((current) => ({ ...current, fullName: e.target.value }))}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          setProfileForm((current) => ({ ...current, fullName: nextValue }));
+                          setProfileErrors((current) => profileTouched.fullName
+                            ? { ...current, fullName: validateProfileField('fullName', nextValue) }
+                            : current);
+                        }}
+                        onBlur={() => {
+                          setProfileTouched((current) => ({ ...current, fullName: true }));
+                          setProfileErrors((current) => ({ ...current, fullName: validateProfileField('fullName', profileForm.fullName) }));
+                        }}
                         disabled={!isEditing}
-                        className={cn(
-                          'w-full px-3 py-2 font-medium outline-none transition-all bg-transparent rounded-[8px] border text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40',
-                          isEditing ? 'border border-[rgba(255,255,255,0.2)] text-[#f0f0f0]' : 'border border-[rgba(255,255,255,0.3)] text-[#a1a4a5]'
-                        )}
+                        className={profileInputClass('fullName', isEditing)}
+                        aria-invalid={profileTouched.fullName && !!profileErrors.fullName}
                       />
+                      {profileTouched.fullName && profileErrors.fullName && (
+                        <p className="text-[11px] text-[#ff0000] font-medium">{profileErrors.fullName}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -347,13 +431,24 @@ export default function Profile() {
                       <input
                         type="tel"
                         value={profileForm.phone}
-                        onChange={(e) => setProfileForm((current) => ({ ...current, phone: e.target.value }))}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          setProfileForm((current) => ({ ...current, phone: nextValue }));
+                          setProfileErrors((current) => profileTouched.phone
+                            ? { ...current, phone: validateProfileField('phone', nextValue) }
+                            : current);
+                        }}
+                        onBlur={() => {
+                          setProfileTouched((current) => ({ ...current, phone: true }));
+                          setProfileErrors((current) => ({ ...current, phone: validateProfileField('phone', profileForm.phone) }));
+                        }}
                         disabled={!isEditing}
-                        className={cn(
-                          'w-full px-3 py-2 font-medium outline-none transition-all bg-transparent rounded-[8px] border text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-[#a1a4a5]/40',
-                          isEditing ? 'border border-[rgba(255,255,255,0.2)] text-[#f0f0f0]' : 'border border-[rgba(255,255,255,0.3)] text-[#a1a4a5]'
-                        )}
+                        className={profileInputClass('phone', isEditing)}
+                        aria-invalid={profileTouched.phone && !!profileErrors.phone}
                       />
+                      {profileTouched.phone && profileErrors.phone && (
+                        <p className="text-[11px] text-[#ff0000] font-medium">{profileErrors.phone}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -408,32 +503,123 @@ export default function Profile() {
                   <h3 className="text-base font-bold text-[#f0f0f0]">{t('profile.security.password')}</h3>
                 </div>
                 <form onSubmit={handleChangePassword} className="p-6 space-y-5">
-                  <div className="space-y-2 max-w-sm">
+                  <div className="space-y-2 max-w-50">
                     <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.security.current_password')}</label>
                     <div className="relative">
-                      <input value={passwordForm.currentPassword} onChange={(e) => setPasswordForm((current) => ({ ...current, currentPassword: e.target.value }))} required type={showCurrentPassword ? 'text' : 'password'} placeholder="••••••••" className="w-full pl-3 pr-10 py-2 outline-none bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40" />
+                      <input
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => {
+                          const nextForm = { ...passwordForm, currentPassword: e.target.value };
+                          setPasswordForm(nextForm);
+                          setPasswordErrors((current) => {
+                            const nextErrors = { ...current };
+                            if (passwordTouched.currentPassword) {
+                              nextErrors.currentPassword = validatePasswordField('currentPassword', nextForm.currentPassword, nextForm);
+                            }
+                            if (passwordTouched.newPassword) {
+                              nextErrors.newPassword = validatePasswordField('newPassword', nextForm.newPassword, nextForm);
+                            }
+                            return nextErrors;
+                          });
+                        }}
+                        onBlur={() => {
+                          setPasswordTouched((current) => ({ ...current, currentPassword: true }));
+                          setPasswordErrors((current) => ({
+                            ...current,
+                            currentPassword: validatePasswordField('currentPassword', passwordForm.currentPassword),
+                          }));
+                        }}
+                        required
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        className={passwordInputClass('currentPassword')}
+                        aria-invalid={passwordTouched.currentPassword && !!passwordErrors.currentPassword}
+                      />
                       <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a1a4a5] hover:text-[#f0f0f0] transition-colors">
                         {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                    {passwordTouched.currentPassword && passwordErrors.currentPassword && (
+                      <p className="text-[11px] text-[#ff0000] font-medium">{passwordErrors.currentPassword}</p>
+                    )}
                   </div>
-                  <div className="space-y-2 max-w-sm">
+                  <div className="space-y-2 max-w-50">
                     <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.security.new_password')}</label>
                     <div className="relative">
-                      <input value={passwordForm.newPassword} onChange={(e) => setPasswordForm((current) => ({ ...current, newPassword: e.target.value }))} required minLength={8} type={showNewPassword ? 'text' : 'password'} placeholder="••••••••" className="w-full pl-3 pr-10 py-2 outline-none bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40" />
+                      <input
+                        value={passwordForm.newPassword}
+                        onChange={(e) => {
+                          const nextForm = { ...passwordForm, newPassword: e.target.value };
+                          setPasswordForm(nextForm);
+                          setPasswordErrors((current) => {
+                            const nextErrors = { ...current };
+                            if (passwordTouched.newPassword) {
+                              nextErrors.newPassword = validatePasswordField('newPassword', nextForm.newPassword, nextForm);
+                            }
+                            if (passwordTouched.confirmNewPassword) {
+                              nextErrors.confirmNewPassword = validatePasswordField('confirmNewPassword', nextForm.confirmNewPassword, nextForm);
+                            }
+                            return nextErrors;
+                          });
+                        }}
+                        onBlur={() => {
+                          setPasswordTouched((current) => ({ ...current, newPassword: true }));
+                          setPasswordErrors((current) => ({
+                            ...current,
+                            newPassword: validatePasswordField('newPassword', passwordForm.newPassword),
+                          }));
+                        }}
+                        required
+                        minLength={8}
+                        type={showNewPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        className={passwordInputClass('newPassword')}
+                        aria-invalid={passwordTouched.newPassword && !!passwordErrors.newPassword}
+                      />
                       <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a1a4a5] hover:text-[#f0f0f0] transition-colors">
                         {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                    {passwordTouched.newPassword && passwordErrors.newPassword && (
+                      <p className="text-[11px] text-[#ff0000] font-medium">{passwordErrors.newPassword}</p>
+                    )}
                   </div>
-                  <div className="space-y-2 max-w-sm">
+                  <div className="space-y-2 max-w-50">
                     <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.security.confirm_password')}</label>
                     <div className="relative">
-                      <input value={passwordForm.confirmNewPassword} onChange={(e) => setPasswordForm((current) => ({ ...current, confirmNewPassword: e.target.value }))} required minLength={8} type={showConfirmPassword ? 'text' : 'password'} placeholder="••••••••" className="w-full pl-3 pr-10 py-2 outline-none bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40" />
+                      <input
+                        value={passwordForm.confirmNewPassword}
+                        onChange={(e) => {
+                          const nextForm = { ...passwordForm, confirmNewPassword: e.target.value };
+                          setPasswordForm(nextForm);
+                          setPasswordErrors((current) => passwordTouched.confirmNewPassword
+                            ? {
+                              ...current,
+                              confirmNewPassword: validatePasswordField('confirmNewPassword', nextForm.confirmNewPassword, nextForm),
+                            }
+                            : current);
+                        }}
+                        onBlur={() => {
+                          setPasswordTouched((current) => ({ ...current, confirmNewPassword: true }));
+                          setPasswordErrors((current) => ({
+                            ...current,
+                            confirmNewPassword: validatePasswordField('confirmNewPassword', passwordForm.confirmNewPassword),
+                          }));
+                        }}
+                        required
+                        minLength={8}
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        className={passwordInputClass('confirmNewPassword')}
+                        aria-invalid={passwordTouched.confirmNewPassword && !!passwordErrors.confirmNewPassword}
+                      />
                       <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a1a4a5] hover:text-[#f0f0f0] transition-colors">
                         {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                    {passwordTouched.confirmNewPassword && passwordErrors.confirmNewPassword && (
+                      <p className="text-[11px] text-[#ff0000] font-medium">{passwordErrors.confirmNewPassword}</p>
+                    )}
                   </div>
                   <button type="submit" disabled={isChangingPassword} className="px-4 py-2 bg-[#ffffff] text-[#000000] text-xs font-bold rounded-md hover:bg-[#f0f0f0] transition-all disabled:opacity-60">
                     {isChangingPassword ? 'Updating...' : t('profile.security.update_password')}

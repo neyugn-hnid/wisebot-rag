@@ -53,7 +53,7 @@ import {
 } from 'recharts';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 const data = [
   { name: 'Mon', value: 4000 },
@@ -81,6 +81,10 @@ export default function Dashboard() {
   const { t } = useLanguage();
   const { role } = useRole();
   const isAdmin = role === 'ADMIN';
+
+  if (!isAdmin) {
+    return <Navigate to="/knowledge-base" replace />;
+  }
 
   const [userCount, setUserCount] = useState<number | null>(null);
   const [kbCount, setKbCount] = useState<number | null>(null);

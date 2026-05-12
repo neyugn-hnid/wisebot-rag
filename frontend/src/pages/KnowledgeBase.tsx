@@ -556,7 +556,7 @@ export default function KnowledgeBase() {
   return (
     <>
       {currentView === 'manage' ? (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto relative">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto relative">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <button 
