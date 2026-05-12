@@ -40,6 +40,7 @@ import {
   type WidgetResponse,
   type WidgetAppearanceConfig,
 } from '../api/widget';
+import { getMySubscription, listPlans, type BillingPlanResponse, type SubscriptionResponse } from '../api/billing';
 
 const BOT_ICONS = [
   { id: 'bot', icon: CustomRobotLogo },
@@ -82,6 +83,7 @@ export default function WidgetCustomization() {
   const [isLoadingWidget, setIsLoadingWidget] = useState(false);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseResponse[]>([]);
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
+  const [widgetCustomizationEnabled, setWidgetCustomizationEnabled] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasHydratedLocalSettings = useRef(false);
 
@@ -145,6 +147,42 @@ export default function WidgetCustomization() {
       window.localStorage.removeItem(WIDGET_SETTINGS_STORAGE_KEY);
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadEntitlement() {
+      try {
+        const [plans, subscription] = await Promise.all([
+          listPlans().catch(() => [] as BillingPlanResponse[]),
+          getMySubscription().catch(() => null as SubscriptionResponse | null),
+        ]);
+        const plan = plans.find((item) => item.id === subscription?.planId);
+        if (!cancelled) {
+          setWidgetCustomizationEnabled((plan?.code || 'free').toLowerCase() !== 'free');
+        }
+      } catch {
+        if (!cancelled) {
+          setWidgetCustomizationEnabled(false);
+        }
+      }
+    }
+
+    void loadEntitlement();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (widgetCustomizationEnabled) {
+      return;
+    }
+
+    setPrimaryColor('#2563EB');
+    setSelectedIconId('bot');
+    setCustomIconUrl(null);
+    setIconColor('#ffffff');
+  }, [widgetCustomizationEnabled]);
 
   useEffect(() => {
     const loadKnowledgeBases = async () => {
@@ -264,6 +302,17 @@ export default function WidgetCustomization() {
         throw new Error('Không lấy được tenantId từ access token.');
       }
 
+      const appearanceConfig = {
+        primaryColor: widgetCustomizationEnabled ? primaryColor : '#2563EB',
+        position,
+        iconColor: widgetCustomizationEnabled ? iconColor : '#ffffff',
+        selectedIconId: widgetCustomizationEnabled ? selectedIconId : 'bot',
+        customIconUrl: widgetCustomizationEnabled ? customIconUrl : null,
+        knowledgeBaseId: knowledgeBaseId || null,
+        topK,
+        temperature,
+      };
+
       let activeWidget = widget;
       if (!activeWidget) {
         const created = await createWidget({
@@ -272,16 +321,7 @@ export default function WidgetCustomization() {
           code: generateWidgetCode(),
           welcomeMessage: welcomeMsg.trim(),
           createdBy: resolveUserIdFromToken() || null,
-          appearanceConfig: {
-            primaryColor,
-            position,
-            iconColor,
-            selectedIconId,
-            customIconUrl,
-            knowledgeBaseId: knowledgeBaseId || null,
-            topK,
-            temperature,
-          },
+          appearanceConfig,
         });
 
         activeWidget = created;
@@ -290,16 +330,7 @@ export default function WidgetCustomization() {
         const updated = await updateWidget(activeWidget.id, {
           name: botName.trim() || 'WiseBot Assistant',
           welcomeMessage: welcomeMsg.trim(),
-          appearanceConfig: {
-            primaryColor,
-            position,
-            iconColor,
-            selectedIconId,
-            customIconUrl,
-            knowledgeBaseId: knowledgeBaseId || null,
-            topK,
-            temperature,
-          },
+          appearanceConfig,
         });
 
         activeWidget = updated;
@@ -316,6 +347,10 @@ export default function WidgetCustomization() {
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!widgetCustomizationEnabled) {
+      showToast('Gói Free chỉ dùng icon mặc định cho widget. Vui lòng nâng cấp gói để tải icon riêng.', 'error');
+      return;
+    }
     const file = e.target.files?.[0];
     if (file) {
       const url = URL.createObjectURL(file);
@@ -402,6 +437,11 @@ export default function WidgetCustomization() {
         <div className="p-6 space-y-8">
           {activeTab === 'appearance' ? (
             <>
+              {!widgetCustomizationEnabled && (
+                <div className="rounded-[16px] border border-[rgba(255,176,32,0.24)] bg-[rgba(255,176,32,0.08)] p-4 text-sm text-[#f3ddb0]">
+                  Gói Free dùng màu chủ đạo mặc định và icon mặc định cho widget. Nâng cấp gói để mở khóa tùy chỉnh màu và icon.
+                </div>
+              )}
               {/* Bot Identity */}
               <section className="space-y-4">
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#a1a4a5]">
@@ -472,14 +512,17 @@ export default function WidgetCustomization() {
                   {BOT_ICONS.map((item) => (
                     <button
                       key={item.id}
+                      disabled={!widgetCustomizationEnabled}
                       onClick={() => setSelectedIconId(item.id)}
                       className={cn(
                         "w-10 h-10 rounded-[12px] flex items-center justify-center transition-all border",
-                        selectedIconId === item.id 
-                          ? "text-white border border-transparent shadow-md shadow-black/40" 
-                          : "bg-[#000000] text-[#a1a4a5] border border-[rgba(255,255,255,0.3)] hover:border-primary/50 hover:text-[#3b9eff]"
+                        !widgetCustomizationEnabled
+                          ? "bg-[#000000] text-[#6b7280] border border-[rgba(255,255,255,0.15)] cursor-not-allowed"
+                          : selectedIconId === item.id 
+                            ? "text-white border border-transparent shadow-md shadow-black/40" 
+                            : "bg-[#000000] text-[#a1a4a5] border border-[rgba(255,255,255,0.3)] hover:border-primary/50 hover:text-[#3b9eff]"
                       )}
-                      style={selectedIconId === item.id ? { backgroundColor: primaryColor, boxShadow: `0 4px 12px ${primaryColor}33` } : {}}
+                      style={widgetCustomizationEnabled && selectedIconId === item.id ? { backgroundColor: primaryColor, boxShadow: `0 4px 12px ${primaryColor}33` } : {}}
                     >
                       <item.icon size={18} />
                     </button>
@@ -488,6 +531,7 @@ export default function WidgetCustomization() {
                   {/* Custom Uploaded Icon */}
                   {customIconUrl ? (
                     <button
+                      disabled={!widgetCustomizationEnabled}
                       onClick={() => setSelectedIconId('custom')}
                       className={cn(
                         "w-10 h-10 rounded-[12px] flex items-center justify-center transition-all border relative group/icon",
@@ -511,8 +555,14 @@ export default function WidgetCustomization() {
                     </button>
                   ) : (
                     <button
+                      disabled={!widgetCustomizationEnabled}
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-10 h-10 rounded-[12px] flex items-center justify-center transition-all border-dashed border border-[rgba(255,255,255,0.3)] text-[#a1a4a5] hover:border-primary hover:text-[#3b9eff] hover:bg-[rgba(59,158,255,0.05)]"
+                      className={cn(
+                        "w-10 h-10 rounded-[12px] flex items-center justify-center transition-all border-dashed border",
+                        widgetCustomizationEnabled
+                          ? "border-[rgba(255,255,255,0.3)] text-[#a1a4a5] hover:border-primary hover:text-[#3b9eff] hover:bg-[rgba(59,158,255,0.05)]"
+                          : "border-[rgba(255,255,255,0.15)] text-[#6b7280] cursor-not-allowed"
+                      )}
                     >
                       <ImageIcon size={18} />
                       <input 
@@ -541,10 +591,13 @@ export default function WidgetCustomization() {
                   {PRESET_COLORS.slice(0, 9).map((color) => (
                     <button
                       key={color}
+                      disabled={!widgetCustomizationEnabled}
                       onClick={() => setPrimaryColor(color)}
                       className={cn(
                         "w-6 h-6 rounded-full border-2 transition-all",
-                        primaryColor === color ? "border border-slate-900 scale-110" : "border border-transparent hover:scale-110"
+                        !widgetCustomizationEnabled
+                          ? "border border-[rgba(255,255,255,0.15)] cursor-not-allowed"
+                          : primaryColor === color ? "border border-slate-900 scale-110" : "border border-transparent hover:scale-110"
                       )}
                       style={{ backgroundColor: color }}
                     />
@@ -554,14 +607,19 @@ export default function WidgetCustomization() {
                   <input 
                     type="color" 
                     value={primaryColor}
+                    disabled={!widgetCustomizationEnabled}
                     onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="w-10 h-10 rounded-[12px] border-none cursor-pointer overflow-hidden p-0 bg-transparent"
+                    className={cn(
+                      "w-10 h-10 rounded-[12px] border-none overflow-hidden p-0 bg-transparent",
+                      widgetCustomizationEnabled ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+                    )}
                   />
                   <input 
                     type="text" 
                     value={primaryColor}
+                    disabled={!widgetCustomizationEnabled}
                     onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="flex-1 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-xs font-mono uppercase focus:ring-2 focus:ring-primary/20 outline-none"
+                    className="flex-1 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-xs font-mono uppercase focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -572,10 +630,13 @@ export default function WidgetCustomization() {
                   {PRESET_COLORS.map((color) => (
                     <button
                       key={color}
+                      disabled={!widgetCustomizationEnabled}
                       onClick={() => setIconColor(color)}
                       className={cn(
                         "w-6 h-6 rounded-full border-2 transition-all",
-                        iconColor === color ? "border border-slate-900 scale-110" : "border border-transparent hover:scale-110 border border-[rgba(255,255,255,0.3)]"
+                        !widgetCustomizationEnabled
+                          ? "border border-[rgba(255,255,255,0.15)] cursor-not-allowed"
+                          : iconColor === color ? "border border-slate-900 scale-110" : "border border-transparent hover:scale-110 border border-[rgba(255,255,255,0.3)]"
                       )}
                       style={{ backgroundColor: color }}
                     />
@@ -585,14 +646,19 @@ export default function WidgetCustomization() {
                   <input 
                     type="color" 
                     value={iconColor}
+                    disabled={!widgetCustomizationEnabled}
                     onChange={(e) => setIconColor(e.target.value)}
-                    className="w-10 h-10 rounded-[12px] border-none cursor-pointer overflow-hidden p-0 bg-transparent"
+                    className={cn(
+                      "w-10 h-10 rounded-[12px] border-none overflow-hidden p-0 bg-transparent",
+                      widgetCustomizationEnabled ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+                    )}
                   />
                   <input 
                     type="text" 
                     value={iconColor}
+                    disabled={!widgetCustomizationEnabled}
                     onChange={(e) => setIconColor(e.target.value)}
-                    className="flex-1 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-xs font-mono uppercase focus:ring-2 focus:ring-primary/20 outline-none"
+                    className="flex-1 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-xs font-mono uppercase focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>

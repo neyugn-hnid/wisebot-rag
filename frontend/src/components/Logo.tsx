@@ -87,8 +87,6 @@ export default function Logo({ className, iconOnly = false, size = 'md', theme =
     );
   }
 
-  // Use maxWidth on the wrapper so the logo never forces the parent to expand.
-  // The image itself uses width:100% so it scales down to its container when needed.
   return (
     <div className={cn('flex items-center', className)}>
       <div style={{ maxWidth: `${iconSize}px`, width: '100%' }}>

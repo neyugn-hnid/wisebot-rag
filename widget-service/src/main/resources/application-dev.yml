@@ -21,3 +21,7 @@ spring:
     baseline-on-migrate: true
     validate-on-migrate: true
     schemas: widget_service
+
+billing:
+  base-url: ${BILLING_BASE_URL:http://localhost:8085}
+  internal-api-key: ${INTERNAL_API_KEY:wisebot-internal-key}

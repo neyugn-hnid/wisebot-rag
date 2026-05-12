@@ -8,4 +8,6 @@ import java.util.UUID;
 
 public interface BillingPlanPriceRepository extends JpaRepository<BillingPlanPrice, UUID> {
     List<BillingPlanPrice> findAllByPlan_IdOrderByEffectiveFromDesc(UUID planId);
+
+    java.util.Optional<BillingPlanPrice> findFirstByPlan_IdAndBillingCycleOrderByEffectiveFromDesc(UUID planId, String billingCycle);
 }

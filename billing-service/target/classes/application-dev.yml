@@ -27,3 +27,6 @@ vnpay:
   hash-secret: ${VNPAY_HASH_SECRET:YOUR_HASH_SECRET}
   pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
   return-url: ${VNPAY_RETURN_URL:http://localhost:5173/billing?vnpay_return=true}
+
+internal:
+  api-key: ${INTERNAL_API_KEY:wisebot-internal-key}

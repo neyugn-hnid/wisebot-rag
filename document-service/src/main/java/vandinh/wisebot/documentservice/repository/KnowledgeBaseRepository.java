@@ -12,4 +12,5 @@ import java.util.UUID;
 public interface KnowledgeBaseRepository extends JpaRepository<KnowledgeBase, UUID> {
     List<KnowledgeBase> findAllByTenantId(UUID tenantId);
     Optional<KnowledgeBase> findByIdAndTenantId(UUID id, UUID tenantId);
+    long countByTenantId(UUID tenantId);
 }

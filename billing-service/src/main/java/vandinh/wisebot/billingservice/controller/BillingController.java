@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vandinh.wisebot.billingservice.common.response.ApiResponse;
@@ -20,6 +21,7 @@ import vandinh.wisebot.billingservice.dto.request.CreateUsageEventRequest;
 import vandinh.wisebot.billingservice.dto.request.CreateUsageMeterRequest;
 import vandinh.wisebot.billingservice.dto.request.SubscribeRequest;
 import vandinh.wisebot.billingservice.service.BillingService;
+import vandinh.wisebot.billingservice.exception.InvalidDataException;
 
 import java.util.UUID;
 
@@ -130,9 +132,31 @@ public class BillingController {
                 .build();
     }
 
+    @GetMapping("/subscriptions/me")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','FINANCE','USER')")
+    public ApiResponse getMySubscription(@RequestHeader(value = "X-Tenant-Id", required = false) String tenantIdHeader) {
+        UUID tenantId = parseTenantId(tenantIdHeader);
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Subscription")
+                .data(billingService.getSubscription(tenantId))
+                .build();
+    }
+
     @GetMapping("/invoices")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','FINANCE')")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','FINANCE','USER')")
     public ApiResponse listInvoices(@RequestParam UUID tenantId) {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Invoices")
+                .data(billingService.listInvoices(tenantId))
+                .build();
+    }
+
+    @GetMapping("/invoices/me")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','FINANCE','USER')")
+    public ApiResponse listMyInvoices(@RequestHeader(value = "X-Tenant-Id", required = false) String tenantIdHeader) {
+        UUID tenantId = parseTenantId(tenantIdHeader);
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
                 .message("Invoices")
@@ -178,5 +202,16 @@ public class BillingController {
                 .message("Payments")
                 .data(billingService.listPayments(invoiceId))
                 .build();
+    }
+
+    private UUID parseTenantId(String tenantIdHeader) {
+        if (tenantIdHeader == null || tenantIdHeader.isBlank()) {
+            throw new InvalidDataException("Missing tenant header");
+        }
+        try {
+            return UUID.fromString(tenantIdHeader.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new InvalidDataException("Invalid tenant header");
+        }
     }
 }

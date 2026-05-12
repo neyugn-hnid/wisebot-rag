@@ -14,6 +14,7 @@ import vandinh.wisebot.billingservice.dto.response.BillingInvoiceResponse;
 import vandinh.wisebot.billingservice.dto.response.BillingPlanResponse;
 import vandinh.wisebot.billingservice.dto.response.BillingPlanPriceResponse;
 import vandinh.wisebot.billingservice.dto.response.InvoiceItemResponse;
+import vandinh.wisebot.billingservice.dto.response.InternalPlanLimitResponse;
 import vandinh.wisebot.billingservice.dto.response.PaymentResponse;
 import vandinh.wisebot.billingservice.dto.response.SubscriptionResponse;
 import vandinh.wisebot.billingservice.dto.response.UsageEventResponse;
@@ -222,11 +223,58 @@ public class BillingServiceImpl implements BillingService {
 
         @Override
         @Transactional(readOnly = true)
-        public List<PaymentResponse> listPayments(UUID invoiceId) {
+    public List<PaymentResponse> listPayments(UUID invoiceId) {
         return paymentRepository.findAllByInvoice_IdOrderByCreatedAtDesc(invoiceId)
             .stream()
             .map(this::mapPayment)
             .toList();
+        }
+
+        @Override
+        @Transactional(readOnly = true)
+        public InternalPlanLimitResponse getKnowledgeBaseLimit(UUID tenantId) {
+        BillingSubscription subscription = subscriptionRepository.findByTenantId(tenantId).orElse(null);
+        String planCode = subscription != null && subscription.getPlan() != null
+                ? subscription.getPlan().getCode()
+                : "free";
+
+        int limit = switch (planCode.toLowerCase()) {
+            case "plus" -> 5;
+            case "pro" -> -1;
+            default -> 1;
+        };
+        int documentUploadLimit = switch (planCode.toLowerCase()) {
+            case "plus" -> 200;
+            case "pro" -> -1;
+            default -> 10;
+        };
+        long storageLimitBytes = switch (planCode.toLowerCase()) {
+            case "plus" -> 5L * 1024 * 1024 * 1024;
+            case "pro" -> 50L * 1024 * 1024 * 1024;
+            default -> 100L * 1024 * 1024;
+        };
+        int monthlyMessageLimit = switch (planCode.toLowerCase()) {
+            case "plus" -> 10_000;
+            case "pro" -> -1;
+            default -> 1_000;
+        };
+        boolean apiAccessEnabled = true;
+        boolean widgetCustomizationEnabled = !"free".equalsIgnoreCase(planCode);
+        boolean customIntegrationEnabled = "pro".equalsIgnoreCase(planCode);
+        boolean advancedAnalyticsEnabled = "pro".equalsIgnoreCase(planCode);
+
+        return InternalPlanLimitResponse.builder()
+                .planCode(planCode)
+                .knowledgeBaseLimit(limit)
+                .documentUploadLimit(documentUploadLimit)
+                .storageLimitBytes(storageLimitBytes)
+                .monthlyMessageLimit(monthlyMessageLimit)
+                .apiAccessEnabled(apiAccessEnabled)
+                .widgetCustomizationEnabled(widgetCustomizationEnabled)
+                .customIntegrationEnabled(customIntegrationEnabled)
+                .advancedAnalyticsEnabled(advancedAnalyticsEnabled)
+                .unlimited(limit < 0 || documentUploadLimit < 0 || monthlyMessageLimit < 0)
+                .build();
         }
 
     private BillingPlanResponse mapPlan(BillingPlan plan) {

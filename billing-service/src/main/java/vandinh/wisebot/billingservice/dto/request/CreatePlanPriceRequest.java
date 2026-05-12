@@ -13,7 +13,7 @@ public class CreatePlanPriceRequest {
     private UUID planId;
     @NotBlank
     private String billingCycle;
-    private String currency = "USD";
+    private String currency = "VND";
     @Min(0)
     private int amountCents;
     @Min(0)

@@ -8,4 +8,6 @@ import java.util.UUID;
 
 public interface BillingPaymentRepository extends JpaRepository<BillingPayment, UUID> {
     List<BillingPayment> findAllByInvoice_IdOrderByCreatedAtDesc(UUID invoiceId);
+
+    java.util.Optional<BillingPayment> findFirstByProviderAndProviderPaymentId(String provider, String providerPaymentId);
 }
