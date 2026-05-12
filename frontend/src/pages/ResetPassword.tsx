@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import Logo from '../components/Logo';
+import { hasMinLength, isStrongPassword, isValidEmail, isValidOtp } from '../lib/validation';
 import { 
   Mail, 
   ArrowLeft,
@@ -10,7 +11,7 @@ import {
   EyeOff,
   Loader2,
 } from 'lucide-react';
-import { forgotPassword, resetPassword } from '../api/auth';
+import { forgotPassword, resetPassword, verifyResetPasswordOtp } from '../api/auth';
 
 type ErrorMap = Record<string, string | undefined>;
 
@@ -27,6 +28,7 @@ export default function ResetPassword() {
   const [newPassword, setNewPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
   const [isSendingOtp, setIsSendingOtp] = React.useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = React.useState(false);
   const [isResetting, setIsResetting] = React.useState(false);
   const [otpSent, setOtpSent] = React.useState(false);
   const [countdown, setCountdown] = React.useState(0);
@@ -63,14 +65,16 @@ export default function ResetPassword() {
     switch (name) {
       case 'email':
         if (!value.trim()) return t('validation.required');
+        if (!isValidEmail(value)) return 'Email không đúng định dạng.';
         return undefined;
       case 'otp':
         if (!value.trim()) return t('validation.required');
-        if (value.trim().length !== 6) return 'Mã OTP phải gồm 6 chữ số';
+        if (!isValidOtp(value)) return 'Mã OTP phải gồm 6 chữ số';
         return undefined;
       case 'newPassword':
         if (!value) return t('validation.required');
-        if (value.length < 8) return t('validation.password_min').replace('{min}', '8');
+        if (!hasMinLength(value, 8)) return t('validation.password_min').replace('{min}', '8');
+        if (!isStrongPassword(value)) return 'Mật khẩu phải chứa ít nhất 1 chữ hoa và 1 số';
         return undefined;
       case 'confirmPassword':
         if (!value) return t('validation.required');
@@ -88,14 +92,26 @@ export default function ResetPassword() {
   };
 
   const handleChange = (field: string, value: string) => {
-    if (field === 'email') setEmail(value);
-    else if (field === 'otp') setOtp(value.replace(/\D/g, '').slice(0, 6));
-    else if (field === 'newPassword') setNewPassword(value);
-    else setConfirmPassword(value);
+    const normalizedValue = field === 'otp' ? value.replace(/\D/g, '').slice(0, 6) : value;
+    const nextNewPassword = field === 'newPassword' ? normalizedValue : newPassword;
+    if (field === 'email') setEmail(normalizedValue);
+    else if (field === 'otp') setOtp(normalizedValue);
+    else if (field === 'newPassword') setNewPassword(normalizedValue);
+    else setConfirmPassword(normalizedValue);
     if (serverError) setServerError('');
     setErrors((prev) => {
-      if (!touched[field]) return prev;
-      return { ...prev, [field]: validateField(field, field === 'otp' ? value.replace(/\D/g, '').slice(0, 6) : value) };
+      const nextErrors = { ...prev };
+      if (touched[field]) {
+        nextErrors[field] = validateField(field, normalizedValue);
+      }
+      if (field === 'newPassword' && touched.confirmPassword) {
+        nextErrors.confirmPassword = !confirmPassword
+          ? validateField('confirmPassword', confirmPassword)
+          : confirmPassword !== nextNewPassword
+            ? t('validation.password_match')
+            : undefined;
+      }
+      return nextErrors;
     });
   };
 
@@ -130,7 +146,7 @@ export default function ResetPassword() {
     !!validateField('confirmPassword', confirmPassword)
   );
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     const newErrors: ErrorMap = {
       email: validateField('email', email),
       otp: validateField('otp', otp),
@@ -138,7 +154,20 @@ export default function ResetPassword() {
     setErrors(newErrors);
     setTouched({ email: true, otp: true });
     if (newErrors.email || newErrors.otp) return;
-    setShowPasswordFields(true);
+
+    setIsVerifyingOtp(true);
+    setServerError('');
+    try {
+      await verifyResetPasswordOtp({
+        email: email.trim(),
+        otp: otp.trim(),
+      });
+      setShowPasswordFields(true);
+    } catch (err: any) {
+      setServerError(err.message || t('toast.error'));
+    } finally {
+      setIsVerifyingOtp(false);
+    }
   };
 
   const handleResetPassword = async () => {
@@ -169,7 +198,7 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-[#000000] flex items-start justify-center px-6 pt-10 pb-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
+    <div className="min-h-screen bg-[#000000] flex items-center justify-center px-6 pt-10 pb-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
       <div className="max-w-md w-full space-y-4 animate-in fade-in zoom-in-95 duration-500">
         <div className="text-center flex flex-col items-center">
           <Logo theme="dark" customSize={142} className="mb-0" />
@@ -189,8 +218,9 @@ export default function ResetPassword() {
                     onChange={(e) => handleChange('email', e.target.value)}
                     onBlur={handleBlur('email')}
                     placeholder="name@company.com"
-                    className={`${inputClass('email')} mt-2`}
+                    className={`${inputClass('email')} mt-1`}
                     disabled={otpSent}
+                    aria-invalid={touched.email && !!errors.email}
                   />
                 </div>
                 {touched.email && errors.email && (
@@ -200,14 +230,15 @@ export default function ResetPassword() {
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-[#f0f0f0] tracking-wider">Mã</label>
-                <div className="relative mt-2">
+                <div className="relative mt-1">
                   <input
                     type="text"
                     value={otp}
                     onChange={(e) => handleChange('otp', e.target.value)}
                     onBlur={handleBlur('otp')}
                     placeholder="Nhập mã"
-                    className={inputClass('otp')}
+                    className={`${inputClass('email')} mt-1`}
+                    aria-invalid={touched.otp && !!errors.otp}
                   />
                   <button
                     type="button"
@@ -215,7 +246,7 @@ export default function ResetPassword() {
                     disabled={isSendingOtp || countdown > 0 || !email.trim()}
                     className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 px-3 py-1 text-xs font-medium border-l border-[#f5f5f5] text-[#ffffff] cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSendingOtp ? <Loader2 size={14} className="animate-spin" /> : countdown > 0 ? <span className="text-[11px] tabular-nums">{countdown}s</span> : null}
+                    {isSendingOtp ? <Loader2 size={14} className="animate-spin" /> : countdown > 0 ? <span className="text-[11px] tabular-nums">Gửi lại sau {countdown}s</span> : null}
                     {isSendingOtp ? 'Đang gửi...' : countdown > 0 ? '' : otpSent ? 'Gửi lại' : 'Gửi mã'}
                   </button>
                 </div>
@@ -230,7 +261,7 @@ export default function ResetPassword() {
             <>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-[#f0f0f0] tracking-wider">{t('settings.security.password.new')}</label>
-                <div className="relative mt-2">
+                <div className="relative mt-1">
                   <input
                     type={showNewPassword ? 'text' : 'password'}
                     value={newPassword}
@@ -238,6 +269,7 @@ export default function ResetPassword() {
                     onBlur={handleBlur('newPassword')}
                     placeholder={t('settings.security.password.new')}
                     className={pwInputClass('newPassword')}
+                    aria-invalid={touched.newPassword && !!errors.newPassword}
                   />
                   <button
                     type="button"
@@ -255,7 +287,7 @@ export default function ResetPassword() {
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-[#f0f0f0] tracking-wider">{t('settings.security.password.confirm')}</label>
-                <div className="relative mt-2">
+                <div className="relative mt-1">
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
@@ -263,6 +295,7 @@ export default function ResetPassword() {
                     onBlur={handleBlur('confirmPassword')}
                     placeholder={t('settings.security.password.confirm')}
                     className={pwInputClass('confirmPassword')}
+                    aria-invalid={touched.confirmPassword && !!errors.confirmPassword}
                   />
                   <button
                     type="button"
@@ -289,10 +322,10 @@ export default function ResetPassword() {
           <button
             type="button"
             onClick={showPasswordFields ? handleResetPassword : handleContinue}
-            disabled={isResetting || hasStep1Errors || hasStep2Errors}
+            disabled={isSendingOtp || isVerifyingOtp || isResetting || hasStep1Errors || hasStep2Errors}
             className="w-full bg-[#ffffff] text-[#000000] py-3.5 rounded-full font-black text-sm shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isResetting && <Loader2 size={18} className="animate-spin" />}
+            {(isVerifyingOtp || isResetting) && <Loader2 size={18} className="animate-spin" />}
             {showPasswordFields ? t('common.confirm') : t('auth.reset.submit')}
           </button>
         </div>

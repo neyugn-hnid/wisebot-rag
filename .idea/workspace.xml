@@ -5,22 +5,75 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9395e225-b2fc-43f8-8b76-11165b432eb5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/frontend/public/img/icon.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/public/img/logo.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/sqldialects.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sqldialects.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/components/DashboardLayout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/DashboardLayout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/components/Logo.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/Logo.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/contexts/LanguageContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/contexts/LanguageContext.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/ChatbotPlayground.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/ChatbotPlayground.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/KnowledgeBase.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/KnowledgeBase.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/BillingServiceApplication.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/BillingServiceApplication.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/common/response/ApiResponse$ApiResponseBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/common/response/ApiResponse$ApiResponseBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/common/response/ApiResponse.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/common/response/ApiResponse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/common/response/ErrorResponse.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/common/response/ErrorResponse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/config/SecurityConfig.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/config/SecurityConfig.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/CreateInvoiceItemRequest.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/CreateInvoiceItemRequest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/CreatePaymentRequest.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/CreatePaymentRequest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/CreatePlanPriceRequest.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/CreatePlanPriceRequest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/CreatePlanRequest.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/CreatePlanRequest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/CreateUsageEventRequest.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/CreateUsageEventRequest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/CreateUsageMeterRequest.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/CreateUsageMeterRequest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/SubscribeRequest.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/request/SubscribeRequest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/BillingInvoiceResponse$BillingInvoiceResponseBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/BillingInvoiceResponse$BillingInvoiceResponseBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/BillingInvoiceResponse.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/BillingInvoiceResponse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/BillingPlanPriceResponse$BillingPlanPriceResponseBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/BillingPlanPriceResponse$BillingPlanPriceResponseBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/BillingPlanPriceResponse.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/BillingPlanPriceResponse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/BillingPlanResponse$BillingPlanResponseBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/BillingPlanResponse$BillingPlanResponseBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/BillingPlanResponse.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/BillingPlanResponse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/InvoiceItemResponse$InvoiceItemResponseBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/InvoiceItemResponse$InvoiceItemResponseBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/InvoiceItemResponse.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/InvoiceItemResponse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/PaymentResponse$PaymentResponseBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/PaymentResponse$PaymentResponseBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/PaymentResponse.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/PaymentResponse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/SubscriptionResponse$SubscriptionResponseBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/SubscriptionResponse$SubscriptionResponseBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/SubscriptionResponse.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/SubscriptionResponse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/UsageEventResponse$UsageEventResponseBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/UsageEventResponse$UsageEventResponseBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/UsageEventResponse.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/UsageEventResponse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/UsageMeterResponse$UsageMeterResponseBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/UsageMeterResponse$UsageMeterResponseBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/UsageMeterResponse.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/dto/response/UsageMeterResponse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingInvoice$BillingInvoiceBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingInvoice$BillingInvoiceBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingInvoice.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingInvoice.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingInvoiceItem$BillingInvoiceItemBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingInvoiceItem$BillingInvoiceItemBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingInvoiceItem.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingInvoiceItem.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingPayment$BillingPaymentBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingPayment$BillingPaymentBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingPayment.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingPayment.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingPlan$BillingPlanBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingPlan$BillingPlanBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingPlan.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingPlan.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingPlanPrice$BillingPlanPriceBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingPlanPrice$BillingPlanPriceBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingPlanPrice.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingPlanPrice.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingSubscription$BillingSubscriptionBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingSubscription$BillingSubscriptionBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingSubscription.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingSubscription.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingUsageEvent$BillingUsageEventBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingUsageEvent$BillingUsageEventBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingUsageEvent.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingUsageEvent.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingUsageMeter$BillingUsageMeterBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingUsageMeter$BillingUsageMeterBuilder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingUsageMeter.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/entity/BillingUsageMeter.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/exception/GlobalExceptionHandling.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/exception/GlobalExceptionHandling.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/exception/InvalidDataException.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/exception/InvalidDataException.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/exception/ResourceNotFoundException.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/exception/ResourceNotFoundException.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingInvoiceItemRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingInvoiceItemRepository.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingInvoiceRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingInvoiceRepository.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingPaymentRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingPaymentRepository.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingPlanPriceRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingPlanPriceRepository.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingPlanRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingPlanRepository.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingSubscriptionRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingSubscriptionRepository.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingUsageEventRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingUsageEventRepository.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingUsageMeterRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/repository/BillingUsageMeterRepository.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/security/GatewayHeaderAuthFilter.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/security/GatewayHeaderAuthFilter.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/service/BillingService.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/classes/vandinh/wisebot/billingservice/service/BillingService.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/target/test-classes/vandinh/wisebot/billingservice/BillingServiceApplicationTests.class" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/target/test-classes/vandinh/wisebot/billingservice/BillingServiceApplicationTests.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/api/auth.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/auth.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/contexts/ToastContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/contexts/ToastContext.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/LandingPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/LandingPage.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/pages/Login.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Login.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Profile.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Profile.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/pages/Register.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Register.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/pages/ResetPassword.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/ResetPassword.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/src/main/resources/application-dev.yml" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/resources/application-dev.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/controller/AuthController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/AuthService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/impl/AuthServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/impl/AuthServiceImpl.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -80,44 +133,44 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_ADD_EXTERNAL_FILES": "true",
-    "RequestMappingsPanelOrder0": "0",
-    "RequestMappingsPanelOrder1": "1",
-    "RequestMappingsPanelWidth0": "75",
-    "RequestMappingsPanelWidth1": "75",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "Spring Boot.ApiGatewayApplication.executor": "Run",
-    "Spring Boot.BillingServiceApplication.executor": "Run",
-    "Spring Boot.ChatServiceApplication.executor": "Run",
-    "Spring Boot.DocumentServiceApplication.executor": "Run",
-    "Spring Boot.UserServiceApplication.executor": "Run",
-    "Spring Boot.WidgetServiceApplication.executor": "Run",
-    "git-widget-placeholder": "fix/minor-issues",
-    "jdk.selected.JAVA_MODULE": "17",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/VanDinh/OneDrive/Máy tính/wisebot-rag",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0",
-    "run.configurations.included.in.services": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
+    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
+    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
+    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
+    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;Spring Boot.ApiGatewayApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.BillingServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.ChatServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.DocumentServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.UserServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.WidgetServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;fix/minor-issues&quot;,
+    &quot;jdk.selected.JAVA_MODULE&quot;: &quot;17&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/VanDinh/OneDrive/Máy tính/wisebot-rag&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
-  "keyToStringList": {
-    "DatabaseDriversLRU": [
-      "postgresql"
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;postgresql&quot;
     ]
   }
-}]]></component>
+}</component>
   <component name="RunDashboard">
     <option name="configurationTypes">
       <set>
@@ -208,6 +261,7 @@
       <workItem from="1777343454952" duration="22310000" />
       <workItem from="1777913866816" duration="2805000" />
       <workItem from="1777945606204" duration="6917000" />
+      <workItem from="1778381074405" duration="5702000" />
     </task>
     <servers />
   </component>

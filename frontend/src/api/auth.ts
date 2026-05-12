@@ -132,6 +132,15 @@ export interface ForgotPasswordRequest {
   confirmNewPassword?: string;
 }
 
+export async function verifyResetPasswordOtp(request: Pick<ForgotPasswordRequest, 'email' | 'otp'>): Promise<{ message: string }> {
+  const res = await fetch(`${AUTH_BASE}/verify-reset-password-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<{ message: string }>(res);
+}
+
 export async function forgotPassword(request: ForgotPasswordRequest): Promise<{ message: string }> {
   const res = await fetch(`${AUTH_BASE}/forgot-password`, {
     method: 'POST',

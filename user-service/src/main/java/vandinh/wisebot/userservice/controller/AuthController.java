@@ -95,6 +95,13 @@ public class AuthController {
         return authService.sendResetPasswordOtp(request);
     }
 
+    @Operation(summary = "Verify reset password OTP", description = "Xác minh OTP đặt lại mật khẩu trước khi cho phép nhập mật khẩu mới")
+    @PostMapping("/verify-reset-password-otp")
+    public ApiResponse verifyResetPasswordOtp(@RequestBody @Valid ForgotPasswordRequest request) {
+        log.info("Yêu cầu xác minh OTP đặt lại mật khẩu: {}", request.getEmail());
+        return authService.verifyResetPasswordOtp(request);
+    }
+
     @Operation(summary = "Reset password", description = "Xác minh OTP và đặt lại mật khẩu mới")
     @PostMapping("/reset-password")
     public ApiResponse resetPassword(@RequestBody @Valid ForgotPasswordRequest request) {

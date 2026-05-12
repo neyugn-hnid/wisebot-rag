@@ -5,6 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useRole } from '../contexts/RoleContext';
 import { storeTokens } from '../lib/auth';
 import { login } from '../api/auth';
+import { isValidEmail, looksLikeEmail } from '../lib/validation';
 import Logo from '../components/Logo';
 import { 
   Mail, 
@@ -32,6 +33,7 @@ export default function Login() {
     switch (name) {
       case 'email':
         if (!value.trim()) return t('validation.required');
+        if (looksLikeEmail(value) && !isValidEmail(value)) return 'Email không đúng định dạng.';
         return undefined;
       case 'password':
         if (!value) return t('validation.required');
@@ -101,7 +103,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#000000] flex items-start justify-center px-6 pt-10 pb-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
+    <div className="min-h-screen bg-[#000000] flex items-center justify-center px-6 py-10 selection:bg-[#ff801f] selection:text-[#ffffff]">
       <div className="max-w-md w-full space-y-4 animate-in fade-in zoom-in-95 duration-500">
         <div className="text-center flex flex-col items-center">
           <Logo theme="dark" customSize={142} className="mb-0" />
@@ -121,6 +123,7 @@ export default function Login() {
                   onBlur={handleBlur('email')}
                   className={inputClass('email')}
                   autoComplete="email"
+                  aria-invalid={touched.email && !!errors.email}
                 />
               </div>
               {touched.email && errors.email && (
@@ -143,6 +146,7 @@ export default function Login() {
                   onBlur={handleBlur('password')}
                   className={`${inputClass('password')} pr-10`}
                   autoComplete="current-password"
+                  aria-invalid={touched.password && !!errors.password}
                 />
                 <button
                   type="button"

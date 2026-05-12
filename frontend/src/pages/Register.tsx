@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { register } from '../api/auth';
+import { hasMinLength, isValidGmail } from '../lib/validation';
 import Logo from '../components/Logo';
 import { 
   Mail, 
@@ -14,7 +15,6 @@ import {
 import { GoogleIcon, GithubIcon } from '../components/SocialIcons';
 
 type FieldErrors = Record<string, string | undefined>;
-const GMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
 
 export default function Register() {
   const { t } = useLanguage();
@@ -41,11 +41,11 @@ export default function Register() {
         return undefined;
       case 'email':
         if (!value.trim()) return t('validation.required');
-        if (!GMAIL_REGEX.test(value.trim())) return t('validation.email');
+        if (!isValidGmail(value)) return t('validation.email');
         return undefined;
       case 'password':
         if (!value) return t('validation.required');
-        if (value.length < 8) return t('validation.password_min').replace('{min}', '8');
+        if (!hasMinLength(value, 9)) return t('validation.password_min').replace('{min}', '9');
         return undefined;
       case 'confirmPassword':
         if (!value) return t('validation.required');
@@ -62,10 +62,18 @@ export default function Register() {
   };
 
   const handleChange = (field: string, setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setter(e.target.value);
-    if (touched[field]) {
-      setErrors(prev => ({ ...prev, [field]: validateField(field, e.target.value, password) }));
-    }
+    const nextValue = e.target.value;
+    setter(nextValue);
+    setErrors((prev) => {
+      const nextErrors = { ...prev };
+      if (touched[field]) {
+        nextErrors[field] = validateField(field, nextValue, field === 'password' ? nextValue : password);
+      }
+      if (field === 'password' && touched.confirmPassword) {
+        nextErrors.confirmPassword = validateField('confirmPassword', confirmPassword, nextValue);
+      }
+      return nextErrors;
+    });
   };
 
   const inputClass = (field: string) =>
@@ -114,7 +122,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-[#000000] flex items-start justify-center px-6 pt-10 pb-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
+    <div className="min-h-screen bg-[#000000] flex items-center justify-center px-6 pt-10 pb-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
           <div className="max-w-md w-full space-y-4 animate-in fade-in zoom-in-95 duration-500">
             <div className="text-center flex flex-col items-center">
               <Logo theme="dark" customSize={142} className="mb-0" />
@@ -134,6 +142,7 @@ export default function Register() {
                   onBlur={handleBlur('fullName')}
                   className={inputClass('fullName')}
                   autoComplete="name"
+                  aria-invalid={touched.fullName && !!errors.fullName}
                 />
               </div>
               {touched.fullName && errors.fullName && (
@@ -153,6 +162,7 @@ export default function Register() {
                   placeholder="example@gmail.com"
                   className={inputClass('email')}
                   autoComplete="email"
+                  aria-invalid={touched.email && !!errors.email}
                 />
               </div>
               {touched.email && errors.email && (
@@ -172,6 +182,7 @@ export default function Register() {
                   onBlur={handleBlur('password')}
                   className={`${inputClass('password')} pr-10`}
                   autoComplete="new-password"
+                  aria-invalid={touched.password && !!errors.password}
                 />
                 <button
                   type="button"
@@ -198,6 +209,7 @@ export default function Register() {
                   onBlur={handleBlur('confirmPassword')}
                   className={inputClass('confirmPassword')}
                   autoComplete="new-password"
+                  aria-invalid={touched.confirmPassword && !!errors.confirmPassword}
                 />
               </div>
               {touched.confirmPassword && errors.confirmPassword && (

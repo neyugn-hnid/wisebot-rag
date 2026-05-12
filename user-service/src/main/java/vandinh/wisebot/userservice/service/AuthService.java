@@ -19,5 +19,6 @@ public interface AuthService {
     ApiResponse logout(String authorizationHeader);
     ApiResponse inviteUser(UUID tenantId, String email);
     ApiResponse sendResetPasswordOtp(ForgotPasswordRequest request);
+    ApiResponse verifyResetPasswordOtp(ForgotPasswordRequest request);
     ApiResponse resetPassword(ForgotPasswordRequest request);
 }

@@ -28,6 +28,7 @@ import {
 } from '../api/users';
 import { inviteUser } from '../api/auth';
 import DeleteModal from '../components/DeleteModal';
+import { isValidEmail, isValidPhone } from '../lib/validation';
 
 type SystemUser = {
   id: string;
@@ -41,6 +42,7 @@ type SystemUser = {
 };
 
 const DEFAULT_PAGE_SIZE = 10;
+type FieldErrors = Record<string, string | undefined>;
 
 export default function UserManagement() {
   const { t, language } = useLanguage();
@@ -72,6 +74,37 @@ export default function UserManagement() {
   const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [statusActionUserId, setStatusActionUserId] = useState<string | null>(null);
+  const [inviteErrors, setInviteErrors] = useState<FieldErrors>({});
+  const [inviteTouched, setInviteTouched] = useState<Record<string, boolean>>({});
+  const [editErrors, setEditErrors] = useState<FieldErrors>({});
+  const [editTouched, setEditTouched] = useState<Record<string, boolean>>({});
+
+  const validateInviteField = (name: 'email', value: string) => {
+    if (name === 'email') {
+      if (!value.trim()) return 'Vui lòng nhập email người dùng.';
+      if (!isValidEmail(value)) return 'Email không đúng định dạng.';
+    }
+    return undefined;
+  };
+
+  const validateEditField = (name: 'name' | 'email' | 'phone', value: string) => {
+    switch (name) {
+      case 'name':
+        if (!value.trim()) return 'Vui lòng nhập họ và tên.';
+        if (value.trim().length < 2) return 'Họ và tên phải có ít nhất 2 ký tự.';
+        return undefined;
+      case 'email':
+        if (!value.trim()) return 'Vui lòng nhập email.';
+        if (!isValidEmail(value)) return 'Email không đúng định dạng.';
+        return undefined;
+      case 'phone':
+        if (!value.trim()) return undefined;
+        if (!isValidPhone(value)) return 'Số điện thoại không đúng định dạng.';
+        return undefined;
+      default:
+        return undefined;
+    }
+  };
 
   const toDisplayStatus = (status?: string): SystemUser['status'] => {
     if (status === 'DISABLED') return 'Suspended';
@@ -168,6 +201,8 @@ export default function UserManagement() {
 
   const openInviteModal = () => {
     setInviteEmail('');
+    setInviteErrors({});
+    setInviteTouched({});
     setIsInviteModalOpen(true);
   };
 
@@ -180,6 +215,8 @@ export default function UserManagement() {
       globalRole: user.globalRole,
       status: user.status,
     });
+    setEditErrors({});
+    setEditTouched({});
     setIsEditModalOpen(true);
   };
 
@@ -190,8 +227,12 @@ export default function UserManagement() {
 
   const handleInviteSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!inviteEmail.trim()) {
-      showToast('Vui lòng nhập email người dùng.', 'error');
+    const nextErrors: FieldErrors = {
+      email: validateInviteField('email', inviteEmail),
+    };
+    setInviteErrors(nextErrors);
+    setInviteTouched({ email: true });
+    if (nextErrors.email) {
       return;
     }
 
@@ -202,6 +243,8 @@ export default function UserManagement() {
       showToast(t('toast.user_created') || 'Đã gửi lời mời người dùng.', 'success');
       setIsInviteModalOpen(false);
       setInviteEmail('');
+      setInviteErrors({});
+      setInviteTouched({});
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể gửi lời mời người dùng.';
       showToast(message, 'error');
@@ -213,6 +256,17 @@ export default function UserManagement() {
   const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedUser) {
+      return;
+    }
+
+    const nextErrors: FieldErrors = {
+      name: validateEditField('name', editForm.name),
+      email: validateEditField('email', editForm.email),
+      phone: validateEditField('phone', editForm.phone),
+    };
+    setEditErrors(nextErrors);
+    setEditTouched({ name: true, email: true, phone: true });
+    if (nextErrors.name || nextErrors.email || nextErrors.phone) {
       return;
     }
 
@@ -241,6 +295,8 @@ export default function UserManagement() {
       showToast(t('toast.user_updated') || 'Cập nhật trạng thái thành công.', 'success');
       setIsEditModalOpen(false);
       setSelectedUser(null);
+      setEditErrors({});
+      setEditTouched({});
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể cập nhật người dùng.';
       showToast(message, 'error');
@@ -548,7 +604,11 @@ export default function UserManagement() {
             <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.08)] flex items-center justify-between">
               <h3 className="text-lg font-bold text-[#ffffff]">{t('users.create')}</h3>
               <button
-                onClick={() => setIsInviteModalOpen(false)}
+                onClick={() => {
+                  setIsInviteModalOpen(false);
+                  setInviteErrors({});
+                  setInviteTouched({});
+                }}
                 className="text-[#a1a4a5] hover:text-[#a1a4a5] p-1 rounded-md hover:bg-[rgba(255,255,255,0.05)] transition-colors"
               >
                 <X size={20} />
@@ -559,12 +619,25 @@ export default function UserManagement() {
                 <label className="text-xs font-bold text-[#f0f0f0]">{t('team.email_address')}</label>
                 <input
                   type="email"
-                  required
                   value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setInviteEmail(nextValue);
+                    setInviteErrors((current) => inviteTouched.email
+                      ? { ...current, email: validateInviteField('email', nextValue) }
+                      : current);
+                  }}
+                  onBlur={() => {
+                    setInviteTouched((current) => ({ ...current, email: true }));
+                    setInviteErrors((current) => ({ ...current, email: validateInviteField('email', inviteEmail) }));
+                  }}
                   placeholder="jane@example.com"
                   className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none"
+                  aria-invalid={inviteTouched.email && !!inviteErrors.email}
                 />
+                {inviteTouched.email && inviteErrors.email && (
+                  <p className="text-[11px] text-[#ff0000] font-medium">{inviteErrors.email}</p>
+                )}
               </div>
               <p className="text-xs text-[#a1a4a5]">
                 {language === 'vi' ? 'Hệ thống sẽ gửi lời mời tham gia tenant hiện tại qua email.' : 'The system will send an invitation to join the current tenant by email.'}
@@ -572,7 +645,11 @@ export default function UserManagement() {
               <div className="pt-4 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsInviteModalOpen(false)}
+                  onClick={() => {
+                    setIsInviteModalOpen(false);
+                    setInviteErrors({});
+                    setInviteTouched({});
+                  }}
                   className="flex-1 px-4 py-2.5 text-sm font-bold bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff] rounded-md transition-all"
                 >
                   {t('common.cancel')}
@@ -599,6 +676,8 @@ export default function UserManagement() {
                 onClick={() => {
                   setIsEditModalOpen(false);
                   setSelectedUser(null);
+                  setEditErrors({});
+                  setEditTouched({});
                 }}
                 className="text-[#a1a4a5] hover:text-[#a1a4a5] p-1 rounded-md hover:bg-[rgba(255,255,255,0.05)] transition-colors"
               >
@@ -611,27 +690,69 @@ export default function UserManagement() {
                 <input
                   type="text"
                   value={editForm.name}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setEditForm((prev) => ({ ...prev, name: nextValue }));
+                    setEditErrors((current) => editTouched.name
+                      ? { ...current, name: validateEditField('name', nextValue) }
+                      : current);
+                  }}
+                  onBlur={() => {
+                    setEditTouched((current) => ({ ...current, name: true }));
+                    setEditErrors((current) => ({ ...current, name: validateEditField('name', editForm.name) }));
+                  }}
                   className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none"
+                  aria-invalid={editTouched.name && !!editErrors.name}
                 />
+                {editTouched.name && editErrors.name && (
+                  <p className="text-[11px] text-[#ff0000] font-medium">{editErrors.name}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-[#ffffff]">{t('team.email_address')}</label>
                 <input
                   type="email"
                   value={editForm.email}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setEditForm((prev) => ({ ...prev, email: nextValue }));
+                    setEditErrors((current) => editTouched.email
+                      ? { ...current, email: validateEditField('email', nextValue) }
+                      : current);
+                  }}
+                  onBlur={() => {
+                    setEditTouched((current) => ({ ...current, email: true }));
+                    setEditErrors((current) => ({ ...current, email: validateEditField('email', editForm.email) }));
+                  }}
                   className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none"
+                  aria-invalid={editTouched.email && !!editErrors.email}
                 />
+                {editTouched.email && editErrors.email && (
+                  <p className="text-[11px] text-[#ff0000] font-medium">{editErrors.email}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-[#ffffff]">Phone Number</label>
                 <input
                   type="tel"
                   value={editForm.phone}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setEditForm((prev) => ({ ...prev, phone: nextValue }));
+                    setEditErrors((current) => editTouched.phone
+                      ? { ...current, phone: validateEditField('phone', nextValue) }
+                      : current);
+                  }}
+                  onBlur={() => {
+                    setEditTouched((current) => ({ ...current, phone: true }));
+                    setEditErrors((current) => ({ ...current, phone: validateEditField('phone', editForm.phone) }));
+                  }}
                   className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none"
+                  aria-invalid={editTouched.phone && !!editErrors.phone}
                 />
+                {editTouched.phone && editErrors.phone && (
+                  <p className="text-[11px] text-[#ff0000] font-medium">{editErrors.phone}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-[#ffffff]">{t('users.table.role')}</label>
@@ -672,6 +793,8 @@ export default function UserManagement() {
                   onClick={() => {
                     setIsEditModalOpen(false);
                     setSelectedUser(null);
+                    setEditErrors({});
+                    setEditTouched({});
                   }}
                   className="flex-1 px-4 py-2.5 text-sm font-bold bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff] rounded-md transition-all"
                 >
