@@ -1,0 +1,109 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "Khách truy cập" as Guest
+actor "Người dùng" as User
+actor "Quản trị viên" as Admin
+
+rectangle "Hệ thống WiseBot" {
+  usecase "Đăng ký tài khoản" as UC_Register
+  usecase "Xác thực email" as UC_VerifyEmail
+  usecase "Đăng nhập" as UC_Login
+  usecase "Đăng xuất" as UC_Logout
+  usecase "Quản lý thông tin cá nhân" as UC_Profile
+  usecase "Đổi mật khẩu" as UC_ChangePassword
+  usecase "Quên mật khẩu" as UC_ForgotPassword
+
+  usecase "Xem danh sách người dùng" as UC_ListUsers
+  usecase "Mời người dùng" as UC_InviteUser
+  usecase "Cập nhật người dùng" as UC_UpdateUser
+  usecase "Thay đổi trạng thái người dùng" as UC_ChangeUserStatus
+  usecase "Xóa người dùng" as UC_DeleteUser
+
+  usecase "Tạo cơ sở tri thức" as UC_CreateKB
+  usecase "Xem danh sách cơ sở tri thức" as UC_ListKB
+  usecase "Chỉnh sửa cơ sở tri thức" as UC_UpdateKB
+  usecase "Xóa cơ sở tri thức" as UC_DeleteKB
+
+  usecase "Tải lên tài liệu" as UC_UploadDoc
+  usecase "Xem danh sách tài liệu" as UC_ListDoc
+  usecase "Xóa tài liệu" as UC_DeleteDoc
+  usecase "Xử lý tài liệu" as UC_ProcessDoc
+  usecase "Theo dõi trạng thái tài liệu" as UC_DocStatus
+  usecase "Xem trước nội dung tài liệu" as UC_PreviewDoc
+
+  usecase "Tạo phiên chat" as UC_CreateChat
+  usecase "Gửi câu hỏi" as UC_Ask
+  usecase "Nhận câu trả lời" as UC_Answer
+  usecase "Xem lịch sử hội thoại" as UC_History
+  usecase "Xem nguồn trích dẫn" as UC_Citation
+
+  usecase "Tạo widget JavaScript" as UC_CreateWidget
+  usecase "Cấu hình widget" as UC_ConfigWidget
+  usecase "Nhúng chatbot lên website" as UC_EmbedWidget
+
+  usecase "Xem analytics và thống kê" as UC_Analytics
+
+  usecase "Tạo API key" as UC_CreateApiKey
+  usecase "Quản lý API key" as UC_ManageApiKey
+
+  usecase "Xem gói dịch vụ" as UC_ViewPlans
+  usecase "Đăng ký/Nâng cấp gói" as UC_Subscribe
+  usecase "Quản lý subscription" as UC_Subscription
+  usecase "Xem hóa đơn" as UC_Invoice
+  usecase "Thanh toán" as UC_Payment
+}
+
+Guest --> UC_Register
+Guest --> UC_VerifyEmail
+Guest --> UC_Login
+Guest --> UC_ForgotPassword
+
+User --> UC_Logout
+User --> UC_Profile
+User --> UC_ChangePassword
+User --> UC_CreateKB
+User --> UC_ListKB
+User --> UC_UpdateKB
+User --> UC_DeleteKB
+User --> UC_UploadDoc
+User --> UC_ListDoc
+User --> UC_DeleteDoc
+User --> UC_ProcessDoc
+User --> UC_DocStatus
+User --> UC_PreviewDoc
+User --> UC_CreateChat
+User --> UC_Ask
+User --> UC_Answer
+User --> UC_History
+User --> UC_Citation
+User --> UC_CreateWidget
+User --> UC_ConfigWidget
+User --> UC_EmbedWidget
+User --> UC_CreateApiKey
+User --> UC_ManageApiKey
+User --> UC_ViewPlans
+User --> UC_Subscribe
+User --> UC_Subscription
+User --> UC_Invoice
+User --> UC_Payment
+
+Admin --> UC_ListUsers
+Admin --> UC_InviteUser
+Admin --> UC_UpdateUser
+Admin --> UC_ChangeUserStatus
+Admin --> UC_DeleteUser
+Admin --> UC_Analytics
+
+UC_Ask .> UC_Answer : <<include>>
+UC_Answer .> UC_Citation : <<include>>
+UC_UploadDoc .> UC_ProcessDoc : <<include>>
+UC_ProcessDoc .> UC_DocStatus : <<include>>
+UC_CreateWidget .> UC_ConfigWidget : <<include>>
+UC_Subscribe .> UC_Payment : <<include>>
+
+Admin --|> User
+
+@enduml
