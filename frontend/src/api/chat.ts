@@ -48,6 +48,17 @@ export interface CitationResponse {
   snippet: string;
 }
 
+export interface ChatProviderInfo {
+  mode?: string;
+  provider?: string;
+  provider_name?: string;
+  model_name?: string;
+}
+
+export interface UpdateProviderModeRequest {
+  mode: 'ollama' | 'openai-compatible';
+}
+
 // --- Helper ---
 
 const CHAT_BASE = '/api/chat';
@@ -99,4 +110,18 @@ export async function ask(sessionId: string, request: AskRequest): Promise<AskRe
 export async function getCitations(messageId: string): Promise<CitationItem[]> {
   const res = await fetchWithAuth(`${CHAT_BASE}/messages/${messageId}/citations`);
   return handleResponse<CitationItem[]>(res);
+}
+
+export async function getProviderInfo(): Promise<ChatProviderInfo> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/provider`);
+  return handleResponse<ChatProviderInfo>(res);
+}
+
+export async function updateProviderMode(request: UpdateProviderModeRequest): Promise<ChatProviderInfo> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/provider/mode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<ChatProviderInfo>(res);
 }

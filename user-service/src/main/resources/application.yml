@@ -86,6 +86,8 @@ logging:
     org.hibernate.SQL: DEBUG
 
 app:
+  internal:
+    api-key: ${INTERNAL_CONFIG_API_KEY:change-me}
   features:
     jwt-blacklist:
       enabled: true

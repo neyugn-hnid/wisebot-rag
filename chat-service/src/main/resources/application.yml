@@ -36,6 +36,7 @@ integration:
     base-url: ${AI_BASE_URL:http://localhost:8002}
     ask-path: /v1/rag/ask
     stream-path: /v1/rag/stream
+    provider-path: /v1/provider
     service-token: ${AI_SERVICE_TOKEN:}
   document:
     base-url: ${DOCUMENT_BASE_URL:http://localhost:8081}

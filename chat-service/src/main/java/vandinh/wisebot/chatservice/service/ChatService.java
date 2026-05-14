@@ -11,6 +11,7 @@ import vandinh.wisebot.chatservice.dto.response.ChatMessageResponse;
 import vandinh.wisebot.chatservice.dto.response.ChatSessionResponse;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -34,4 +35,8 @@ public interface ChatService {
     List<MessageFeedbackResponse> listFeedback(UUID messageId);
 
     void closeSession(UUID sessionId);
+
+    Map<String, Object> getProviderInfo();
+
+    Map<String, Object> updateProviderMode(String mode);
 }

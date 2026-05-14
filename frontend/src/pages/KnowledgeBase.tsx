@@ -998,7 +998,7 @@ export default function KnowledgeBase() {
               <button 
                 onClick={handleSaveClick}
                 disabled={!kbName.trim()}
-                className="flex-1 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 shadow-primary/20 "
               >
                 {formMode === 'create' ? t('common.create') : t('common.save')}
               </button>

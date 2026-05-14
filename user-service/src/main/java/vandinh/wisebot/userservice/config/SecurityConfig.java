@@ -18,10 +18,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @Configuration
 @RequiredArgsConstructor
 @EnableMethodSecurity(prePostEnabled = true)
+@EnableConfigurationProperties(InternalApiProperties.class)
 public class SecurityConfig {
 
     private final JWTAuthenticationFilter jwtFilter;
@@ -34,6 +36,7 @@ public class SecurityConfig {
             "/auth/**",
             "/api/auth/**",
             "/user/auth/**",
+            "/internal/system-settings/**",
             "/swagger-ui/**",
             "/v3/**",
             "/webjars/**",

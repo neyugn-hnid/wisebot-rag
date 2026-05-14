@@ -112,7 +112,7 @@ export default function Register() {
       });
 
       showToast(payload.message || 'Đăng ký thành công.', 'success');
-      navigate('/verify-email');
+      navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể kết nối đến máy chủ.';
       showToast(message, 'error');
@@ -198,7 +198,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">Confirm Password</label>
+              <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">{t('auth.confirm_password')}</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
                 <input
@@ -229,7 +229,7 @@ export default function Register() {
                 className="mt-1 rounded border-[rgba(255,255,255,0.3)] bg-transparent focus:ring-2 focus:ring-primary/20"
               />
               <label htmlFor="terms" className="text-[14px] text-[#a1a4a5] leading-relaxed">
-                I agree to the <a href="#" className="text-[#f0f0f0] font-semibold hover:underline">Terms of Service</a> and <a href="#" className="text-[#f0f0f0] font-semibold hover:underline">Privacy Policy</a>.
+                {t('auth.i_agree')} <a href="#" className="text-[#f0f0f0] font-semibold hover:underline">{t('landing.footer.links.terms')}</a> {t('auth.and')} <a href="#" className="text-[#f0f0f0] font-semibold hover:underline">{t('landing.footer.links.privacy')}</a>.
               </label>
             </div>
             {touched.terms && errors.terms && (
@@ -241,7 +241,7 @@ export default function Register() {
               disabled={isSubmitting}
               className="w-full bg-[#ffffff] text-[#000000] py-3 rounded-full font-semibold text-[14px] hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Đang đăng ký...' : t('auth.register.submit')}
+              {isSubmitting ? t('auth.register.submitting') : t('auth.register.submit')}
             </button>
           </form>
 

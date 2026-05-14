@@ -58,6 +58,7 @@ async def lifespan(_: FastAPI):
     await init_db_pool()
     await init_qdrant()
     yield
+    await ollama_client.close()
     await close_db_pool()
 
 

@@ -4,6 +4,7 @@ import json
 import base64
 import hmac
 import hashlib
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
@@ -16,23 +17,27 @@ from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 
 from app.config import settings
 from app.db import close_db_pool, get_pool, init_db_pool, init_qdrant, close_qdrant, get_qdrant
-from app.ollama_client import OllamaClient, ensure_dimension
-from app.schemas import AskRequest, AskResponse, Citation, RagRequestDetail
+from app.llm_client import RuntimeLlmManager, build_llm_client_for_mode
+from app.schemas import AskRequest, AskResponse, Citation, ProviderConfigResponse, ProviderModeUpdateRequest, RagRequestDetail
 from app.security import require_service_auth
 
 
-ollama_client = OllamaClient(
-    base_url=settings.ollama_base_url,
-    llm_model=settings.ollama_llm_model,
-    embedding_model=settings.ollama_embedding_model,
-)
+llm_manager = RuntimeLlmManager(settings)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db_pool()
     await init_qdrant()
+    persisted_mode = await _load_persisted_provider_mode()
+    if persisted_mode and persisted_mode != llm_manager.mode:
+        try:
+            await llm_manager.switch_mode(persisted_mode)
+        except Exception:
+            logger.exception("Failed to restore persisted AI mode '%s'", persisted_mode)
     yield
+    await llm_manager.close()
     await close_qdrant()
     await close_db_pool()
 
@@ -46,6 +51,73 @@ async def healthcheck() -> dict:
     async with pool.acquire() as conn:
         await conn.execute("SELECT 1")
     return {"status": "ok", "service": settings.app_name}
+
+
+@app.get("/v1/provider")
+async def provider_info(_: dict[str, Any] = Depends(require_service_auth)) -> dict[str, str]:
+    llm_client = llm_manager.client
+    return {
+        "mode": llm_manager.mode,
+        "provider": llm_client.provider_key,
+        "provider_name": llm_client.provider_name,
+        "model_name": llm_client.model_name,
+    }
+
+
+async def _load_persisted_provider_mode() -> str | None:
+    headers = {"X-Internal-Api-Key": settings.internal_config_api_key}
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(
+                f"{settings.user_service_base_url}{settings.system_setting_mode_path}",
+                headers=headers,
+            )
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        payload = response.json()
+        data = payload.get("data") if isinstance(payload, dict) else None
+        value = data.get("value") if isinstance(data, dict) else None
+        return str(value).strip().lower() if value else None
+    except Exception:
+        logger.exception("Failed to load persisted AI provider mode")
+        return None
+
+
+async def _persist_provider_mode(mode: str) -> None:
+    headers = {
+        "X-Internal-Api-Key": settings.internal_config_api_key,
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "value": mode,
+        "description": "System-wide AI provider mode for answer generation",
+    }
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        response = await client.put(
+            f"{settings.user_service_base_url}{settings.system_setting_mode_path}",
+            headers=headers,
+            json=payload,
+        )
+    response.raise_for_status()
+
+
+@app.put("/v1/provider", response_model=ProviderConfigResponse)
+async def update_provider_mode(
+    payload: ProviderModeUpdateRequest,
+    _: dict[str, Any] = Depends(require_service_auth),
+) -> ProviderConfigResponse:
+    next_mode = payload.mode.strip().lower()
+    preview_client = build_llm_client_for_mode(settings, next_mode)
+    await preview_client.close()
+    await _persist_provider_mode(next_mode)
+    client = await llm_manager.switch_mode(payload.mode)
+    return ProviderConfigResponse(
+        mode=llm_manager.mode,
+        provider=client.provider_key,
+        provider_name=client.provider_name,
+        model_name=client.model_name,
+    )
 
 
 def _build_prompts(question: str, retrieved_chunks: list[dict]) -> tuple[str, str]:
@@ -158,6 +230,7 @@ async def rag_ask(
     payload: AskRequest,
     _: dict[str, Any] = Depends(require_service_auth),
 ) -> AskResponse:
+    llm_client = llm_manager.client
     pool = await get_pool()
 
     request_id = uuid.uuid4()
@@ -206,12 +279,12 @@ async def rag_ask(
                 request_id=request_id,
                 trace_id=trace_id,
                 answer=answer_text,
-                model_name=settings.ollama_llm_model,
+                model_name=llm_client.model_name,
                 citations=[],
             )
 
         system_prompt, user_prompt = _build_prompts(payload.question, retrieved)
-        llm_result = await ollama_client.chat(
+        llm_result = await llm_client.chat(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             temperature=payload.temperature,
@@ -255,17 +328,18 @@ async def rag_ask(
                     INSERT INTO ai_service.ai_llm_calls
                     (request_id, provider, model_name, prompt_tokens, completion_tokens, total_tokens,
                      latency_ms, finish_reason, request_payload, response_payload)
-                    VALUES ($1, 'ollama', $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb)
                     """,
                     request_id,
-                    settings.ollama_llm_model,
+                    llm_client.provider_key,
+                    llm_result.get("model") or llm_client.model_name,
                     prompt_tokens,
                     completion_tokens,
                     total_tokens,
                     latency_ms,
                     llm_result.get("done_reason", "stop"),
                     {"system": system_prompt, "user": user_prompt},
-                    llm_result,
+                    llm_result.get("raw", llm_result),
                 )
 
                 await conn.execute(
@@ -292,7 +366,7 @@ async def rag_ask(
             request_id=request_id,
             trace_id=trace_id,
             answer=answer_text,
-            model_name=settings.ollama_llm_model,
+            model_name=str(llm_result.get("model") or llm_client.model_name),
             citations=citations,
         )
     except Exception as exc:
@@ -314,6 +388,7 @@ async def rag_ask_stream(
     payload: AskRequest,
     _: dict[str, Any] = Depends(require_service_auth),
 ) -> StreamingResponse:
+    llm_client = llm_manager.client
     pool = await get_pool()
 
     request_id = uuid.uuid4()
@@ -368,7 +443,7 @@ async def rag_ask_stream(
                     "request_id": str(request_id),
                     "trace_id": trace_id,
                     "answer": "Không tìm thấy thông tin trong tài liệu.",
-                    "model_name": settings.ollama_llm_model,
+                    "model_name": llm_client.model_name,
                     "citations": [],
                 }
                 yield f"data: {json.dumps(done_event, ensure_ascii=True)}\\n\\n"
@@ -376,7 +451,7 @@ async def rag_ask_stream(
 
             system_prompt, user_prompt = _build_prompts(payload.question, retrieved)
 
-            async for item in ollama_client.chat_stream(
+            async for item in llm_client.chat_stream(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 temperature=payload.temperature,
@@ -426,17 +501,18 @@ async def rag_ask_stream(
                         INSERT INTO ai_service.ai_llm_calls
                         (request_id, provider, model_name, prompt_tokens, completion_tokens, total_tokens,
                          latency_ms, finish_reason, request_payload, response_payload)
-                        VALUES ($1, 'ollama', $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb)
                         """,
                         request_id,
-                        settings.ollama_llm_model,
+                        llm_client.provider_key,
+                        final_llm.get("model") if isinstance(final_llm, dict) else llm_client.model_name,
                         prompt_tokens,
                         completion_tokens,
                         total_tokens,
                         latency_ms,
                         final_llm.get("done_reason", "stop") if isinstance(final_llm, dict) else "stop",
                         {"system": system_prompt, "user": user_prompt},
-                        final_llm if isinstance(final_llm, dict) else {},
+                        (final_llm.get("raw") if isinstance(final_llm, dict) else None) or (final_llm if isinstance(final_llm, dict) else {}),
                     )
 
                     await conn.execute(
@@ -463,7 +539,7 @@ async def rag_ask_stream(
                 "request_id": str(request_id),
                 "trace_id": trace_id,
                 "answer": answer_text,
-                "model_name": settings.ollama_llm_model,
+                "model_name": str(final_llm.get("model") if isinstance(final_llm, dict) and final_llm.get("model") else llm_client.model_name),
                 "citations": citations_payload,
             }
             yield f"data: {json.dumps(done_event, ensure_ascii=True)}\n\n"

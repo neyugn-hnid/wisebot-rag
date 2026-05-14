@@ -35,6 +35,13 @@ alembic upgrade head
 
 ## Required models in Ollama
 
+```env
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+```
+
+Required models:
+
 ```bash
 ollama pull gemma4
 ollama pull nomic-embed-text

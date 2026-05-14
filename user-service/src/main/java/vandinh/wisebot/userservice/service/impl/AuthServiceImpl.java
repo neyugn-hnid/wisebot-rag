@@ -132,7 +132,7 @@ public class AuthServiceImpl implements AuthService {
 
             throw new RuntimeException("Lỗi hệ thống khi xác thực", e);
         } catch (DisabledException e) {
-            throw new DisabledException(LOCKED_ACCOUNT_MESSAGE);
+            throw e;
         }
     }
 

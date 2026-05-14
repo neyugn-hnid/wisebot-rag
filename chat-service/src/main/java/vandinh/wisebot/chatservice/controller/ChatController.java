@@ -20,6 +20,7 @@ import vandinh.wisebot.chatservice.dto.request.SendMessageRequest;
 import vandinh.wisebot.chatservice.service.ChatService;
 
 import java.util.UUID;
+import java.util.Map;
 
 @RestController
 @RequestMapping
@@ -115,6 +116,26 @@ public class ChatController {
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
                 .message("Session closed")
+                .build();
+    }
+
+    @GetMapping("/provider")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER','AGENT')")
+    public ApiResponse providerInfo() {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Provider info")
+                .data(chatService.getProviderInfo())
+                .build();
+    }
+
+    @PostMapping("/provider/mode")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ApiResponse updateProviderMode(@RequestBody Map<String, String> request) {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Provider mode updated")
+                .data(chatService.updateProviderMode(request.getOrDefault("mode", "")))
                 .build();
     }
 }

@@ -342,6 +342,18 @@ public class ChatServiceImpl implements ChatService {
         sessionRepository.save(session);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getProviderInfo() {
+        return aiClient.getProviderInfo();
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> updateProviderMode(String mode) {
+        return aiClient.updateProviderMode(mode);
+    }
+
     private ChatSessionResponse mapSession(ChatSession entity) {
         return ChatSessionResponse.builder()
                 .id(entity.getId())

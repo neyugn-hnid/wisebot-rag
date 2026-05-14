@@ -1,4 +1,5 @@
 import json
+import asyncio
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -25,7 +26,7 @@ class BaseLlmClient:
 class OllamaLlmClient(BaseLlmClient):
     def __init__(self, settings: Settings, timeout_seconds: float = 180.0):
         self.provider_key = "ollama"
-        self.provider_name = settings.ai_provider_name
+        self.provider_name = settings.ollama_provider_name
         self.model_name = settings.ollama_llm_model
         self._base_url = settings.ollama_base_url.rstrip("/")
         self._client = httpx.AsyncClient(timeout=timeout_seconds)
@@ -93,7 +94,7 @@ class OllamaLlmClient(BaseLlmClient):
 class OpenAiCompatibleLlmClient(BaseLlmClient):
     def __init__(self, settings: Settings, timeout_seconds: float = 180.0):
         self.provider_key = "openai-compatible"
-        self.provider_name = settings.ai_provider_name
+        self.provider_name = settings.third_party_provider_name
         self.model_name = settings.third_party_llm_model
         self._base_url = settings.third_party_base_url.rstrip("/")
         self._api_key = settings.third_party_api_key.strip()
@@ -214,8 +215,44 @@ class OpenAiCompatibleLlmClient(BaseLlmClient):
 
 def build_llm_client(settings: Settings) -> BaseLlmClient:
     mode = settings.ai_provider_mode.strip().lower()
+    return build_llm_client_for_mode(settings, mode)
+
+
+def build_llm_client_for_mode(settings: Settings, mode: str) -> BaseLlmClient:
     if mode == "ollama":
         return OllamaLlmClient(settings)
     if mode in {"openai-compatible", "third-party", "api"}:
         return OpenAiCompatibleLlmClient(settings)
-    raise ValueError(f"Unsupported AI_PROVIDER_MODE: {settings.ai_provider_mode}")
+    raise ValueError(f"Unsupported AI_PROVIDER_MODE: {mode}")
+
+
+class RuntimeLlmManager:
+    def __init__(self, settings: Settings):
+        self._settings = settings
+        self._lock = asyncio.Lock()
+        self._mode = settings.ai_provider_mode.strip().lower()
+        self._client = build_llm_client_for_mode(settings, self._mode)
+
+    @property
+    def client(self) -> BaseLlmClient:
+        return self._client
+
+    @property
+    def mode(self) -> str:
+        return self._mode
+
+    async def close(self) -> None:
+        await self._client.close()
+
+    async def switch_mode(self, mode: str) -> BaseLlmClient:
+        normalized = mode.strip().lower()
+        async with self._lock:
+            if normalized == self._mode:
+                return self._client
+
+            next_client = build_llm_client_for_mode(self._settings, normalized)
+            previous_client = self._client
+            self._client = next_client
+            self._mode = normalized
+            await previous_client.close()
+            return self._client

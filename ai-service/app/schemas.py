@@ -42,3 +42,14 @@ class RagRequestDetail(BaseModel):
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+
+
+class ProviderConfigResponse(BaseModel):
+    mode: str
+    provider: str
+    provider_name: str
+    model_name: str
+
+
+class ProviderModeUpdateRequest(BaseModel):
+    mode: str = Field(min_length=1)
