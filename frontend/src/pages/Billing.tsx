@@ -10,7 +10,6 @@ import {
   Users,
   TrendingUp,
   DollarSign,
-  X,
   ShieldCheck,
   Loader2,
   History
@@ -21,8 +20,9 @@ import {
   listPlans,
   listPlanPrices,
   getMySubscription,
-  mySubscribe,
   listMyInvoices,
+  createVNPayCheckout,
+  verifyVNPayReturn,
   BillingPlanResponse,
   BillingPlanPriceResponse,
   SubscriptionResponse,
@@ -36,6 +36,14 @@ interface Invoice {
   status: string;
 }
 
+function formatCurrency(amount: number, currency = 'VND') {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 export default function Billing() {
   const { t, language } = useLanguage();
   const { role } = useRole();
@@ -47,8 +55,6 @@ export default function Billing() {
   const [currentPlan, setCurrentPlan] = useState('Free');
   const [upgradeStep, setUpgradeStep] = useState<'selection' | 'checkout'>('selection');
   const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string; price: number } | null>(null);
-  const [newCard, setNewCard] = useState({ number: '', expiry: '', cvc: '', name: '' });
-  const [billingAddress, setBillingAddress] = useState({ line1: '', line2: '', city: '', country: 'US', zip: '' });
   const [invoices, setInvoices] = useState<Invoice[]>([]);
 
   // --- Backend state ---
@@ -58,6 +64,40 @@ export default function Billing() {
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [loadingSub, setLoadingSub] = useState(true);
   // --- End backend state ---
+
+  async function fetchBackendData() {
+    const [plans, subscription, invoicesResult] = await Promise.all([
+      listPlans().catch(() => [] as BillingPlanResponse[]),
+      getMySubscription().catch(() => null as SubscriptionResponse | null),
+      listMyInvoices().catch(() => [] as BillingInvoiceResponse[]),
+    ]);
+
+    setBackendPlans(plans);
+    setBackendSubscription(subscription);
+
+    if (plans.length > 0) {
+      const prices = await Promise.all(
+        plans.map((p) => listPlanPrices(p.id).catch(() => [] as BillingPlanPriceResponse[]))
+      );
+      setBackendPlanPrices(prices.flat());
+    } else {
+      setBackendPlanPrices([]);
+    }
+
+    if (subscription && plans.length > 0) {
+      const activePlan = plans.find((p) => p.id === subscription.planId);
+      if (activePlan) {
+        setCurrentPlan(activePlan.name);
+      }
+    }
+
+    setInvoices(invoicesResult.map((inv) => ({
+      id: inv.invoiceNo || inv.id,
+      date: new Date(inv.issuedAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+      amount: formatCurrency(inv.totalCents, inv.currency || 'VND'),
+      status: inv.status,
+    })));
+  }
 
   useEffect(() => {
     if (location.state?.selectedPlanId) {
@@ -69,42 +109,9 @@ export default function Billing() {
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchBackendData() {
+    async function load() {
       try {
-        const [plans, subscription, invoicesResult] = await Promise.all([
-          listPlans().catch(() => [] as BillingPlanResponse[]),
-          getMySubscription().catch(() => null as SubscriptionResponse | null),
-          listMyInvoices().catch(() => [] as BillingInvoiceResponse[]),
-        ]);
-
-        if (cancelled) return;
-
-        setBackendPlans(plans);
-        setBackendSubscription(subscription);
-
-        // Fetch prices for each plan
-        if (plans.length > 0) {
-          const prices = await Promise.all(
-            plans.map(p => listPlanPrices(p.id).catch(() => [] as BillingPlanPriceResponse[]))
-          );
-          setBackendPlanPrices(prices.flat());
-        }
-
-        // Set current plan from subscription
-        if (subscription && plans.length > 0) {
-          const activePlan = plans.find(p => p.id === subscription.planId);
-          if (activePlan) setCurrentPlan(activePlan.name);
-        }
-
-        // Map backend invoices to display format
-        if (invoicesResult.length > 0) {
-          setInvoices(invoicesResult.map(inv => ({
-            id: inv.invoiceNo || inv.id,
-            date: new Date(inv.issuedAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-            amount: `$${(inv.totalCents / 100).toFixed(2)}`,
-            status: inv.status,
-          })));
-        }
+        await fetchBackendData();
       } catch {
         // backend unavailable, plans will show empty state
       } finally {
@@ -115,17 +122,54 @@ export default function Billing() {
       }
     }
 
-    fetchBackendData();
+    load();
     return () => { cancelled = true; };
   }, []);
   // --- End fetch backend data ---
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const hasVNPayResult = params.get('vnpay_return') === 'true' && params.has('vnp_ResponseCode');
+    if (!hasVNPayResult) {
+      return;
+    }
+
+    let cancelled = false;
+    async function processVNPayReturn() {
+      try {
+        const result = await verifyVNPayReturn(params);
+        if (cancelled) {
+          return;
+        }
+        if (result.valid && result.status === 'SUCCESS') {
+          showToast('Thanh toán VNPay thành công', 'success');
+        } else {
+          showToast('Thanh toán VNPay chưa thành công', 'error');
+        }
+        await fetchBackendData();
+      } catch (err: any) {
+        if (!cancelled) {
+          showToast(err.message || 'Không thể xác minh giao dịch VNPay', 'error');
+        }
+      } finally {
+        if (!cancelled) {
+          navigate(location.pathname, { replace: true, state: location.state ?? {} });
+        }
+      }
+    }
+
+    processVNPayReturn();
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, location.search]);
 
   const handleSelectPlan = (planId: string, planName: string, planPrice: number) => {
     if (currentPlan && planName === currentPlan) return;
 
     const backendPlan = backendPlans.find(p => p.id === planId);
     const priceInfo = backendPlanPrices.find(p => p.planId === planId);
-    const monthlyPrice = priceInfo ? (priceInfo.amountCents / 100) : planPrice;
+    const monthlyPrice = priceInfo ? priceInfo.amountCents : planPrice;
 
     setSelectedPlan({ id: planId, name: planName, price: monthlyPrice });
     setUpgradeStep('checkout');
@@ -134,29 +178,21 @@ export default function Billing() {
   const handleCheckoutConfirm = async () => {
     if (!selectedPlan) return;
 
-    if (!newCard.number.trim() || !newCard.expiry.trim() || !newCard.cvc.trim()) {
-      showToast('Please fill in card details', 'error');
-      return;
-    }
-
     const { id, name } = selectedPlan;
 
     try {
       setIsProcessing(id);
-      
-      // TODO: Integrate real payment gateway (VNPay, Stripe) here
-      // For now, subscribe directly
-      const sub = await mySubscribe(id);
-      setBackendSubscription(sub);
-      setCurrentPlan(name);
-      setIsUpgradeModalOpen(false);
-      setUpgradeStep('selection');
-      setSelectedPlan(null);
-      setNewCard({ number: '', expiry: '', cvc: '', name: '' });
-      showToast(t('billing.upgrade_success').replace('{plan}', name), 'success');
-      navigate(location.pathname, { replace: true, state: {} });
+
+      const checkout = await createVNPayCheckout({
+        planId: id,
+        billingCycle: billingCycle === 'yearly' ? 'YEARLY' : 'MONTHLY',
+        seats: 1,
+        orderInfo: `Thanh toan goi ${name}`,
+      });
+
+      window.location.href = checkout.paymentUrl;
     } catch (err: any) {
-      showToast(err.message || 'Subscription failed', 'error');
+      showToast(err.message || 'Không thể khởi tạo thanh toán VNPay', 'error');
     } finally {
       setIsProcessing(null);
     }
@@ -178,10 +214,10 @@ export default function Billing() {
 
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
-  const planPrice = billingCycle === 'yearly' 
-    ? Math.floor((selectedPlan?.price ?? 0) * 0.8 * 100) / 100 
+  const planPrice = billingCycle === 'yearly'
+    ? Math.floor((selectedPlan?.price ?? 0) * 0.8)
     : (selectedPlan?.price ?? 0);
-  const planPriceDisplay = planPrice.toFixed(2);
+  const planPriceDisplay = formatCurrency(planPrice);
 
   const renderCheckout = () => (
     <div className="max-w-lg mx-auto space-y-6 py-2 animate-in slide-in-from-right-4 duration-300">
@@ -190,11 +226,11 @@ export default function Billing() {
         <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.order_summary') || 'Order Summary'}</h5>
         <div className="flex justify-between text-sm">
           <span className="text-[#a1a4a5]">{selectedPlan?.name} Plan ({billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')})</span>
-          <span className="font-bold text-[#f0f0f0]">${planPriceDisplay}</span>
+          <span className="font-bold text-[#f0f0f0]">{planPriceDisplay}</span>
         </div>
         <div className="border-t border-[rgba(255,255,255,0.1)] pt-3 flex justify-between text-sm">
           <span className="font-black text-[#f0f0f0]">{t('billing.total_due') || 'Total due'}</span>
-          <span className="font-black text-[#f0f0f0]">${planPriceDisplay}</span>
+          <span className="font-black text-[#f0f0f0]">{planPriceDisplay}</span>
         </div>
         <button 
           onClick={() => setUpgradeStep('selection')}
@@ -204,105 +240,8 @@ export default function Billing() {
         </button>
       </div>
 
-      {/* Payment Method */}
-      <div className="space-y-3">
-        <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.payment_method') || 'Payment method'}</h5>
-        
-        <div className="bg-[rgba(255,255,255,0.02)] rounded-[12px] border border-[rgba(255,255,255,0.3)] p-4 space-y-3">
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-[#a1a4a5] uppercase tracking-wider">Card Number</label>
-            <input
-              type="text"
-              placeholder="1234 5678 9012 3456"
-              value={newCard.number}
-              onChange={(e) => setNewCard(p => ({ ...p, number: e.target.value }))}
-              maxLength={19}
-              className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-[#a1a4a5] uppercase tracking-wider">Expiry</label>
-              <input
-                type="text"
-                placeholder="MM/YY"
-                value={newCard.expiry}
-                onChange={(e) => setNewCard(p => ({ ...p, expiry: e.target.value }))}
-                maxLength={5}
-                className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-[#a1a4a5] uppercase tracking-wider">CVC</label>
-              <input
-                type="text"
-                placeholder="123"
-                value={newCard.cvc}
-                onChange={(e) => setNewCard(p => ({ ...p, cvc: e.target.value }))}
-                maxLength={4}
-                className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-[#a1a4a5] uppercase tracking-wider">Cardholder Name</label>
-            <input
-              type="text"
-              placeholder="John Doe"
-              value={newCard.name}
-              onChange={(e) => setNewCard(p => ({ ...p, name: e.target.value }))}
-              className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Billing Address */}
-      <div className="space-y-3">
-        <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.details.address') || 'Billing address'}</h5>
-        <div className="space-y-2">
-          <input
-            type="text"
-            placeholder="Address line 1"
-            value={billingAddress.line1}
-            onChange={(e) => setBillingAddress(p => ({ ...p, line1: e.target.value }))}
-            className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
-          />
-          <input
-            type="text"
-            placeholder="Address line 2 (optional)"
-            value={billingAddress.line2}
-            onChange={(e) => setBillingAddress(p => ({ ...p, line2: e.target.value }))}
-            className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              type="text"
-              placeholder="City"
-              value={billingAddress.city}
-              onChange={(e) => setBillingAddress(p => ({ ...p, city: e.target.value }))}
-              className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
-            />
-            <select
-              value={billingAddress.country}
-              onChange={(e) => setBillingAddress(p => ({ ...p, country: e.target.value }))}
-              className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary appearance-none"
-            >
-              <option value="US" className="bg-[#000000]">United States</option>
-              <option value="VN" className="bg-[#000000]">Vietnam</option>
-              <option value="GB" className="bg-[#000000]">United Kingdom</option>
-              <option value="CA" className="bg-[#000000]">Canada</option>
-              <option value="AU" className="bg-[#000000]">Australia</option>
-            </select>
-          </div>
-          <input
-            type="text"
-            placeholder="ZIP / Postal code"
-            value={billingAddress.zip}
-            onChange={(e) => setBillingAddress(p => ({ ...p, zip: e.target.value }))}
-            className="w-full bg-transparent border border-[rgba(255,255,255,0.2)] rounded-[8px] px-3 py-2 text-sm text-[#f0f0f0] outline-none focus:border-primary placeholder:text-[#a1a4a5]/40"
-          />
-        </div>
+      <div className="rounded-[16px] border border-[rgba(59,158,255,0.25)] bg-[rgba(59,158,255,0.06)] p-4 text-sm text-[#c9dfff]">
+        Bạn sẽ được chuyển tới cổng thanh toán VNPay để hoàn tất giao dịch.
       </div>
 
       {/* Subscribe Button */}
@@ -314,11 +253,11 @@ export default function Billing() {
         {isProcessing ? (
           <><Loader2 size={20} className="animate-spin" />{t('common.processing')}</>
         ) : (
-          <><ShieldCheck size={20} />{t('billing.pay_now') || 'Subscribe'}</>
+          <><ShieldCheck size={20} />Thanh toán với VNPay</>
         )}
       </button>
       <p className="text-[10px] text-center text-[#a1a4a5] leading-relaxed -mt-4">
-        {t('billing.secure_note') || 'Your payment info is encrypted and secure. You can cancel anytime.'}
+        Giao dịch được xử lý trên cổng thanh toán VNPay.
       </p>
     </div>
   );
@@ -342,8 +281,8 @@ export default function Billing() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[
                 { id: 'free', name: 'Free', price: 0 },
-                { id: 'plus', name: 'Plus', price: 19 },
-                { id: 'pro', name: 'Pro', price: 49 },
+                { id: 'plus', name: 'Plus', price: 501581 },
+                { id: 'pro', name: 'Pro', price: 1293551 },
               ].map((plan) => {
                 const displayPrice = billingCycle === 'yearly' ? Math.floor(plan.price * 0.8) : plan.price;
                 const isActive = plan.name === currentPlan;
@@ -354,8 +293,8 @@ export default function Billing() {
                   )}>
                     <h4 className="text-lg font-black text-[#f0f0f0]">{plan.name}</h4>
                     <div className="mt-4 flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-[#f0f0f0]">${displayPrice}</span>
-                      <span className="text-sm font-medium text-[#a1a4a5]">/mo</span>
+                      <span className="text-3xl font-black text-[#f0f0f0]">{formatCurrency(displayPrice)}</span>
+                      <span className="text-sm font-medium text-[#a1a4a5]">/tháng</span>
                     </div>
                     <p className="text-xs text-[#a1a4a5] mt-2">{t('billing.plans.billed')} {billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')}</p>
                     <button 
@@ -378,8 +317,8 @@ export default function Billing() {
     }
     return backendPlans.map((plan) => {
       const price = backendPlanPrices.find(p => p.planId === plan.id);
-      const monthlyPrice = price ? (price.amountCents / 100).toFixed(0) : '--';
-      const yearlyPrice = price ? ((price.amountCents / 100) * 0.8).toFixed(0) : '--';
+      const monthlyPrice = price ? price.amountCents.toString() : '--';
+      const yearlyPrice = price ? Math.floor(price.amountCents * 0.8).toString() : '--';
       const displayPrice = billingCycle === 'yearly' ? yearlyPrice : monthlyPrice;
       const isActive = backendSubscription?.planId === plan.id || plan.name === currentPlan;
 
@@ -396,14 +335,14 @@ export default function Billing() {
           <h4 className="text-lg font-black text-[#f0f0f0]">{plan.name}</h4>
           <div className="mt-4 flex items-baseline gap-1">
             <span className="text-3xl font-black text-[#f0f0f0]">
-              ${displayPrice}
+              {displayPrice === '--' ? '--' : formatCurrency(Number(displayPrice))}
             </span>
-            <span className="text-sm font-medium text-[#a1a4a5]">/mo</span>
+            <span className="text-sm font-medium text-[#a1a4a5]">/tháng</span>
           </div>
           <p className="text-xs text-[#a1a4a5] mt-2">{t('billing.plans.billed')} {billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')}</p>
 
           <button 
-            onClick={() => handleSelectPlan(plan.id, plan.name, price ? (price.amountCents / 100) : 0)}
+            onClick={() => handleSelectPlan(plan.id, plan.name, price ? price.amountCents : 0)}
             disabled={isProcessing !== null || isActive}
             className={cn(
               "w-full mt-6 py-3 rounded-[16px] font-black text-sm transition-all flex items-center justify-center gap-2",
@@ -420,10 +359,12 @@ export default function Billing() {
           {plan.description && (
             <div className="mt-8 space-y-4">
               <p className="text-[10px] font-black uppercase tracking-wider text-[#a1a4a5]">{t('billing.plans.features')}</p>
-              <div className="flex items-start gap-3">
-                <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span className="text-xs text-[#a1a4a5] font-medium">{plan.description}</span>
-              </div>
+              {plan.description.split('\n').filter(Boolean).map((feature) => (
+                <div key={feature} className="flex items-start gap-3">
+                  <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                  <span className="text-xs text-[#a1a4a5] font-medium">{feature}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -454,7 +395,7 @@ export default function Billing() {
               <h3 className="font-bold text-sm">{t('billing.mrr')}</h3>
             </div>
             <div className="flex items-end gap-3">
-              <p className="text-3xl font-black text-[#f0f0f0]">$0</p>
+              <p className="text-3xl font-black text-[#f0f0f0]">{formatCurrency(0)}</p>
               <span className="flex items-center text-emerald-500 text-sm font-bold mb-1">
                 <TrendingUp size={16} className="mr-1" /> --
               </span>
@@ -567,9 +508,9 @@ export default function Billing() {
                         {loadingSub ? (
                           <Loader2 size={24} className="animate-spin inline" />
                         ) : backendSubscription ? (
-                          <>${((backendPlanPrices.find(p => p.planId === backendSubscription.planId)?.amountCents ?? 0) / 100).toFixed(0)}<span className="text-sm font-medium text-[#a1a4a5]">/mo</span></>
+                          <>{formatCurrency(backendPlanPrices.find(p => p.planId === backendSubscription.planId)?.amountCents ?? 0)}<span className="text-sm font-medium text-[#a1a4a5]">/tháng</span></>
                         ) : (
-                          <>{currentPlan === 'Free' ? '$0' : '--'}<span className="text-sm font-medium text-[#a1a4a5]">/mo</span></>
+                          <>{currentPlan === 'Free' ? formatCurrency(0) : '--'}<span className="text-sm font-medium text-[#a1a4a5]">/tháng</span></>
                         )}
                       </p>
                       {backendSubscription && (

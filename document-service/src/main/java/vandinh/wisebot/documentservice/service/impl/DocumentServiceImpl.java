@@ -14,6 +14,7 @@ import vandinh.wisebot.documentservice.dto.response.DocumentChunkResponse;
 import vandinh.wisebot.documentservice.dto.response.DocumentResponse;
 import vandinh.wisebot.documentservice.dto.response.DocumentUploadResponse;
 import vandinh.wisebot.documentservice.dto.response.EmbeddingResponse;
+import vandinh.wisebot.documentservice.dto.response.BillingLimitResponse;
 import vandinh.wisebot.documentservice.entity.Document;
 import vandinh.wisebot.documentservice.entity.DocumentChunk;
 import vandinh.wisebot.documentservice.entity.KnowledgeBase;
@@ -22,6 +23,7 @@ import vandinh.wisebot.documentservice.exception.ResourceNotFoundException;
 import vandinh.wisebot.documentservice.repository.DocumentChunkRepository;
 import vandinh.wisebot.documentservice.repository.DocumentRepository;
 import vandinh.wisebot.documentservice.repository.KnowledgeBaseRepository;
+import vandinh.wisebot.documentservice.service.BillingEntitlementService;
 import vandinh.wisebot.documentservice.service.DocumentService;
 import vandinh.wisebot.documentservice.service.embedding.EmbeddingClient;
 import vandinh.wisebot.documentservice.service.storage.StorageService;
@@ -39,6 +41,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentRepository documentRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final BillingEntitlementService billingEntitlementService;
     private final StorageProperties storageProperties;
     private final StorageService storageService;
     private final AsyncDocumentProcessor asyncDocumentProcessor;
@@ -55,7 +58,11 @@ public class DocumentServiceImpl implements DocumentService {
         if (knowledgeBase.getTenantId() == null) {
             throw new InvalidDataException("Kho tri thức chưa có tenantId");
         }
+        validateUploadWithinPlan(knowledgeBase.getTenantId(), List.of(file));
+        return saveUploadedDocument(knowledgeBaseId, knowledgeBase, file);
+    }
 
+    private DocumentUploadResponse saveUploadedDocument(UUID knowledgeBaseId, KnowledgeBase knowledgeBase, MultipartFile file) {
         byte[] fileBytes;
         try {
             fileBytes = file.getBytes();
@@ -93,8 +100,17 @@ public class DocumentServiceImpl implements DocumentService {
             throw new InvalidDataException("Vui lòng chọn ít nhất một tệp");
         }
         List<DocumentUploadResponse> responses = new ArrayList<>(files.size());
+        KnowledgeBase knowledgeBase = knowledgeBaseRepository.findById(knowledgeBaseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kho tri thức: " + knowledgeBaseId));
+        if (knowledgeBase.getTenantId() == null) {
+            throw new InvalidDataException("Kho tri thức chưa có tenantId");
+        }
+        validateUploadWithinPlan(knowledgeBase.getTenantId(), files);
         for (MultipartFile file : files) {
-            responses.add(upload(knowledgeBaseId, file));
+            if (file == null || file.isEmpty()) {
+                throw new InvalidDataException("Vui lòng chọn ít nhất một tệp hợp lệ");
+            }
+            responses.add(saveUploadedDocument(knowledgeBaseId, knowledgeBase, file));
         }
         return responses;
     }
@@ -245,5 +261,32 @@ public class DocumentServiceImpl implements DocumentService {
                 action.run();
             }
         });
+    }
+
+    private void validateUploadWithinPlan(UUID tenantId, List<MultipartFile> files) {
+        BillingLimitResponse entitlements = billingEntitlementService.getKnowledgeBaseLimit(tenantId);
+        long currentDocumentCount = documentRepository.countByKnowledgeBase_TenantId(tenantId);
+        long currentStorageBytes = documentRepository.sumFileSizeByTenantId(tenantId);
+
+        long incomingDocumentCount = files.stream()
+                .filter(file -> file != null && !file.isEmpty())
+                .count();
+        long incomingStorageBytes = files.stream()
+                .filter(file -> file != null && !file.isEmpty())
+                .mapToLong(MultipartFile::getSize)
+                .sum();
+
+        int documentUploadLimit = entitlements.getDocumentUploadLimit();
+        if (documentUploadLimit >= 0 && currentDocumentCount + incomingDocumentCount > documentUploadLimit) {
+            throw new InvalidDataException(
+                    "Gói hiện tại chỉ cho phép tối đa " + documentUploadLimit
+                            + " tài liệu. Vui lòng nâng cấp gói để tải thêm.");
+        }
+
+        long storageLimitBytes = entitlements.getStorageLimitBytes();
+        if (storageLimitBytes >= 0 && currentStorageBytes + incomingStorageBytes > storageLimitBytes) {
+            throw new InvalidDataException(
+                    "Dung lượng lưu trữ của gói hiện tại không đủ cho tệp tải lên. Vui lòng nâng cấp gói để có thêm dung lượng.");
+        }
     }
 }

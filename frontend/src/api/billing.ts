@@ -116,9 +116,9 @@ export async function getSubscription(tenantId: string): Promise<SubscriptionRes
 }
 
 export async function getMySubscription(): Promise<SubscriptionResponse | null> {
-  const tenantId = resolveTenantIdFromToken();
-  if (!tenantId) return null;
-  return getSubscription(tenantId);
+  const res = await fetchWithAuth(`${BILLING_BASE}/subscriptions/me`);
+  if (res.status === 404) return null;
+  return handleResponse<SubscriptionResponse>(res);
 }
 
 export async function subscribe(request: SubscribeRequest): Promise<SubscriptionResponse> {
@@ -142,9 +142,9 @@ export async function listInvoices(tenantId: string): Promise<BillingInvoiceResp
 }
 
 export async function listMyInvoices(): Promise<BillingInvoiceResponse[]> {
-  const tenantId = resolveTenantIdFromToken();
-  if (!tenantId) return [];
-  return listInvoices(tenantId);
+  const res = await fetchWithAuth(`${BILLING_BASE}/invoices/me`);
+  if (res.status === 404) return [];
+  return handleResponse<BillingInvoiceResponse[]>(res);
 }
 
 export async function createPayment(request: CreatePaymentRequest): Promise<PaymentResponse> {
@@ -167,11 +167,48 @@ export interface CreatePaymentUrlResponse {
   paymentUrl: string;
 }
 
-export async function createPaymentUrl(amount: number, orderInfo: string, orderId: string): Promise<CreatePaymentUrlResponse> {
-  const res = await fetchWithAuth(`${BILLING_BASE}/payments/create-payment-url`, {
+export interface CreateVNPayCheckoutRequest {
+  planId: string;
+  billingCycle?: 'MONTHLY' | 'YEARLY';
+  seats?: number;
+  orderInfo?: string;
+}
+
+export interface CreateVNPayCheckoutResponse {
+  subscriptionId: string;
+  invoiceId: string;
+  paymentId: string;
+  orderId: string;
+  amountCents: number;
+  currency: string;
+  paymentUrl: string;
+}
+
+export interface VNPayReturnResponse {
+  valid: boolean;
+  status: string;
+  responseCode: string;
+  transactionId: string;
+  orderId: string;
+  amount: string;
+  invoiceId: string;
+  paymentId: string;
+  subscriptionId: string;
+}
+
+export async function createVNPayCheckout(request: CreateVNPayCheckoutRequest): Promise<CreateVNPayCheckoutResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/payments/vnpay/checkout`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount, orderInfo, orderId }),
+    body: JSON.stringify(request),
   });
-  return handleResponse<CreatePaymentUrlResponse>(res);
+  return handleResponse<CreateVNPayCheckoutResponse>(res);
+}
+
+export async function verifyVNPayReturn(search: string | URLSearchParams): Promise<VNPayReturnResponse> {
+  const query = typeof search === 'string'
+    ? search.replace(/^\?/, '')
+    : search.toString();
+  const res = await fetchWithAuth(`${BILLING_BASE}/payments/vnpay-return?${query}`);
+  return handleResponse<VNPayReturnResponse>(res);
 }

@@ -19,7 +19,7 @@ public class CreatePaymentRequest {
     private String status;
     @Min(0)
     private int amountCents;
-    private String currency = "USD";
+    private String currency = "VND";
     private LocalDateTime paidAt;
     private String rawPayload;
 }

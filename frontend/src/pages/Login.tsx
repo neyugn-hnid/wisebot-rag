@@ -177,7 +177,7 @@ export default function Login() {
               disabled={isSubmitting}
               className="w-full bg-[#ffffff] text-[#000000] py-3 rounded-full font-semibold text-[14px] hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Đang đăng nhập...' : t('auth.sign_in')}
+              {isSubmitting ? t('auth.login.submitting') : t('auth.sign_in')}
             </button>
 
             {serverError && (

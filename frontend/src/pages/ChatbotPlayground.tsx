@@ -24,9 +24,11 @@ import {
   listMessages,
   ask,
   getCitations,
+  getProviderInfo,
   type ChatSessionResponse,
   type ChatMessageResponse,
   type AskResponse,
+  type ChatProviderInfo,
   type CitationItem,
 } from '../api/chat';
 import { listKnowledgeBases } from '../api/knowledge-base';
@@ -82,6 +84,7 @@ export default function ChatbotPlayground() {
   const [knowledgeBaseId, setKnowledgeBaseId] = useState('');
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseOption[]>([]);
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
+  const [providerInfo, setProviderInfo] = useState<ChatProviderInfo | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -114,6 +117,19 @@ export default function ChatbotPlayground() {
     } else if (storedTenantId) {
       setTenantId(storedTenantId);
     }
+  }, []);
+
+  useEffect(() => {
+    const loadProviderInfo = async () => {
+      try {
+        const info = await getProviderInfo();
+        setProviderInfo(info);
+      } catch {
+        setProviderInfo(null);
+      }
+    };
+
+    void loadProviderInfo();
   }, []);
 
   // Auto-resize textarea
@@ -652,6 +668,26 @@ export default function ChatbotPlayground() {
             </div>
             
             <div className="space-y-6">
+              <div className="rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] p-3 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold text-[#f0f0f0]">
+                    {language === 'vi' ? 'AI Mode' : 'AI Mode'}
+                  </span>
+                  <span className="rounded-full border border-[rgba(59,158,255,0.35)] bg-[rgba(59,158,255,0.12)] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#7bc0ff]">
+                    {providerInfo?.mode === 'ollama' ? 'Local' : 'API'}
+                  </span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-[#a1a4a5]">
+                  {providerInfo?.provider_name || 'Unknown provider'}
+                  {providerInfo?.model_name ? ` · ${providerInfo.model_name}` : ''}
+                </p>
+                <p className="text-[11px] leading-relaxed text-[#7d8183]">
+                  {providerInfo?.mode === 'ollama'
+                    ? (language === 'vi' ? 'Đang dùng AI local qua Ollama.' : 'Running on local Ollama.')
+                    : (language === 'vi' ? 'Đang dùng AI bên thứ 3 qua tích hợp API.' : 'Running on third-party AI via API integration.')}
+                </p>
+              </div>
+
               <div className="space-y-3">
                 <label className="text-xs font-semibold text-[#f0f0f0]">Knowledge Base ID</label>
                 <select

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { 
@@ -12,6 +12,7 @@ import {
   Loader2
 } from 'lucide-react';
 import DeleteModal from '../components/DeleteModal';
+import { getMySubscription, listPlans, type BillingPlanResponse, type SubscriptionResponse } from '../api/billing';
 
 interface APIKey {
   id: string;
@@ -36,6 +37,26 @@ export default function APIKeys() {
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [apiAccessEnabled, setApiAccessEnabled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadEntitlement() {
+      try {
+        if (!cancelled) {
+          setApiAccessEnabled(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setApiAccessEnabled(true);
+        }
+      }
+    }
+    void loadEntitlement();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleGenerateKey = () => {
     if (!newKeyName.trim()) return;

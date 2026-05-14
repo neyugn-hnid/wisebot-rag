@@ -21,6 +21,8 @@ import vandinh.wisebot.chatservice.repository.ChatMessageCitationRepository;
 import vandinh.wisebot.chatservice.repository.ChatMessageFeedbackRepository;
 import vandinh.wisebot.chatservice.repository.ChatMessageRepository;
 import vandinh.wisebot.chatservice.repository.ChatSessionRepository;
+import vandinh.wisebot.chatservice.exception.InvalidDataException;
+import vandinh.wisebot.chatservice.service.BillingEntitlementService;
 import vandinh.wisebot.chatservice.service.ChatService;
 import vandinh.wisebot.chatservice.service.client.AiClient;
 import vandinh.wisebot.chatservice.service.client.DocumentKnowledgeBaseClient;
@@ -45,6 +47,7 @@ public class ChatServiceImpl implements ChatService {
     private final EmbeddingSearchClient embeddingSearchClient;
     private final AiClient aiClient;
     private final DocumentKnowledgeBaseClient documentKnowledgeBaseClient;
+    private final BillingEntitlementService billingEntitlementService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -74,6 +77,9 @@ public class ChatServiceImpl implements ChatService {
     public ChatMessageResponse sendMessage(UUID sessionId, SendMessageRequest request) {
         ChatSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found: " + sessionId));
+        if ("USER".equalsIgnoreCase(request.getSenderType() == null ? "USER" : request.getSenderType())) {
+            enforceMessageQuota(session.getTenantId());
+        }
 
         ChatMessage message = ChatMessage.builder()
                 .session(session)
@@ -97,6 +103,7 @@ public class ChatServiceImpl implements ChatService {
         public AskResponse ask(UUID sessionId, AskRequest request) {
         ChatSession session = sessionRepository.findById(sessionId)
             .orElseThrow(() -> new ResourceNotFoundException("Session not found: " + sessionId));
+        enforceMessageQuota(session.getTenantId());
 
         ChatMessage userMessage = ChatMessage.builder()
             .session(session)
@@ -184,6 +191,7 @@ public class ChatServiceImpl implements ChatService {
     public AskResponse askStreaming(UUID sessionId, AskRequest request, Consumer<String> tokenConsumer) {
         ChatSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found: " + sessionId));
+        enforceMessageQuota(session.getTenantId());
 
         ChatMessage userMessage = ChatMessage.builder()
                 .session(session)
@@ -334,6 +342,18 @@ public class ChatServiceImpl implements ChatService {
         sessionRepository.save(session);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getProviderInfo() {
+        return aiClient.getProviderInfo();
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> updateProviderMode(String mode) {
+        return aiClient.updateProviderMode(mode);
+    }
+
     private ChatSessionResponse mapSession(ChatSession entity) {
         return ChatSessionResponse.builder()
                 .id(entity.getId())
@@ -412,5 +432,21 @@ public class ChatServiceImpl implements ChatService {
         }
 
         return knowledgeBases.get(0).id();
+    }
+
+    private void enforceMessageQuota(UUID tenantId) {
+        var entitlement = billingEntitlementService.getEntitlements(tenantId);
+        if (entitlement.isUnlimited() || entitlement.getMonthlyMessageLimit() < 0) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfMonth = now.withDayOfMonth(1).toLocalDate().atStartOfDay();
+        LocalDateTime startOfNextMonth = startOfMonth.plusMonths(1);
+        long usedMessages = messageRepository.countByTenantIdAndSenderTypeBetween(tenantId, "USER", startOfMonth, startOfNextMonth);
+        if (usedMessages >= entitlement.getMonthlyMessageLimit()) {
+            throw new InvalidDataException("Bạn đã dùng hết " + entitlement.getMonthlyMessageLimit()
+                    + " tin nhắn trong tháng của gói hiện tại. Vui lòng nâng cấp gói để tiếp tục.");
+        }
     }
 }

@@ -11,6 +11,7 @@ import vandinh.wisebot.billingservice.dto.response.BillingPlanPriceResponse;
 import vandinh.wisebot.billingservice.dto.response.BillingInvoiceResponse;
 import vandinh.wisebot.billingservice.dto.response.BillingPlanResponse;
 import vandinh.wisebot.billingservice.dto.response.InvoiceItemResponse;
+import vandinh.wisebot.billingservice.dto.response.InternalPlanLimitResponse;
 import vandinh.wisebot.billingservice.dto.response.PaymentResponse;
 import vandinh.wisebot.billingservice.dto.response.SubscriptionResponse;
 import vandinh.wisebot.billingservice.dto.response.UsageEventResponse;
@@ -49,4 +50,6 @@ public interface BillingService {
     PaymentResponse createPayment(CreatePaymentRequest request);
 
     List<PaymentResponse> listPayments(UUID invoiceId);
+
+    InternalPlanLimitResponse getKnowledgeBaseLimit(UUID tenantId);
 }

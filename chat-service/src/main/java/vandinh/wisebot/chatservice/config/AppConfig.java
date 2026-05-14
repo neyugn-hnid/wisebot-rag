@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 @Configuration
-@EnableConfigurationProperties({AiClientProperties.class, EmbeddingClientProperties.class, DocumentClientProperties.class})
+@EnableConfigurationProperties({AiClientProperties.class, EmbeddingClientProperties.class, DocumentClientProperties.class, BillingProperties.class})
 public class AppConfig {
 
     @Value("${jwt.secret:change-me}")

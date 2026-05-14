@@ -20,3 +20,7 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: true
+
+billing:
+  base-url: ${BILLING_BASE_URL:http://localhost:8085}
+  internal-api-key: ${INTERNAL_API_KEY:wisebot-internal-key}

@@ -42,3 +42,7 @@ chunking:
 embedding:
   base-url: ${EMBEDDING_BASE_URL:http://localhost:8001}
   path: /embed
+
+billing:
+  base-url: ${BILLING_BASE_URL:http://localhost:8085}
+  internal-api-key: ${INTERNAL_API_KEY:wisebot-internal-key}

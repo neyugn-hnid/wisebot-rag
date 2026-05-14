@@ -1,6 +1,7 @@
 package vandinh.wisebot.documentservice.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
@@ -13,6 +14,7 @@ import java.util.Base64;
 import java.util.Date;
 
 @Configuration
+@EnableConfigurationProperties(BillingProperties.class)
 public class AppConfig {
 
     @Value("${jwt.secret:change-me}")

@@ -23,6 +23,7 @@ import vandinh.wisebot.widgetservice.entity.WidgetApiKey;
 import vandinh.wisebot.widgetservice.entity.Widget;
 import vandinh.wisebot.widgetservice.entity.WidgetEvent;
 import vandinh.wisebot.widgetservice.entity.WidgetSession;
+import vandinh.wisebot.widgetservice.exception.InvalidDataException;
 import vandinh.wisebot.widgetservice.exception.ResourceNotFoundException;
 import vandinh.wisebot.widgetservice.repository.WidgetAllowedDomainRepository;
 import vandinh.wisebot.widgetservice.repository.WidgetApiKeyRepository;
@@ -30,6 +31,7 @@ import vandinh.wisebot.widgetservice.repository.WidgetEventRepository;
 import vandinh.wisebot.widgetservice.repository.WidgetRepository;
 import vandinh.wisebot.widgetservice.repository.WidgetSessionRepository;
 import vandinh.wisebot.widgetservice.service.WidgetService;
+import vandinh.wisebot.widgetservice.service.BillingEntitlementService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -45,17 +47,19 @@ public class WidgetServiceImpl implements WidgetService {
     private final WidgetApiKeyRepository apiKeyRepository;
     private final WidgetSessionRepository sessionRepository;
     private final ObjectMapper objectMapper;
+    private final BillingEntitlementService billingEntitlementService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public WidgetResponse createWidget(CreateWidgetRequest request) {
+        var entitlement = billingEntitlementService.getEntitlements(request.getTenantId());
         Widget widget = Widget.builder()
                 .tenantId(request.getTenantId())
                 .name(request.getName())
                 .code(request.getCode())
                 .status("ACTIVE")
                 .welcomeMessage(request.getWelcomeMessage())
-                .publicConfig(writeAppearanceConfig(request.getAppearanceConfig()))
+                .publicConfig(writeAppearanceConfig(sanitizeAppearanceConfig(request.getAppearanceConfig(), entitlement.isWidgetCustomizationEnabled())))
                 .privateConfig("{}")
                 .createdBy(request.getCreatedBy())
                 .build();
@@ -67,10 +71,11 @@ public class WidgetServiceImpl implements WidgetService {
     public WidgetResponse updateWidget(UUID widgetId, UpdateWidgetRequest request) {
         Widget widget = widgetRepository.findById(widgetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Widget not found: " + widgetId));
+        var entitlement = billingEntitlementService.getEntitlements(widget.getTenantId());
 
         widget.setName(request.getName());
         widget.setWelcomeMessage(request.getWelcomeMessage());
-        widget.setPublicConfig(writeAppearanceConfig(request.getAppearanceConfig()));
+        widget.setPublicConfig(writeAppearanceConfig(sanitizeAppearanceConfig(request.getAppearanceConfig(), entitlement.isWidgetCustomizationEnabled())));
 
         return mapWidget(widgetRepository.save(widget));
     }
@@ -164,6 +169,10 @@ public class WidgetServiceImpl implements WidgetService {
         public ApiKeyResponse createApiKey(UUID widgetId, CreateApiKeyRequest request) {
         Widget widget = widgetRepository.findById(widgetId)
             .orElseThrow(() -> new ResourceNotFoundException("Widget not found: " + widgetId));
+        var entitlement = billingEntitlementService.getEntitlements(widget.getTenantId());
+        if (!entitlement.isApiAccessEnabled()) {
+            throw new InvalidDataException("Gói hiện tại chưa hỗ trợ truy cập API. Vui lòng nâng cấp lên gói Plus hoặc Pro.");
+        }
         String raw = UUID.randomUUID().toString().replace("-", "");
         WidgetApiKey key = WidgetApiKey.builder()
             .widget(widget)
@@ -256,6 +265,19 @@ public class WidgetServiceImpl implements WidgetService {
         } catch (JsonProcessingException exception) {
             throw new IllegalArgumentException("Unable to deserialize widget appearance config", exception);
         }
+    }
+
+    private WidgetAppearanceConfig sanitizeAppearanceConfig(WidgetAppearanceConfig appearanceConfig, boolean widgetCustomizationEnabled) {
+        WidgetAppearanceConfig sanitized = appearanceConfig == null ? new WidgetAppearanceConfig() : appearanceConfig;
+        if (widgetCustomizationEnabled) {
+            return sanitized;
+        }
+
+        sanitized.setPrimaryColor("#2563EB");
+        sanitized.setSelectedIconId("bot");
+        sanitized.setCustomIconUrl(null);
+        sanitized.setIconColor("#ffffff");
+        return sanitized;
     }
 
     private WidgetEventResponse mapEvent(WidgetEvent event) {

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { cn } from '../lib/utils';
 import { 
@@ -40,6 +41,12 @@ import {
   type KnowledgeBaseResponse,
   type DocumentResponse,
 } from '../api/knowledge-base';
+import {
+  getMySubscription,
+  listPlans,
+  type BillingPlanResponse,
+  type SubscriptionResponse,
+} from '../api/billing';
 
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -73,12 +80,14 @@ const recentUploads: UploadItem[] = [];
 export default function KnowledgeBase() {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [currentView, setCurrentView] = useState<'overview' | 'manage'>('overview');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [editingKbId, setEditingKbId] = useState<string | null>(null);
 
   const [sources, setSources] = useState<SourceItem[]>(initialSources);
+  const [knowledgeBaseLimit, setKnowledgeBaseLimit] = useState<number>(1);
   const [uploads, setUploads] = useState<UploadItem[]>(recentUploads);
   const [selectedKbForUpload, setSelectedKbForUpload] = useState('');
   const [isLoadingKb, setIsLoadingKb] = useState(false);
@@ -100,6 +109,22 @@ export default function KnowledgeBase() {
   const itemsPerPage = 3;
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const knowledgeBaseLimitReached = knowledgeBaseLimit >= 0 && sources.length >= knowledgeBaseLimit;
+  const resolveKnowledgeBaseLimit = (plans: BillingPlanResponse[], subscription: SubscriptionResponse | null) => {
+    if (!subscription) {
+      return 1;
+    }
+    const plan = plans.find((item) => item.id === subscription.planId);
+    const planCode = (plan?.code || '').toLowerCase();
+    if (planCode === 'pro') {
+      return -1;
+    }
+    if (planCode === 'plus') {
+      return 5;
+    }
+    return 1;
+  };
 
   const formatTimeAgo = (value?: string) => {
     if (!value) {
@@ -233,6 +258,30 @@ export default function KnowledgeBase() {
 
   useEffect(() => {
     void loadKnowledgeBases();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadBillingLimit() {
+      try {
+        const [plans, subscription] = await Promise.all([
+          listPlans().catch(() => [] as BillingPlanResponse[]),
+          getMySubscription().catch(() => null as SubscriptionResponse | null),
+        ]);
+        if (!cancelled) {
+          setKnowledgeBaseLimit(resolveKnowledgeBaseLimit(plans, subscription));
+        }
+      } catch {
+        if (!cancelled) {
+          setKnowledgeBaseLimit(1);
+        }
+      }
+    }
+
+    void loadBillingLimit();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -412,6 +461,10 @@ export default function KnowledgeBase() {
   }>({ isOpen: false, type: 'delete', title: '', message: '' });
 
   const openCreateModal = () => {
+    if (knowledgeBaseLimitReached) {
+      navigate('/billing/upgrade', { state: { from: 'knowledge-base-limit' } });
+      return;
+    }
     setFormMode('create');
     setEditingKbId(null);
     setKbName('');
@@ -481,6 +534,10 @@ export default function KnowledgeBase() {
 
   const handleSaveClick = async () => {
     if (!kbName.trim()) return;
+    if (formMode === 'create' && knowledgeBaseLimitReached) {
+      showToast(`Gói hiện tại chỉ cho phép tạo tối đa ${knowledgeBaseLimit} cơ sở tri thức. Vui lòng nâng cấp gói để tạo thêm.`, 'error');
+      return;
+    }
     if (formMode === 'edit') {
       const editingName = sources.find((s) => s.id === editingKbId)?.name || kbName;
       setConfirmModal({
@@ -570,13 +627,30 @@ export default function KnowledgeBase() {
               </div>
             </div>
             <button 
-              onClick={openCreateModal}
+              onClick={() => {
+                if (knowledgeBaseLimitReached) {
+                  navigate('/billing/upgrade', { state: { from: 'knowledge-base-limit' } });
+                  return;
+                }
+                openCreateModal();
+              }}
               className="bg-[#ffffff] text-[#000000] px-4 py-2 rounded-md font-semibold text-sm flex items-center gap-2 hover:bg-[#f0f0f0] transition-all shadow-md shadow-black/40 shadow-primary/20"
             >
               <PlusCircle size={18} />
-              {t('kb.create')}
+              {knowledgeBaseLimitReached ? (t('billing.upgrade') || 'Nâng cấp gói') : t('kb.create')}
             </button>
           </div>
+
+          {knowledgeBaseLimitReached && (
+            <div className="rounded-[16px] border border-[rgba(255,0,0,0.25)] bg-[rgba(255,0,0,0.06)] p-4 text-sm text-[#ffb4b4]">
+              <p className="font-semibold">
+                Gói hiện tại chỉ cho phép tạo tối đa {knowledgeBaseLimit} cơ sở tri thức. Vui lòng nâng cấp gói để tạo thêm.
+              </p>
+              <p className="mt-2 text-xs text-[#ffd1d1]">
+                Sau khi nâng cấp, bạn có thể mở rộng số lượng cơ sở tri thức và sử dụng thêm các tính năng nâng cao theo gói.
+              </p>
+            </div>
+          )}
 
           <div className="bg-[#000000] rounded-[16px] shadow-md shadow-black/40 border border-[rgba(255,255,255,0.3)] overflow-hidden">
             <div className="p-6 space-y-3">
@@ -885,6 +959,14 @@ export default function KnowledgeBase() {
               </button>
             </div>
             <div className="p-6 space-y-6">
+              {formMode === 'create' && (
+                <div className="flex items-start gap-3 rounded-[12px] border border-[rgba(59,158,255,0.18)] bg-[rgba(59,158,255,0.08)] p-4">
+                  <AlertCircle size={18} className="mt-0.5 shrink-0 text-[#78b9ff]" />
+                  <div className="space-y-1">
+                    <p className="text-xs leading-5 text-[#c9defd]">{t('kb.modal.plan_notice')}</p>
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-bold text-[#ffffff]">{t('kb.modal.name')}</label>
                 <input 
@@ -916,7 +998,7 @@ export default function KnowledgeBase() {
               <button 
                 onClick={handleSaveClick}
                 disabled={!kbName.trim()}
-                className="flex-1 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 shadow-primary/20 "
               >
                 {formMode === 'create' ? t('common.create') : t('common.save')}
               </button>

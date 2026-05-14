@@ -6,8 +6,10 @@ import org.springframework.transaction.annotation.Transactional;
 import vandinh.wisebot.documentservice.dto.request.KnowledgeBaseRequest;
 import vandinh.wisebot.documentservice.dto.response.KnowledgeBaseResponse;
 import vandinh.wisebot.documentservice.entity.KnowledgeBase;
+import vandinh.wisebot.documentservice.exception.InvalidDataException;
 import vandinh.wisebot.documentservice.exception.ResourceNotFoundException;
 import vandinh.wisebot.documentservice.repository.KnowledgeBaseRepository;
+import vandinh.wisebot.documentservice.service.BillingEntitlementService;
 import vandinh.wisebot.documentservice.service.KnowledgeBaseService;
 
 import java.util.List;
@@ -18,10 +20,19 @@ import java.util.UUID;
 public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final BillingEntitlementService billingEntitlementService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public KnowledgeBaseResponse create(KnowledgeBaseRequest request, UUID tenantId) {
+        var entitlement = billingEntitlementService.getKnowledgeBaseLimit(tenantId);
+        long currentCount = knowledgeBaseRepository.countByTenantId(tenantId);
+        if (!entitlement.isUnlimited() && currentCount >= entitlement.getKnowledgeBaseLimit()) {
+            throw new InvalidDataException("Gói hiện tại chỉ cho phép tạo tối đa "
+                    + entitlement.getKnowledgeBaseLimit()
+                    + " cơ sở tri thức. Vui lòng nâng cấp gói để tạo thêm.");
+        }
+
         KnowledgeBase kb = KnowledgeBase.builder()
                 .name(request.getName())
                 .description(request.getDescription())

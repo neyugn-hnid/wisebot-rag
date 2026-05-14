@@ -349,7 +349,9 @@ export default function LandingPage() {
                 features: [
                   'billing.plans.free.f1',
                   'billing.plans.free.f2',
-                  'billing.plans.free.f3'
+                  'billing.plans.free.f3',
+                  'billing.plans.free.f4',
+                  'billing.plans.free.f5'
                 ] 
               },
               { 
@@ -360,7 +362,9 @@ export default function LandingPage() {
                   'billing.plans.plus.f1',
                   'billing.plans.plus.f2',
                   'billing.plans.plus.f3',
-                  'billing.plans.plus.f4'
+                  'billing.plans.plus.f4',
+                  'billing.plans.plus.f5',
+                  'billing.plans.plus.f6'
                 ],
                 popular: true
               },
@@ -373,7 +377,9 @@ export default function LandingPage() {
                   'billing.plans.pro.f2',
                   'billing.plans.pro.f3',
                   'billing.plans.pro.f4',
-                  'billing.plans.pro.f5'
+                  'billing.plans.pro.f5',
+                  'billing.plans.pro.f6',
+                  'billing.plans.pro.f7'
                 ]
               },
             ].map((plan, i) => (
