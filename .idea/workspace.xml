@@ -5,44 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9395e225-b2fc-43f8-8b76-11165b432eb5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/ai-service/app/llm_client.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.dockerignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.env.docker.example" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docker/java-service.Dockerfile" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docker/postgres/init-multiple-databases.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docker/python-service.Dockerfile" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/frontend/Dockerfile" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DAC_TA_GIAO_DIEN_UI.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/DOCUMENT_SERVICE_SCHEMA.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SO_DO_TRINH_TU_DANG_KY.puml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SO_DO_USE_CASE.puml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/USER_SERVICE_SCHEMA.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/YEU_CAU_CHUC_NANG.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/YEU_CAU_CHUC_NANG_BAO_CAO.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-service/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/ai-service/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-service/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/ai-service/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-service/app/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/ai-service/app/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-service/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/ai-service/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-service/app/schemas.py" beforeDir="false" afterPath="$PROJECT_DIR$/ai-service/app/schemas.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.yml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application-prod.yml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application-prod.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application-test.yml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application-test.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/AiClientProperties.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/AiClientProperties.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/ChatController.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/ChatController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/ChatService.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/ChatService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/client/AiClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/client/AiClient.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/impl/ChatServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/impl/ChatServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/resources/application.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/embedding-service/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/embedding-service/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/embedding-service/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/embedding-service/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/embedding-service/app/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/embedding-service/app/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/embedding-service/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/embedding-service/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/api/chat.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/chat.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/contexts/LanguageContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/contexts/LanguageContext.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/ChatbotPlayground.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/ChatbotPlayground.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/KnowledgeBase.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/KnowledgeBase.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Login.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Login.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Register.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Register.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Settings.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Settings.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/VerifyEmail.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/VerifyEmail.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/SecurityConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/impl/AuthServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/impl/AuthServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -119,7 +90,7 @@
     &quot;Spring Boot.DocumentServiceApplication.executor&quot;: &quot;Run&quot;,
     &quot;Spring Boot.UserServiceApplication.executor&quot;: &quot;Run&quot;,
     &quot;Spring Boot.WidgetServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;feature/pay&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;feature/docker&quot;,
     &quot;jdk.selected.JAVA_MODULE&quot;: &quot;17&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;C:/Users/VanDinh/OneDrive/Máy tính/wisebot-rag&quot;,
@@ -132,6 +103,7 @@
     &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
     &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
     &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
   &quot;keyToStringList&quot;: {
@@ -241,6 +213,8 @@
       <workItem from="1778381074405" duration="5702000" />
       <workItem from="1778638394815" duration="2927000" />
       <workItem from="1778725410716" duration="5859000" />
+      <workItem from="1778809252186" duration="2760000" />
+      <workItem from="1778927721268" duration="682000" />
     </task>
     <servers />
   </component>
