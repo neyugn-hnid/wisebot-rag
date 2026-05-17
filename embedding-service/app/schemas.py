@@ -84,3 +84,14 @@ class EmbedResultResponse(BaseModel):
 
 class EmbedResponse(BaseModel):
     results: list[EmbedResultResponse]
+
+
+class ProviderConfigResponse(BaseModel):
+    mode: str
+    provider: str
+    provider_name: str
+    model_name: str
+
+
+class ProviderModeUpdateRequest(BaseModel):
+    mode: str = Field(min_length=1)

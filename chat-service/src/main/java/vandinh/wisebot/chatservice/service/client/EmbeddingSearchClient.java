@@ -37,4 +37,39 @@ public class EmbeddingSearchClient {
 
         return response.getBody();
     }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getProviderInfo() {
+        String url = properties.getBaseUrl() + properties.getProviderPath();
+        HttpHeaders headers = new HttpHeaders();
+        if (properties.getServiceToken() != null && !properties.getServiceToken().isBlank()) {
+            headers.setBearerAuth(properties.getServiceToken().trim());
+        }
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                Map.class
+        );
+        return response.getBody();
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> updateProviderMode(String mode) {
+        String url = properties.getBaseUrl() + properties.getProviderPath();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        if (properties.getServiceToken() != null && !properties.getServiceToken().isBlank()) {
+            headers.setBearerAuth(properties.getServiceToken().trim());
+        }
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                url,
+                HttpMethod.PUT,
+                new HttpEntity<>(Map.of("mode", mode), headers),
+                Map.class
+        );
+        return response.getBody();
+    }
 }

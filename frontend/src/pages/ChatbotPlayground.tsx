@@ -4,8 +4,9 @@ import { useToast } from '../contexts/ToastContext';
 import Logo from '../components/Logo';
 import {
   Send, 
-  RotateCcw, 
   User, 
+  Check,
+  ChevronDown,
   FileText, 
   Link as LinkIcon, 
   Settings as SettingsIcon,
@@ -14,6 +15,7 @@ import {
   MessageSquare,
   SquarePen,
   Info,
+  Trash2,
   X
 } from 'lucide-react';
 import { getStoredAccessToken } from '../lib/auth';
@@ -22,14 +24,11 @@ import {
   createSession,
   listSessions,
   listMessages,
+  deleteSession,
   ask,
   getCitations,
-  getProviderInfo,
   type ChatSessionResponse,
   type ChatMessageResponse,
-  type AskResponse,
-  type ChatProviderInfo,
-  type CitationItem,
 } from '../api/chat';
 import { listKnowledgeBases } from '../api/knowledge-base';
 
@@ -60,13 +59,7 @@ export interface KnowledgeBaseOption {
   tenantId?: string;
 }
 
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: '1',
-    role: 'assistant',
-    content: "Hello! I'm WiseBot, your custom AI assistant. How can I help you explore the knowledge base today?"
-  }
-];
+const INITIAL_MESSAGES: Message[] = [];
 
 export default function ChatbotPlayground() {
   const { t, language } = useLanguage();
@@ -84,11 +77,15 @@ export default function ChatbotPlayground() {
   const [knowledgeBaseId, setKnowledgeBaseId] = useState('');
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseOption[]>([]);
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
-  const [providerInfo, setProviderInfo] = useState<ChatProviderInfo | null>(null);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+  const [isSettingsCollapsed, setIsSettingsCollapsed] = useState(false);
+  const [deletingSessionId, setDeletingSessionId] = useState('');
+  const [isKnowledgeBaseDropdownOpen, setIsKnowledgeBaseDropdownOpen] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const knowledgeBaseDropdownRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -97,6 +94,20 @@ export default function ChatbotPlayground() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        knowledgeBaseDropdownRef.current
+        && !knowledgeBaseDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsKnowledgeBaseDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const storedTenantId = window.localStorage.getItem('wisebot_tenant_id') || '';
@@ -117,19 +128,6 @@ export default function ChatbotPlayground() {
     } else if (storedTenantId) {
       setTenantId(storedTenantId);
     }
-  }, []);
-
-  useEffect(() => {
-    const loadProviderInfo = async () => {
-      try {
-        const info = await getProviderInfo();
-        setProviderInfo(info);
-      } catch {
-        setProviderInfo(null);
-      }
-    };
-
-    void loadProviderInfo();
   }, []);
 
   // Auto-resize textarea
@@ -162,12 +160,12 @@ export default function ChatbotPlayground() {
       tenantId: currentTenantId,
       userId,
       channel: 'WEB',
-      title: 'Playground Chat',
+      title: t('playground.session_default_title'),
     });
 
     const newSessionId = session.id;
     if (!newSessionId) {
-      throw new Error('Không thể tạo phiên chat.');
+      throw new Error(t('playground.session_create_failed'));
     }
 
     setSessionId(newSessionId);
@@ -223,7 +221,7 @@ export default function ChatbotPlayground() {
       return firstUserMessage.slice(0, 40);
     }
 
-    return rawTitle || 'Phiên chat mới';
+    return rawTitle || t('playground.session_fallback_title');
   };
 
   const fetchLatestAssistantSources = async (messageId: string): Promise<CitationResponse[] | undefined> => {
@@ -341,7 +339,7 @@ export default function ChatbotPlayground() {
       }
     } catch (error) {
       setKnowledgeBases([]);
-      const message = error instanceof Error ? error.message : 'Không tải được danh sách kho tri thức.';
+      const message = error instanceof Error ? error.message : t('playground.kb.load_failed');
       showToast(message, 'error');
     } finally {
       setIsLoadingKnowledgeBases(false);
@@ -368,14 +366,43 @@ export default function ChatbotPlayground() {
     setSessionId('');
     setMessages(INITIAL_MESSAGES);
     window.localStorage.removeItem(CHAT_SESSION_STORAGE_KEY);
-    showToast('Đã tạo phiên chat mới.', 'success');
+    showToast(t('playground.new_chat_created'), 'success');
   };
 
   const handleSelectHistory = (history: ChatHistoryItem) => {
     void loadSessionMessages(history.sessionId).catch((error) => {
-      const message = error instanceof Error ? error.message : 'Không tải được phiên chat.';
+      const message = error instanceof Error ? error.message : t('playground.history.load_failed');
       showToast(message, 'error');
     });
+  };
+
+  const handleDeleteHistory = async (history: ChatHistoryItem) => {
+    const resolvedTenantId = resolveTenantIdFromToken();
+    if (!resolvedTenantId) {
+      showToast(t('playground.tenant_missing'), 'error');
+      return;
+    }
+
+    setDeletingSessionId(history.sessionId);
+    try {
+      await deleteSession(history.sessionId);
+
+      setChatHistories((prev) => prev.filter((item) => item.sessionId !== history.sessionId));
+
+      if (history.sessionId === sessionId) {
+        setSessionId('');
+        setMessages(INITIAL_MESSAGES);
+        window.localStorage.removeItem(CHAT_SESSION_STORAGE_KEY);
+      }
+
+      showToast(t('playground.history.deleted'), 'success');
+      await loadChatHistories(resolvedTenantId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('playground.history.delete_failed');
+      showToast(message, 'error');
+    } finally {
+      setDeletingSessionId('');
+    }
   };
 
   const handleSend = async () => {
@@ -383,12 +410,12 @@ export default function ChatbotPlayground() {
 
     const resolvedTenantId = resolveTenantIdFromToken();
     if (!resolvedTenantId) {
-      showToast('Không lấy được tenantId từ access token.', 'error');
+      showToast(t('playground.tenant_missing'), 'error');
       return;
     }
 
     if (knowledgeBases.length > 1 && !knowledgeBaseId.trim()) {
-      showToast('Vui lòng chọn knowledge base trước khi gửi câu hỏi.', 'error');
+      showToast(t('playground.kb.required'), 'error');
       return;
     }
 
@@ -416,7 +443,7 @@ export default function ChatbotPlayground() {
       const rawAnswer = responseData?.answer;
       const answer = typeof rawAnswer === 'string' && rawAnswer.trim()
         ? rawAnswer
-        : 'Không có phản hồi từ hệ thống.';
+        : t('playground.no_answer');
       const userMessageId = typeof responseData?.userMessageId === 'string' ? responseData.userMessageId : userMessage.id;
       const assistantMessageId = typeof responseData?.assistantMessageId === 'string' ? responseData.assistantMessageId : `temp-assistant-${Date.now() + 1}`;
       const sources = mapCitationSources(responseData?.citations);
@@ -445,10 +472,6 @@ export default function ChatbotPlayground() {
     }
   };
 
-  const handleClearChat = () => {
-    handleStartNewChat();
-  };
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -457,9 +480,16 @@ export default function ChatbotPlayground() {
   };
 
   const latestAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant' && m.sources);
+  const selectedKnowledgeBase = knowledgeBases.find((item) => item.id === knowledgeBaseId) || null;
+  const canChooseKnowledgeBase = !isLoadingKnowledgeBases && knowledgeBases.length > 1;
+  const knowledgeBaseDropdownLabel = isLoadingKnowledgeBases
+    ? t('playground.kb.loading')
+    : knowledgeBases.length === 0
+      ? t('playground.kb.none')
+      : selectedKnowledgeBase?.name || t('playground.kb.select');
 
   return (
-    <div className="-m-4 lg:-m-8 h-screen flex flex-col overflow-hidden bg-[#000000] relative w-[calc(100%+32px)] lg:w-[calc(100%+64px)]">
+    <div className="-m-4 lg:-m-8 h-screen flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top,rgba(59,158,255,0.08),transparent_28%),#050505] relative w-[calc(100%+32px)] lg:w-[calc(100%+64px)]">
       {showHistory && (
         <button
           type="button"
@@ -468,25 +498,41 @@ export default function ChatbotPlayground() {
           onClick={() => setShowHistory(false)}
         />
       )}
+      {showSettings && (
+        <button
+          type="button"
+          aria-label="Đóng cài đặt mô hình"
+          className="lg:hidden absolute inset-0 bg-black/60 z-20"
+          onClick={() => setShowSettings(false)}
+        />
+      )}
 
       
 
       <div className="flex-1 flex overflow-hidden">
         <div
           className={cn(
-            "absolute inset-y-0 left-0 z-30 w-72 border-r border-[rgba(255,255,255,0.12)] bg-[#050505] transition-transform duration-300 lg:relative lg:translate-x-0",
+            "absolute inset-y-0 left-0 z-30 w-72 border-r border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] backdrop-blur-xl transition-transform duration-300 lg:relative lg:translate-x-0",
+            isHistoryCollapsed ? "lg:w-0 lg:min-w-0 lg:overflow-hidden lg:border-r-0" : "",
             showHistory ? "translate-x-0" : "-translate-x-full"
           )}
         >
           <div className="flex h-full flex-col">
-            <div className="p-3 border-b border-[rgba(255,255,255,0.1)]">
+            <div className="flex h-[72px] items-center gap-2 border-b border-[rgba(255,255,255,0.1)] px-3">
               <button
                 type="button"
                 onClick={handleStartNewChat}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-[#f0f0f0] transition-colors cursor-pointer"
+                className="flex w-full items-center gap-3 rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-left text-sm font-medium text-[#f0f0f0] transition-colors cursor-pointer hover:bg-[rgba(255,255,255,0.06)]"
               >
                 <SquarePen size={16} />
-                Đoạn chat mới
+                {t('playground.new_chat')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsHistoryCollapsed(true)}
+                className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] text-[#d7d9da] transition-colors hover:bg-[rgba(255,255,255,0.06)] lg:inline-flex"
+              >
+                <ChevronLeft size={16} />
               </button>
             </div>
 
@@ -496,39 +542,46 @@ export default function ChatbotPlayground() {
                   {chatHistories.map((history) => {
                     const isActive = history.sessionId === sessionId;
                     return (
-                      <button
+                      <div
                         key={history.sessionId}
-                        type="button"
-                        onClick={() => handleSelectHistory(history)}
                         className={cn(
-                          "w-full rounded-2xl border px-4 py-3 text-left transition-all",
+                          "group flex items-center gap-2 px-1 py-1 transition-all",
                           isActive
-                            ? "border-[#3b9eff]/50 bg-[#0c1622]"
-                            : "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.06)]"
+                            ? ""
+                            : ""
                         )}
                       >
-                        <div className="mb-2 flex items-start gap-3">
-                          <MessageSquare size={15} className={cn("mt-0.5 shrink-0", isActive ? "text-[#3b9eff]" : "text-[#7f8487]")} />
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-[#f0f0f0]">{history.title}</p>
-                            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-[#8d9295]">
-                              {history.preview || 'Chưa có nội dung xem trước'}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="text-[10px] text-[#6f7578]">
-                          {new Date(history.updatedAt).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')}
-                        </p>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectHistory(history)}
+                          className="min-w-0 flex-1 text-left"
+                        >
+                          <p className={cn(
+                            "min-w-0 truncate text-sm transition-colors",
+                            isActive ? "font-semibold text-[#f0f0f0]" : "font-medium text-[#8d9295] hover:text-[#f0f0f0]"
+                          )}>
+                            {history.title}
+                          </p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteHistory(history)}
+                          disabled={deletingSessionId === history.sessionId}
+                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-[#7f8487] transition-colors hover:text-[#ff0000] disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label={t('playground.history.delete')}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
               ) : (
                 <div className="flex h-full flex-col items-center justify-center px-6 text-center text-[#7f8487]">
                   <MessageSquare size={24} className="mb-3 opacity-40" />
-                  <p className="text-sm font-medium text-[#c9cdcf]">Chưa có lịch sử phiên chat</p>
+                  <p className="text-sm font-medium text-[#c9cdcf]">{t('playground.history.empty')}</p>
                   <p className="mt-1 text-[11px] leading-relaxed">
-                    Các phiên đã nhắn sẽ xuất hiện tại đây để bạn mở lại nhanh.
+                    {t('playground.history.empty_desc')}
                   </p>
                 </div>
               )}
@@ -537,7 +590,54 @@ export default function ChatbotPlayground() {
         </div>
 
         {/* Chat Window */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-[rgba(255,255,255,0.3)]">
+        <div className="flex-1 flex flex-col min-w-0 border-r border-[rgba(255,255,255,0.12)]">
+          <div className="border-b border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)]/80 px-4 backdrop-blur-xl sm:px-6">
+            <div className="flex h-[72px] items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                {isHistoryCollapsed ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsHistoryCollapsed(false)}
+                    className="hidden h-10 w-10 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] text-[#d7d9da] transition-colors hover:bg-[rgba(255,255,255,0.06)] lg:inline-flex"
+                  >
+                    <PanelLeft size={18} />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setShowHistory(true)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] text-[#d7d9da] transition-colors hover:bg-[rgba(255,255,255,0.06)] lg:hidden"
+                >
+                  <PanelLeft size={18} />
+                </button>
+                <div>
+                  <p className="text-sm font-semibold text-[#f5f5f5]">{t('playground.page_title')}</p>
+                  <p className="text-xs text-[#8b8f91]">
+                    {selectedKnowledgeBase?.name || t('playground.kb.unselected')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {isSettingsCollapsed ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsSettingsCollapsed(false)}
+                    className="hidden h-10 w-10 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] text-[#d7d9da] transition-colors hover:bg-[rgba(255,255,255,0.06)] lg:inline-flex"
+                  >
+                    <SettingsIcon size={16} />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setShowSettings(true)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] text-[#d7d9da] transition-colors hover:bg-[rgba(255,255,255,0.06)] lg:hidden"
+                >
+                  <SettingsIcon size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide" ref={chatContainerRef}>
             {messages.map((msg) => (
               <div 
@@ -549,7 +649,7 @@ export default function ChatbotPlayground() {
               >
                 <div className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-md shadow-black/40",
-                  msg.role === 'assistant' ? "bg-[#000000] border border-[rgba(255,255,255,0.3)]" : "bg-slate-200"
+                  msg.role === 'assistant' ? "bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.12)]" : "bg-[rgba(255,255,255,0.88)]"
                 )}>
                   {msg.role === 'assistant' ? <Logo iconOnly size="sm" className="scale-75" /> : <User size={16} className="text-[#a1a4a5]" />}
                 </div>
@@ -560,8 +660,8 @@ export default function ChatbotPlayground() {
                   <div className={cn(
                     "p-4 rounded-[16px] text-[14px] leading-relaxed whitespace-pre-wrap shadow-md shadow-black/40 font-messenger font-medium",
                     msg.role === 'assistant' 
-                      ? "bg-[rgba(255,255,255,0.05)] text-[#f0f0f0] rounded-tl-none border border-[rgba(255,255,255,0.3)]/50" 
-                      : "bg-[#ffffff] text-[#000000] rounded-tr-none text-left"
+                      ? "bg-[rgba(255,255,255,0.04)] text-[#f0f0f0] rounded-tl-none border border-[rgba(255,255,255,0.12)]" 
+                      : "bg-[rgba(255,255,255,0.92)] text-[#111111] rounded-tr-none text-left"
                   )}>
                     {msg.content}
                   </div>
@@ -570,11 +670,11 @@ export default function ChatbotPlayground() {
             ))}
             {isTyping && (
               <div className="flex items-start gap-4 animate-in fade-in duration-300">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[#000000] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 shrink-0 overflow-hidden">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.12)] shadow-md shadow-black/40 shrink-0 overflow-hidden">
                   <Logo iconOnly size="sm" className="scale-75" />
                 </div>
                 <div className="space-y-1">
-                  <div className="bg-[rgba(255,255,255,0.05)] p-4 rounded-[16px] rounded-tl-none border border-[rgba(255,255,255,0.3)]/50 flex gap-1">
+                  <div className="bg-[rgba(255,255,255,0.04)] p-4 rounded-[16px] rounded-tl-none border border-[rgba(255,255,255,0.12)] flex gap-1">
                     <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
                     <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
                     <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
@@ -586,9 +686,9 @@ export default function ChatbotPlayground() {
           </div>
 
           {/* Input Area */}
-          <div className="p-4 sm:p-6 bg-[#000000]">
+          <div className="bg-[#000000]/70 p-4 backdrop-blur-xl sm:p-6">
             <div className="max-w-3xl mx-auto relative group">
-              <div className="relative flex items-end gap-2 bg-[#1a1a1a] rounded-[16px] p-1.5 focus-within:bg-[#262626] transition-all duration-300 shadow-md shadow-black/40 border border-[rgba(255,255,255,0.05)]">
+              <div className="relative flex items-end gap-2 rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] p-1.5 transition-all duration-300 shadow-md shadow-black/40 focus-within:bg-[rgba(255,255,255,0.06)]">
                 <textarea 
                   ref={textareaRef}
                   value={input}
@@ -606,16 +706,14 @@ export default function ChatbotPlayground() {
                   <Send size={22} className="fill-primary/10" />
                 </button>
               </div>
-              <p className="text-[10px] text-center text-[#a1a4a5] mt-2 font-medium">
-                {language === 'vi' ? 'WiseBot có thể mắc lỗi. Hãy kiểm tra lại các thông tin quan trọng.' : 'WiseBot can make mistakes. Check important info.'}
-              </p>
             </div>
           </div>
         </div>
 
         {/* Right Sidebar */}
         <div className={cn(
-          "fixed inset-y-0 right-0 w-80 bg-[#000000] shadow-2xl lg:shadow-none lg:relative lg:flex flex-col shrink-0 bg-[rgba(255,255,255,0.02)]/50 z-30 transition-transform duration-300 transform",
+          "fixed inset-y-0 right-0 z-30 flex w-80 shrink-0 transform flex-col bg-[rgba(255,255,255,0.03)] backdrop-blur-xl shadow-2xl transition-transform duration-300 lg:relative lg:shadow-none",
+          isSettingsCollapsed ? "lg:w-0 lg:min-w-0 lg:overflow-hidden" : "",
           showSettings ? "translate-x-0" : "translate-x-full lg:translate-x-0"
         )}>
           {/* Mobile Close Button */}
@@ -626,18 +724,25 @@ export default function ChatbotPlayground() {
             <X size={20} />
           </button>
           {/* Source Citations */}
-          <div className="flex-1 flex flex-col overflow-hidden border-b border-[rgba(255,255,255,0.3)]">
-            <div className="p-3 border-b border-[rgba(255,255,255,0.1)]">
-              <div className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-[#f0f0f0] transition-colors">
-              <LinkIcon size={14} />
-              {t('playground.sources')}
-            </div>
+          <div className="flex-1 flex flex-col overflow-hidden border-b border-[rgba(255,255,255,0.12)]">
+            <div className="flex h-[72px] items-center gap-2 border-b border-[rgba(255,255,255,0.1)] px-3">
+              <div className="flex h-12 w-full items-center gap-3 px-4 text-left text-sm font-medium text-[#f0f0f0] transition-colors">
+                <LinkIcon size={14} />
+                {t('playground.sources')}
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSettingsCollapsed(true)}
+                className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] text-[#d7d9da] transition-colors hover:bg-[rgba(255,255,255,0.06)] lg:inline-flex"
+              >
+                <X size={16} />
+              </button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide">
               {latestAssistantMessage?.sources ? (
                 latestAssistantMessage.sources.map((source, i) => (
-                  <div key={i} className="p-3 bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[12px] hover:border-primary/50 cursor-pointer transition-all shadow-md shadow-black/40 group">
+                  <div key={i} className="rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] p-3 transition-all shadow-md shadow-black/30 group hover:bg-[rgba(255,255,255,0.06)]">
                     <div className="flex items-center gap-2 mb-1">
                       <FileText size={14} className="text-[#3b9eff]" />
                       <span className="text-xs font-semibold text-[#f0f0f0] truncate group-hover:text-[#3b9eff] transition-colors">
@@ -653,7 +758,7 @@ export default function ChatbotPlayground() {
                 <div className="h-full flex flex-col items-center justify-center text-center p-6 text-[#a1a4a5]">
                   <Info size={24} className="mb-2 opacity-20" />
                   <p className="text-xs font-normal">
-                    {language === 'vi' ? 'Không có nguồn nào được trích dẫn cho câu trả lời hiện tại.' : 'No sources cited for the current response.'}
+                    {t('playground.sources.empty')}
                   </p>
                 </div>
               )}
@@ -661,66 +766,81 @@ export default function ChatbotPlayground() {
           </div>
 
           {/* Model Settings */}
-          <div className="p-6 bg-[rgba(255,255,255,0.02)] space-y-6">
+          <div className="space-y-6 bg-[rgba(255,255,255,0.02)] p-6">
             <div className="font-semibold text-xs text-[#a1a4a5] flex items-center gap-2">
               <SettingsIcon size={14} />
               {t('playground.settings')}
             </div>
             
             <div className="space-y-6">
-              <div className="rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] p-3 space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-semibold text-[#f0f0f0]">
-                    {language === 'vi' ? 'AI Mode' : 'AI Mode'}
-                  </span>
-                  <span className="rounded-full border border-[rgba(59,158,255,0.35)] bg-[rgba(59,158,255,0.12)] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#7bc0ff]">
-                    {providerInfo?.mode === 'ollama' ? 'Local' : 'API'}
-                  </span>
-                </div>
-                <p className="text-[11px] leading-relaxed text-[#a1a4a5]">
-                  {providerInfo?.provider_name || 'Unknown provider'}
-                  {providerInfo?.model_name ? ` · ${providerInfo.model_name}` : ''}
-                </p>
-                <p className="text-[11px] leading-relaxed text-[#7d8183]">
-                  {providerInfo?.mode === 'ollama'
-                    ? (language === 'vi' ? 'Đang dùng AI local qua Ollama.' : 'Running on local Ollama.')
-                    : (language === 'vi' ? 'Đang dùng AI bên thứ 3 qua tích hợp API.' : 'Running on third-party AI via API integration.')}
-                </p>
-              </div>
-
               <div className="space-y-3">
-                <label className="text-xs font-semibold text-[#f0f0f0]">Knowledge Base ID</label>
-                <select
-                  value={knowledgeBaseId}
-                  onChange={(e) => setKnowledgeBaseId(e.target.value)}
-                  disabled={isLoadingKnowledgeBases || knowledgeBases.length === 0 || knowledgeBases.length === 1}
-                  className="w-full mt-1 bg-transparent border border-[rgba(255,255,255,0.3)] px-3 py-2 rounded-[8px] text-xs text-[#f0f0f0] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:text-[#a1a4a5] disabled:cursor-not-allowed"
-                >
-                  {isLoadingKnowledgeBases ? (
-                    <option value="" className="text-black">
-                      Đang tải knowledge base...
-                    </option>
-                  ) : knowledgeBases.length === 0 ? (
-                    <option value="" className="text-black">
-                      Không có knowledge base
-                    </option>
-                  ) : knowledgeBases.length === 1 ? (
-                    <option value={knowledgeBases[0].id} className="text-black">
-                      {knowledgeBases[0].name}
-                    </option>
-                  ) : (
-                    <>
-                      <option value="" className="text-black">
-                        Chọn knowledge base
-                      </option>
-                      {knowledgeBases.map((kb) => (
-                        <option key={kb.id} value={kb.id} className="text-black">
-                          {kb.name}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
+                <label className="text-xs font-semibold text-[#f0f0f0]">{t('playground.kb.label')}</label>
+                <div ref={knowledgeBaseDropdownRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (canChooseKnowledgeBase) {
+                        setIsKnowledgeBaseDropdownOpen((prev) => !prev);
+                      }
+                    }}
+                    disabled={!canChooseKnowledgeBase}
+                    className="flex w-full items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-[rgba(59,158,255,0.24)] disabled:cursor-not-allowed disabled:text-[#a1a4a5] disabled:opacity-70"
+                  >
+                    <span className="min-w-0 truncate">{knowledgeBaseDropdownLabel}</span>
+                    <ChevronDown
+                      size={16}
+                      className={cn(
+                        "shrink-0 text-[#8d9295] transition-transform",
+                        isKnowledgeBaseDropdownOpen ? "rotate-180" : ""
+                      )}
+                    />
+                  </button>
+
+                  {isKnowledgeBaseDropdownOpen && canChooseKnowledgeBase ? (
+                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[#0b0b0c] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.42)]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setKnowledgeBaseId('');
+                          setIsKnowledgeBaseDropdownOpen(false);
+                        }}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm transition-colors",
+                          !knowledgeBaseId
+                            ? "bg-[rgba(59,158,255,0.10)] text-[#f0f0f0]"
+                            : "text-[#c9cdcf] hover:bg-[rgba(255,255,255,0.05)]"
+                        )}
+                      >
+                        <span className="truncate">{t('playground.kb.select')}</span>
+                        {!knowledgeBaseId ? <Check size={15} className="text-[#3b9eff]" /> : null}
+                      </button>
+                      <div className="mt-1 space-y-1">
+                        {knowledgeBases.map((kb) => {
+                          const isSelected = kb.id === knowledgeBaseId;
+                          return (
+                            <button
+                              key={kb.id}
+                              type="button"
+                              onClick={() => {
+                                setKnowledgeBaseId(kb.id);
+                                setIsKnowledgeBaseDropdownOpen(false);
+                              }}
+                              className={cn(
+                                "flex w-full items-center justify-between gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm transition-colors",
+                                isSelected
+                                  ? "bg-[rgba(59,158,255,0.10)] text-[#f0f0f0]"
+                                  : "text-[#c9cdcf] hover:bg-[rgba(255,255,255,0.05)]"
+                              )}
+                            >
+                              <span className="truncate">{kb.name}</span>
+                              {isSelected ? <Check size={15} className="text-[#3b9eff]" /> : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -763,7 +883,7 @@ export default function ChatbotPlayground() {
                   if (knowledgeBaseId.trim()) {
                     window.localStorage.setItem('wisebot_kb_id', knowledgeBaseId.trim());
                   }
-                  showToast(t('playground.save_success') || 'Configuration saved successfully!', 'success');
+                  showToast(t('playground.save_success'), 'success');
                 }}
                 className="w-full py-2.5 bg-[#ffffff] text-[#000000] text-xs font-bold rounded-[12px] hover:bg-gray-200 transition-colors"
               >

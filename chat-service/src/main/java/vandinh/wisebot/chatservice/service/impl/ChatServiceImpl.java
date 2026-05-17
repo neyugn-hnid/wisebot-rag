@@ -337,9 +337,7 @@ public class ChatServiceImpl implements ChatService {
     public void closeSession(UUID sessionId) {
         ChatSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found: " + sessionId));
-        session.setStatus("CLOSED");
-        session.setClosedAt(LocalDateTime.now());
-        sessionRepository.save(session);
+        sessionRepository.delete(session);
     }
 
     @Override
@@ -352,6 +350,18 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public Map<String, Object> updateProviderMode(String mode) {
         return aiClient.updateProviderMode(mode);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getEmbeddingProviderInfo() {
+        return embeddingSearchClient.getProviderInfo();
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> updateEmbeddingProviderMode(String mode) {
+        return embeddingSearchClient.updateProviderMode(mode);
     }
 
     private ChatSessionResponse mapSession(ChatSession entity) {

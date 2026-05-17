@@ -23,7 +23,9 @@ import {
   Eye,
   FileCode,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -74,6 +76,8 @@ type UploadItem = {
   fileObject?: File;
 };
 
+type UploadFilter = 'all' | 'Completed' | 'Processing' | 'Failed';
+
 const initialSources: SourceItem[] = [];
 const recentUploads: UploadItem[] = [];
 
@@ -104,13 +108,30 @@ export default function KnowledgeBase() {
     pdfPages?: string[]; // Array of data URLs for PDF pages
   } | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [uploadSearch, setUploadSearch] = useState('');
+  const [uploadFilter, setUploadFilter] = useState<UploadFilter>('all');
+  const [isKbDropdownOpen, setIsKbDropdownOpen] = useState(false);
+  const [isUploadFilterOpen, setIsUploadFilterOpen] = useState(false);
   
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 3;
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const kbDropdownRef = useRef<HTMLDivElement>(null);
+  const uploadFilterRef = useRef<HTMLDivElement>(null);
 
   const knowledgeBaseLimitReached = knowledgeBaseLimit >= 0 && sources.length >= knowledgeBaseLimit;
+  const selectedSource = sources.find((source) => source.id === selectedKbForUpload) || null;
+  const uploadFilterOptions: Array<{ id: UploadFilter; label: string }> = [
+    { id: 'all', label: t('kb.recent.filter_all') },
+    { id: 'Completed', label: t('kb.recent.filter_completed') },
+    { id: 'Processing', label: t('kb.recent.filter_processing') },
+    { id: 'Failed', label: t('kb.recent.filter_failed') },
+  ];
+  const uploadFilterLabel = uploadFilterOptions.find((item) => item.id === uploadFilter)?.label || t('kb.recent.filter_all');
+  const kbDropdownLabel = isLoadingKb
+    ? t('common.processing')
+    : selectedSource?.name || t('kb.upload.none');
   const resolveKnowledgeBaseLimit = (plans: BillingPlanResponse[], subscription: SubscriptionResponse | null) => {
     if (!subscription) {
       return 1;
@@ -241,7 +262,7 @@ export default function KnowledgeBase() {
           date: doc.createdAt
             ? new Date(doc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
             : 'N/A',
-          color: type === 'PDF' ? 'text-[#ff0000]' : type === 'DOCX' ? 'text-blue-500' : 'text-[#a1a4a5]',
+          color: type === 'PDF' ? 'text-[#d7d9da]' : type === 'DOCX' ? 'text-[#9ed1ff]' : 'text-[#a1a4a5]',
           previewContent: null,
         };
       });
@@ -258,6 +279,21 @@ export default function KnowledgeBase() {
 
   useEffect(() => {
     void loadKnowledgeBases();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const targetNode = event.target as Node;
+      if (kbDropdownRef.current && !kbDropdownRef.current.contains(targetNode)) {
+        setIsKbDropdownOpen(false);
+      }
+      if (uploadFilterRef.current && !uploadFilterRef.current.contains(targetNode)) {
+        setIsUploadFilterOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -290,7 +326,7 @@ export default function KnowledgeBase() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [uploads.length]);
+  }, [uploads.length, uploadSearch, uploadFilter]);
 
   const handleRefreshUploads = async () => {
     setIsRefreshing(true);
@@ -298,8 +334,17 @@ export default function KnowledgeBase() {
     setIsRefreshing(false);
   };
 
-  const totalPages = Math.ceil(uploads.length / itemsPerPage);
-  const paginatedUploads = uploads.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const filteredUploads = uploads.filter((file) => {
+    const matchesStatus = uploadFilter === 'all' || file.status === uploadFilter;
+    const keyword = uploadSearch.trim().toLowerCase();
+    const matchesSearch = keyword.length === 0
+      || file.name.toLowerCase().includes(keyword)
+      || file.type.toLowerCase().includes(keyword);
+    return matchesStatus && matchesSearch;
+  });
+
+  const totalPages = Math.ceil(filteredUploads.length / itemsPerPage);
+  const paginatedUploads = filteredUploads.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handlePrevPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
@@ -449,6 +494,18 @@ export default function KnowledgeBase() {
   // Form state
   const [kbName, setKbName] = useState('');
   const [kbDesc, setKbDesc] = useState('');
+  const [kbFormErrors, setKbFormErrors] = useState<{ name?: string }>({});
+  const [kbFormTouched, setKbFormTouched] = useState<{ name?: boolean }>({});
+
+  const validateKnowledgeBaseName = (value: string) => {
+    if (!value.trim()) {
+      return t('validation.required');
+    }
+    if (value.trim().length < 2) {
+      return t('validation.name_min').replace('{min}', '2');
+    }
+    return undefined;
+  };
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -469,6 +526,8 @@ export default function KnowledgeBase() {
     setEditingKbId(null);
     setKbName('');
     setKbDesc('');
+    setKbFormErrors({});
+    setKbFormTouched({});
     setIsCreateModalOpen(true);
   };
 
@@ -477,6 +536,8 @@ export default function KnowledgeBase() {
     setEditingKbId(source.id);
     setKbName(source.name);
     setKbDesc(source.desc);
+    setKbFormErrors({});
+    setKbFormTouched({});
     setIsCreateModalOpen(true);
   };
 
@@ -533,7 +594,10 @@ export default function KnowledgeBase() {
   };
 
   const handleSaveClick = async () => {
-    if (!kbName.trim()) return;
+    const nameError = validateKnowledgeBaseName(kbName);
+    setKbFormErrors({ name: nameError });
+    setKbFormTouched({ name: true });
+    if (nameError) return;
     if (formMode === 'create' && knowledgeBaseLimitReached) {
       showToast(`Gói hiện tại chỉ cho phép tạo tối đa ${knowledgeBaseLimit} cơ sở tri thức. Vui lòng nâng cấp gói để tạo thêm.`, 'error');
       return;
@@ -576,6 +640,8 @@ export default function KnowledgeBase() {
         'success'
       );
       setIsCreateModalOpen(false);
+      setKbFormErrors({});
+      setKbFormTouched({});
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Lưu kho tri thức thất bại.';
@@ -623,7 +689,10 @@ export default function KnowledgeBase() {
                 <ArrowLeft size={20} />
               </button>
               <div>
-                <h2 className="text-2xl font-black tracking-tight text-[#f0f0f0]">{t('kb.manage.title')}</h2>
+                <div className="space-y-1">
+                  <h2 className="text-2xl font-black tracking-tight text-[#f0f0f0]">{t('kb.manage.title')}</h2>
+                  <p className="text-sm text-[#8b8f91] max-w-2xl">{t('kb.manage.helper')}</p>
+                </div>
               </div>
             </div>
             <button 
@@ -642,13 +711,9 @@ export default function KnowledgeBase() {
           </div>
 
           {knowledgeBaseLimitReached && (
-            <div className="rounded-[16px] border border-[rgba(255,0,0,0.25)] bg-[rgba(255,0,0,0.06)] p-4 text-sm text-[#ffb4b4]">
-              <p className="font-semibold">
-                Gói hiện tại chỉ cho phép tạo tối đa {knowledgeBaseLimit} cơ sở tri thức. Vui lòng nâng cấp gói để tạo thêm.
-              </p>
-              <p className="mt-2 text-xs text-[#ffd1d1]">
-                Sau khi nâng cấp, bạn có thể mở rộng số lượng cơ sở tri thức và sử dụng thêm các tính năng nâng cao theo gói.
-              </p>
+            <div className="rounded-[16px] border border-[rgba(255,189,89,0.18)] bg-[rgba(255,189,89,0.07)] p-4 text-sm text-[#f0d39c]">
+              <p className="font-semibold">{t('kb.limit.reached')}</p>
+              <p className="mt-2 text-xs text-[#d8bd8a]">{t('kb.limit.desc')}</p>
             </div>
           )}
 
@@ -666,25 +731,40 @@ export default function KnowledgeBase() {
                 <div className="text-center py-12">
                   <Database size={48} className="mx-auto text-[rgba(255,255,255,0.3)] mb-4" />
                   <p className="text-[#a1a4a5] font-medium">{t('kb.no_sources')}</p>
+                  <p className="mt-2 text-sm text-[#7d8183]">{t('kb.empty.cta')}</p>
                 </div>
               ) : (
                 sources.map(source => (
-                  <div key={source.id} className="flex items-center justify-between p-4 bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] hover:border-primary/30 hover:shadow-md shadow-black/40 transition-all">
-                    <div className="flex items-center gap-4">
+                  <div key={source.id} className="flex flex-col gap-4 p-5 bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[20px] hover:border-[rgba(59,158,255,0.28)] hover:shadow-md shadow-black/40 transition-all md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-start gap-4">
                       <div className="w-12 h-12 rounded-[12px] bg-[rgba(255,255,255,0.02)] flex items-center justify-center text-[#3b9eff] shrink-0">
                         <source.icon size={24} />
                       </div>
-                      <div>
-                        <h4 className="font-bold text-[#f0f0f0] text-sm">{source.name}</h4>
-                        <p className="text-xs text-[#a1a4a5] mt-0.5 line-clamp-1">{source.desc}</p>
-                        <div className="flex items-center gap-3 mt-1.5">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#a1a4a5] flex items-center gap-1">
+                      <div className="space-y-2">
+                        <div>
+                          <h4 className="font-bold text-[#f0f0f0] text-sm">{source.name}</h4>
+                          <p className="text-xs text-[#a1a4a5] mt-0.5 line-clamp-2">{source.desc}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#a1a4a5]">
                             <FileText size={10} /> {source.count}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-[#7d8183]">
+                            <Clock size={11} /> {source.time}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0 ml-4">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => {
+                          setSelectedKbForUpload(source.id);
+                          setCurrentView('overview');
+                        }}
+                        className="rounded-[12px] border border-[rgba(255,255,255,0.12)] px-3 py-2 text-xs font-semibold text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                      >
+                        {t('kb.upload.title')}
+                      </button>
                       <button 
                         onClick={() => openEditModal(source)} 
                         className="p-2 text-[#3b9eff] hover:bg-[rgba(59,158,255,0.05)] rounded-[12px] transition-colors"
@@ -707,10 +787,13 @@ export default function KnowledgeBase() {
           </div>
         </div>
       ) : (
-        <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+        <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <h2 className="text-[24px] font-display font-medium tracking-tight tracking-tight text-[#f0f0f0]">{t('kb.title')}</h2>
+              <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9fa3a5]">
+                <Database size={13} />
+                {t('kb.hero.badge')}
+              </div>
             </div>
             <button 
               onClick={openCreateModal}
@@ -740,9 +823,9 @@ export default function KnowledgeBase() {
               ) : (
                 sources.slice(0, 3).map((source) => (
                 <div key={source.id} className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                  <div className="h-32 bg-[rgba(255,255,255,0.02)] flex items-center justify-center relative">
-                    <source.icon size={48} className="text-[#3b9eff]/20 group-hover:scale-110 transition-transform" />
-                    <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="relative h-32 bg-[linear-gradient(180deg,rgba(59,158,255,0.12),rgba(255,255,255,0.02))] flex items-center justify-center">
+                      <source.icon size={48} className="text-[#3b9eff]/20 group-hover:scale-110 transition-transform" />
+                      <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => openEditModal(source)}
                         className="p-2 text-[#3b9eff] hover:bg-[rgba(59,158,255,0.08)] rounded-[12px] transition-colors"
@@ -768,6 +851,13 @@ export default function KnowledgeBase() {
                       <span className="flex items-center gap-1"><FileText size={12} /> {source.count}</span>
                       <span className="flex items-center gap-1"><Clock size={12} /> {source.time}</span>
                     </div>
+                    <button
+                      onClick={() => setSelectedKbForUpload(source.id)}
+                      className="mt-4 inline-flex items-center gap-2 rounded-[12px] border border-[rgba(255,255,255,0.12)] px-3 py-2 text-xs font-semibold text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                    >
+                      <UploadCloud size={14} />
+                      {t('kb.upload.title')}
+                    </button>
                   </div>
                 </div>
               )))}
@@ -776,52 +866,168 @@ export default function KnowledgeBase() {
 
           {/* Upload Area */}
           <section>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
-              <h3 className="text-base font-bold text-[#f0f0f0]">{t('kb.upload.title')}</h3>
-              <div className="flex items-center gap-3">
-                <label className="text-sm font-bold text-[#f0f0f0]">{t('kb.upload.target')}:</label>
-                <select 
-                  value={selectedKbForUpload}
-                  onChange={(e) => setSelectedKbForUpload(e.target.value)}
-                  disabled={isLoadingKb || sources.length === 0}
-                  className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-sm font-medium outline-none"
-                >
-                  {sources.length === 0 && (
-                    <option value="" className="bg-[#000000] text-[#f0f0f0]">No knowledge base</option>
-                  )}
-                  {sources.map(s => (
-                    <option key={s.id} value={s.id} className="bg-[#000000] text-[#f0f0f0]">{s.name}</option>
-                  ))}
-                </select>
+            <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[radial-gradient(circle_at_top,rgba(59,158,255,0.08),transparent_28%),#050505] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+                <div>
+                  <h3 className="text-base font-bold text-[#f0f0f0]">{t('kb.upload.title')}</h3>
+                  <p className="mt-1 text-sm text-[#8b8f91]">{t('kb.upload.helper')}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="text-sm font-bold text-[#f0f0f0]">{t('kb.upload.target')}:</label>
+                  <div ref={kbDropdownRef} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isLoadingKb && sources.length > 0) {
+                          setIsKbDropdownOpen((prev) => !prev);
+                        }
+                      }}
+                      disabled={isLoadingKb || sources.length === 0}
+                      className="flex min-w-[220px] items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2.5 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-[rgba(59,158,255,0.24)] disabled:cursor-not-allowed disabled:text-[#a1a4a5] disabled:opacity-70"
+                    >
+                      <span className="min-w-0 truncate">{kbDropdownLabel}</span>
+                      <ChevronDown
+                        size={16}
+                        className={cn(
+                          "shrink-0 text-[#8d9295] transition-transform",
+                          isKbDropdownOpen ? "rotate-180" : ""
+                        )}
+                      />
+                    </button>
+
+                    {isKbDropdownOpen && sources.length > 0 ? (
+                      <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[#303030] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.42)]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedKbForUpload('');
+                            setIsKbDropdownOpen(false);
+                          }}
+                          className={cn(
+                            "flex w-full items-center justify-between gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm transition-colors",
+                            !selectedKbForUpload
+                              ? "bg-[rgba(59,158,255,0.10)] text-[#f0f0f0]"
+                              : "text-[#c9cdcf] hover:bg-[rgba(255,255,255,0.05)]"
+                          )}
+                        >
+                          <span className="truncate">{t('kb.upload.none')}</span>
+                          {!selectedKbForUpload ? <Check size={15} className="text-[#3b9eff]" /> : null}
+                        </button>
+                        <div className="mt-1 space-y-1">
+                          {sources.map((source) => {
+                            const isSelected = source.id === selectedKbForUpload;
+                            return (
+                              <button
+                                key={source.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedKbForUpload(source.id);
+                                  setIsKbDropdownOpen(false);
+                                }}
+                                className={cn(
+                                  "flex w-full items-center justify-between gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm transition-colors",
+                                  isSelected
+                                    ? "bg-[rgba(59,158,255,0.10)] text-[#f0f0f0]"
+                                    : "text-[#c9cdcf] hover:bg-[rgba(255,255,255,0.05)]"
+                                )}
+                              >
+                                <span className="truncate">{source.name}</span>
+                                {isSelected ? <Check size={15} className="text-[#3b9eff]" /> : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
               </div>
-            </div>
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border border-[rgba(255,255,255,0.3)] bg-[#000000] rounded-[16px] p-10 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary hover:bg-[rgba(59,158,255,0.05)] transition-all group"
-            >
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileUpload} 
-                className="hidden bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] text-[#f0f0f0] text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40" 
-                accept=".pdf,.docx,.txt"
-              />
-              <div className="size-16 rounded-full bg-[rgba(59,158,255,0.05)] flex items-center justify-center mb-4 group-hover:bg-[rgba(59,158,255,0.1)] group-hover:scale-110 transition-all">
-                <UploadCloud size={32} className="text-[#3b9eff]" />
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="group flex cursor-pointer flex-col items-center justify-center rounded-[20px] border-2 border-dashed border-[rgba(255,255,255,0.18)] bg-[rgba(255,255,255,0.02)] p-10 text-center transition-all hover:border-[rgba(59,158,255,0.4)] hover:bg-[rgba(59,158,255,0.05)]"
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  className="hidden bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] text-[#f0f0f0] text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40"
+                  accept=".pdf,.docx,.txt"
+                />
+                <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-[rgba(59,158,255,0.08)] transition-all group-hover:scale-110 group-hover:bg-[rgba(59,158,255,0.14)]">
+                  <UploadCloud size={32} className="text-[#3b9eff]" />
+                </div>
+                <h4 className="text-lg font-bold text-[#f0f0f0]">{t('kb.upload.drop')}</h4>
+                <p className="mt-1 text-sm text-[#a1a4a5]">{t('kb.upload.limit')}</p>
+                <button className="mt-6 rounded-md border border-[rgba(255,255,255,0.18)] px-6 py-2 text-sm font-semibold text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.05)]">
+                  {t('common.select')}
+                </button>
               </div>
-              <h4 className="text-lg font-bold text-[#f0f0f0]">{t('kb.upload.drop')}</h4>
-              <p className="text-[#a1a4a5] text-sm mt-1">{t('kb.upload.limit')}</p>
-              <button className="mt-6 px-6 py-2 border border-[rgba(255,255,255,0.3)] rounded-md text-sm font-semibold hover:bg-[#000000] transition-colors">
-                {t('common.select')}
-              </button>
             </div>
           </section>
 
           {/* Recent Uploads Table */}
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-[#f0f0f0]">{t('kb.recent.title')}</h3>
-              <div className="flex gap-2">
+            <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
+              <div className="w-full lg:w-[220px]">
+                <h3 className="text-base font-bold text-[#f0f0f0]">{t('kb.recent.title')}</h3>
+                {selectedSource ? (
+                  <p className="mt-1 text-sm text-[#8b8f91] truncate">{selectedSource.name}</p>
+                ) : null}
+              </div>
+              <div className="w-full lg:flex-1">
+                <input
+                  value={uploadSearch}
+                  onChange={(e) => setUploadSearch(e.target.value)}
+                  placeholder={t('kb.recent.search')}
+                  className="w-full rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[#f0f0f0] outline-none transition-colors placeholder:text-[#7d8183] focus:border-[rgba(59,158,255,0.35)]"
+                />
+              </div>
+              <div className="flex items-center gap-2 justify-start lg:justify-end">
+                <div ref={uploadFilterRef} className="relative w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => setIsUploadFilterOpen((prev) => !prev)}
+                    className="flex w-full sm:min-w-[160px] items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2.5 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-[rgba(59,158,255,0.24)]"
+                  >
+                    <span className="min-w-0 truncate">{uploadFilterLabel}</span>
+                    <ChevronDown
+                      size={16}
+                      className={cn(
+                        "shrink-0 text-[#8d9295] transition-transform",
+                        isUploadFilterOpen ? "rotate-180" : ""
+                      )}
+                    />
+                  </button>
+
+                  {isUploadFilterOpen ? (
+                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[#303030] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.42)]">
+                      <div className="space-y-1">
+                        {uploadFilterOptions.map((item) => {
+                          const isSelected = item.id === uploadFilter;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => {
+                                setUploadFilter(item.id);
+                                setIsUploadFilterOpen(false);
+                              }}
+                              className={cn(
+                                "flex w-full items-center justify-between gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm transition-colors",
+                                isSelected
+                                  ? "bg-[rgba(59,158,255,0.10)] text-[#f0f0f0]"
+                                  : "text-[#c9cdcf] hover:bg-[rgba(255,255,255,0.05)]"
+                              )}
+                            >
+                              <span className="truncate">{item.label}</span>
+                              {isSelected ? <Check size={15} className="text-[#3b9eff]" /> : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
                 <button 
                   onClick={handleRefreshUploads}
                   className={cn(
@@ -833,8 +1039,73 @@ export default function KnowledgeBase() {
                 </button>
               </div>
             </div>
+            <div className="space-y-3 lg:hidden">
+              {isLoadingUploads ? (
+                Array.from({ length: 3 }).map((_, idx) => (
+                  <div key={`doc-mobile-skeleton-${idx}`} className="rounded-[18px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] p-4 animate-pulse">
+                    <div className="h-4 w-2/3 rounded bg-[rgba(255,255,255,0.08)]"></div>
+                    <div className="mt-3 h-3 w-1/3 rounded bg-[rgba(255,255,255,0.06)]"></div>
+                    <div className="mt-4 h-10 rounded bg-[rgba(255,255,255,0.05)]"></div>
+                  </div>
+                ))
+              ) : paginatedUploads.length === 0 ? (
+                <div className="rounded-[18px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] px-4 py-8 text-center text-sm text-[#a1a4a5]">
+                  {t('kb.recent.empty')}
+                </div>
+              ) : paginatedUploads.map((file, idx) => (
+                <div key={`${file.name}-mobile-${idx}`} className="rounded-[20px] border border-[rgba(255,255,255,0.1)] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-4 shadow-[0_14px_32px_rgba(0,0,0,0.22)]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3">
+                        <FileText size={18} className={file.color} />
+                        <p className="truncate text-sm font-semibold text-[#f0f0f0]">{file.name}</p>
+                      </div>
+                      <p className="mt-2 text-xs text-[#8b8f91]">{file.type} • {file.size}</p>
+                    </div>
+                    <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider ${
+                      file.status === 'Completed' ? 'text-[#84c5ff]' :
+                      file.status === 'Processing' ? 'text-[#d7d9da]' : 'text-[#f0d39c]'
+                    }`}>
+                      {file.status === 'Completed' && <CheckCircle2 size={12} />}
+                      {file.status === 'Processing' && <Loader2 size={12} className="animate-spin" />}
+                      {file.status === 'Failed' && <AlertCircle size={12} />}
+                      {file.status === 'Completed' ? t('status.completed') :
+                       file.status === 'Processing' ? t('status.processing') : t('status.failed')}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between text-xs text-[#7d8183]">
+                    <span>{file.date}</span>
+                    <span className="truncate max-w-[45%]">{selectedSource?.name}</span>
+                  </div>
+                  <div className="mt-4 flex items-center gap-2">
+                    {file.status === 'Failed' && (
+                      <button
+                        onClick={() => handleResyncUpload(file.id)}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-xs font-semibold text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)]"
+                      >
+                        <RefreshCw size={14} />
+                        {t('common.retry')}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handlePreview(file)}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-[12px] border border-[rgba(255,255,255,0.12)] px-3 py-2 text-xs font-semibold text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.05)]"
+                    >
+                      <Eye size={14} />
+                      {t('kb.preview')}
+                    </button>
+                    <button
+                      onClick={() => openDeleteUploadConfirmation(file)}
+                      className="inline-flex items-center justify-center rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-[#d7d9da] transition-colors hover:bg-[rgba(255,255,255,0.06)]"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] overflow-hidden shadow-md shadow-black/40">
-              <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+              <div className="hidden overflow-x-auto max-h-[500px] overflow-y-auto lg:block">
                 <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead className="bg-[rgba(255,255,255,0.02)]">
                     <tr>
@@ -861,7 +1132,7 @@ export default function KnowledgeBase() {
                     ) : paginatedUploads.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-6 py-8 text-center text-sm text-[#a1a4a5]">
-                          {t('kb.no_sources')}
+                          {t('kb.recent.empty')}
                         </td>
                       </tr>
                     ) : paginatedUploads.map((file, idx) => (
@@ -875,8 +1146,8 @@ export default function KnowledgeBase() {
                         <td className="px-6 py-4 text-sm text-[#a1a4a5]">{file.type}</td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-0 py-1 text-xs font-black uppercase tracking-wider 
-                            ${file.status === 'Completed' ? 'text-green-500' : 
-                              file.status === 'Processing' ? 'text-blue-500' : 'text-red-500'}`}>
+                            ${file.status === 'Completed' ? 'text-[#84c5ff]' : 
+                              file.status === 'Processing' ? 'text-[#d7d9da]' : 'text-[#f0d39c]'}`}>
                             {file.status === 'Completed' && <CheckCircle2 size={12} />}
                             {file.status === 'Processing' && <Loader2 size={12} className="animate-spin" />}
                             {file.status === 'Failed' && <AlertCircle size={12} />}
@@ -920,7 +1191,7 @@ export default function KnowledgeBase() {
               </div>
               <div className="px-6 py-4 bg-[rgba(255,255,255,0.02)] flex items-center justify-between border-t border-[rgba(255,255,255,0.3)]">
                 <p className="text-xs text-[#a1a4a5] font-medium">
-                  {t('kb.table.showing')} {paginatedUploads.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(currentPage * itemsPerPage, uploads.length)} {t('kb.table.of')} {uploads.length} {t('kb.table.docs')}
+                  {t('kb.table.showing')} {paginatedUploads.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(currentPage * itemsPerPage, filteredUploads.length)} {t('kb.table.of')} {filteredUploads.length} {t('kb.table.docs')}
                 </p>
                 <div className="flex gap-2">
                   <button 
@@ -945,60 +1216,77 @@ export default function KnowledgeBase() {
       )}
       {/* Create / Edit Knowledge Base Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)]">
-              <h3 className="text-lg font-bold text-[#ffffff]">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[#000000] shadow-[0_18px_48px_rgba(0,0,0,0.32)] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] p-6">
+              <h3 className="text-[24px] font-display font-medium tracking-tight text-[#f5f5f5]">
                 {formMode === 'create' ? t('kb.modal.create') : t('kb.modal.edit')}
               </h3>
               <button 
-                onClick={() => setIsCreateModalOpen(false)}
-                className="text-[rgba(255,255,255,0.7)] hover:text-[#ffffff] p-1 rounded-md hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+                onClick={() => {
+                  setIsCreateModalOpen(false);
+                  setKbFormErrors({});
+                  setKbFormTouched({});
+                }}
+                className="rounded-md p-1 text-[rgba(255,255,255,0.7)] transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-[#ffffff]"
               >
                 <X size={20} />
               </button>
             </div>
             <div className="p-6 space-y-6">
-              {formMode === 'create' && (
-                <div className="flex items-start gap-3 rounded-[12px] border border-[rgba(59,158,255,0.18)] bg-[rgba(59,158,255,0.08)] p-4">
-                  <AlertCircle size={18} className="mt-0.5 shrink-0 text-[#78b9ff]" />
-                  <div className="space-y-1">
-                    <p className="text-xs leading-5 text-[#c9defd]">{t('kb.modal.plan_notice')}</p>
-                  </div>
-                </div>
-              )}
               <div className="space-y-2">
-                <label className="text-sm font-bold text-[#ffffff]">{t('kb.modal.name')}</label>
-                <input 
+                <label className="text-[12px] font-medium tracking-[0.5px] text-[#a1a4a5]">{t('kb.modal.name')}</label>
+                <input
                   type="text" 
                   value={kbName}
-                  onChange={(e) => setKbName(e.target.value)}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setKbName(nextValue);
+                    if (kbFormTouched.name) {
+                      setKbFormErrors({ name: validateKnowledgeBaseName(nextValue) });
+                    }
+                  }}
+                  onBlur={() => {
+                    setKbFormTouched({ name: true });
+                    setKbFormErrors({ name: validateKnowledgeBaseName(kbName) });
+                  }}
                   placeholder={t('kb.modal.name_placeholder')} 
-                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none transition-all placeholder:text-[rgba(255,255,255,0.5)]"
+                  className={cn(
+                    'w-full rounded-[14px] border bg-[#1a1a1a] px-4 py-3 text-[14px] text-[#ffffff] outline-none transition-all placeholder:text-[rgba(255,255,255,0.38)]',
+                    kbFormTouched.name && kbFormErrors.name
+                      ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff0000]/20'
+                      : 'border-[rgba(255,255,255,0.16)] focus:border-[rgba(59,158,255,0.35)] focus:ring-2 focus:ring-[rgba(59,158,255,0.16)]'
+                  )}
                 />
+                {kbFormTouched.name && kbFormErrors.name ? (
+                  <p className="text-[11px] font-medium text-[#ff0000]">{kbFormErrors.name}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-[#ffffff]">{t('kb.modal.desc')}</label>
-                <textarea 
+                <label className="text-[12px] font-medium tracking-[0.5px] text-[#a1a4a5]">{t('kb.modal.desc')}</label>
+                <textarea
                   value={kbDesc}
                   onChange={(e) => setKbDesc(e.target.value)}
                   placeholder={t('kb.modal.desc_placeholder')} 
                   rows={3}
-                  className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] px-4 py-2.5 text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none transition-all resize-none placeholder:text-[rgba(255,255,255,0.5)]"
+                  className="w-full resize-none rounded-[14px] border border-[rgba(255,255,255,0.16)] bg-[#1a1a1a] px-4 py-3 text-[14px] text-[#ffffff] outline-none transition-all placeholder:text-[rgba(255,255,255,0.38)] focus:border-[rgba(59,158,255,0.35)] focus:ring-2 focus:ring-[rgba(59,158,255,0.16)]"
                 />
               </div>
             </div>
-            <div className="p-6 border-t border-[rgba(255,255,255,0.08)] bg-[rgba(44,44,46,0.92)] flex gap-3">
+            <div className="flex gap-3 border-t border-[rgba(255,255,255,0.08)] p-6">
               <button 
-                onClick={() => setIsCreateModalOpen(false)}
-                className="flex-1 py-2.5 text-sm font-bold bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff] rounded-md transition-all"
+                onClick={() => {
+                  setIsCreateModalOpen(false);
+                  setKbFormErrors({});
+                  setKbFormTouched({});
+                }}
+                className="flex-1 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] py-3 text-sm font-semibold text-[#f0f0f0] transition-all hover:bg-[rgba(255,255,255,0.08)]"
               >
                 {t('common.cancel')}
               </button>
               <button 
                 onClick={handleSaveClick}
-                disabled={!kbName.trim()}
-                className="flex-1 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 shadow-primary/20 "
+                className="flex-1 rounded-[16px] bg-[#ffffff] py-3 text-sm font-semibold text-[#000000] transition-colors hover:bg-[#ececec] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {formMode === 'create' ? t('common.create') : t('common.save')}
               </button>
@@ -1010,7 +1298,7 @@ export default function KnowledgeBase() {
       {/* Details Modal */}
       {isDetailsModalOpen && selectedUpload && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-[#000000] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)]">
               <h3 className="text-lg font-bold text-[#ffffff]">{t('common.view_details')}</h3>
               <button 
@@ -1037,8 +1325,8 @@ export default function KnowledgeBase() {
                   <div className="flex items-center gap-2">
                     <span className={cn(
                       "w-2 h-2 rounded-full",
-                      selectedUpload.status === 'Completed' ? "bg-emerald-500" :
-                      selectedUpload.status === 'Processing' ? "bg-blue-500" : "bg-red-500"
+                      selectedUpload.status === 'Completed' ? "bg-[#84c5ff]" :
+                      selectedUpload.status === 'Processing' ? "bg-[#d7d9da]" : "bg-[#f0d39c]"
                     )}></span>
                     <p className="text-xs font-bold text-[#f0f0f0]">{selectedUpload.status}</p>
                   </div>
@@ -1049,12 +1337,12 @@ export default function KnowledgeBase() {
                 </div>
               </div>
 
-              <div className="p-4 bg-blue-50 rounded-[16px] border-blue-100">
+              <div className="rounded-[16px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-4">
                 <div className="flex items-start gap-3">
-                  <Database size={18} className="text-blue-600 mt-0.5" />
+                  <Database size={18} className="mt-0.5 text-[#9ed1ff]" />
                   <div>
-                    <p className="text-xs font-bold text-blue-900">{t('kb.upload.target')}</p>
-                    <p className="text-xs text-blue-700 mt-1">Product Documentation</p>
+                    <p className="text-xs font-bold text-[#f0f0f0]">{t('kb.upload.target')}</p>
+                    <p className="mt-1 text-xs text-[#a1a4a5]">{selectedSource?.name || t('kb.upload.none')}</p>
                   </div>
                 </div>
               </div>
@@ -1083,7 +1371,7 @@ export default function KnowledgeBase() {
       {/* Preview Modal */}
       {isPreviewModalOpen && previewData && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col h-[90vh]">
+          <div className="bg-[#000000] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col h-[90vh]">
             <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)] shrink-0">
               <div>
                 <h3 className="text-lg font-bold text-[#f0f0f0]">{t('kb.preview')}</h3>
@@ -1100,7 +1388,7 @@ export default function KnowledgeBase() {
               {isPreviewLoading ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#000000]/50 backdrop-blur-sm z-10">
                   <Loader2 size={40} className="text-[#3b9eff] animate-spin mb-4" />
-                  <p className="text-sm font-bold text-[#a1a4a5]">Preparing preview...</p>
+                  <p className="text-sm font-bold text-[#a1a4a5]">{t('kb.preview.loading')}</p>
                 </div>
               ) : null}
 
@@ -1119,7 +1407,7 @@ export default function KnowledgeBase() {
                     ))}
                     {previewData.pdfPages.length === 5 && (
                       <p className="text-xs text-[#a1a4a5] py-4 italic">
-                        Preview limited to first 5 pages.
+                        {t('kb.preview.pdf_limit')}
                       </p>
                     )}
                   </div>
@@ -1147,8 +1435,8 @@ export default function KnowledgeBase() {
                     <p className="text-[#a1a4a5] font-medium">{t('kb.preview_not_available')}</p>
                     <p className="text-xs text-[#a1a4a5] mt-2 max-w-xs">
                       {previewData.type === 'PDF' || previewData.type === 'DOCX' 
-                        ? 'Preview is only available for files uploaded in this session. Mock data files cannot be previewed.' 
-                        : 'This file type is not supported for instant preview.'}
+                        ? t('kb.preview.session_only')
+                        : t('kb.preview.unsupported_instant')}
                     </p>
                   </div>
                 )}
@@ -1168,36 +1456,48 @@ export default function KnowledgeBase() {
 
       {/* Confirmation Modal */}
       {confirmModal.isOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 text-center">
-              <div className={`size-16 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmModal.type.startsWith('delete') ? 'bg-[#ff0000]/10 text-[#ff0000]' : 'bg-[rgba(59,158,255,0.1)] text-[#3b9eff]'}`}>
-                {confirmModal.type.startsWith('delete') ? <Trash2 size={32} /> : <AlertCircle size={32} />}
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[#000000] shadow-[0_18px_48px_rgba(0,0,0,0.32)] animate-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+              className="absolute right-5 top-5 rounded-md p-1 text-[rgba(255,255,255,0.7)] transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-[#ffffff]"
+            >
+              <X size={20} />
+            </button>
+            <div className="flex flex-col items-center px-6 pb-6 pt-8 text-center">
+              <div className={`mb-5 flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border ${
+                  confirmModal.type.startsWith('delete')
+                    ? 'border-[#ff0000]/20 bg-[#ff0000]/10 text-[#ff0000]'
+                    : 'border-[rgba(59,158,255,0.18)] bg-[rgba(59,158,255,0.08)] text-[#9ed1ff]'
+                }`}>
+                {confirmModal.type.startsWith('delete') ? <Trash2 size={22} /> : <AlertCircle size={22} />}
               </div>
-              <h3 className="text-xl font-black text-[#f0f0f0] mb-2">
-                {confirmModal.title}
-              </h3>
-              <p className="text-sm text-[#a1a4a5] leading-relaxed">
-                {confirmModal.message}
-              </p>
-            </div>
-            <div className="p-6 border-t border-[rgba(255,255,255,0.3)] bg-[#000000] flex gap-3">
-              <button 
-                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-                className="flex-1 py-2.5 text-sm font-bold bg-[#000000] border border-[rgba(255,255,255,0.3)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.02)] hover:text-[#f0f0f0] rounded-md transition-all"
-              >
-                {t('common.cancel')}
-              </button>
-              <button 
-                onClick={confirmModal.type.startsWith('delete') ? executeDelete : executeSave}
-                className={`flex-1 py-2.5 text-sm font-bold text-white rounded-md transition-colors shadow-md shadow-black/40 ${
-                  confirmModal.type.startsWith('delete') 
-                    ? 'bg-[#ff0000] text-[#000000] hover:bg-[#ff0000]/90 shadow-black/40' 
-                    : 'bg-[#ffffff] text-[#000000] hover:bg-[#e0e0e0] shadow-primary/20'
-                }`}
-              >
-                {confirmModal.type.startsWith('delete') ? t('common.delete') : t('common.confirm')}
-              </button>
+              <div className="w-full max-w-[26rem] space-y-3">
+                <h3 className="text-[24px] font-display font-medium tracking-tight text-[#f5f5f5]">
+                  {confirmModal.title}
+                </h3>
+                <div className="text-sm leading-7 text-[#a1a4a5]">
+                  {confirmModal.message}
+                </div>
+              </div>
+              <div className="mt-7 flex w-full gap-3">
+                <button
+                  onClick={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+                  className="flex-1 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] py-3 text-sm font-semibold text-[#f0f0f0] transition-all hover:bg-[rgba(255,255,255,0.08)]"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  onClick={confirmModal.type.startsWith('delete') ? executeDelete : executeSave}
+                  className={`flex-1 rounded-[16px] py-3 text-sm font-semibold transition-colors ${
+                    confirmModal.type.startsWith('delete')
+                      ? 'bg-[#ff0000] text-[#ffffff] hover:bg-[#e00000]'
+                      : 'bg-[#ffffff] text-[#000000] hover:bg-[#ececec]'
+                  }`}
+                >
+                  {confirmModal.type.startsWith('delete') ? t('common.delete') : t('common.confirm')}
+                </button>
+              </div>
             </div>
           </div>
         </div>

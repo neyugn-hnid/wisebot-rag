@@ -31,6 +31,7 @@ integration:
   embedding:
     base-url: ${EMBEDDING_BASE_URL:http://localhost:8001}
     search-path: /v1/search
+    provider-path: /v1/provider
     service-token: ${EMBEDDING_SERVICE_TOKEN:}
   ai:
     base-url: ${AI_BASE_URL:http://localhost:8002}
@@ -46,3 +47,6 @@ realtime:
   websocket-endpoint: /ws/chat
   app-prefix: /app
   topic-prefix: /topic
+
+jwt:
+  secret: ${JWT_SECRET:VYW20sDO+am1aOTsq/4Tn48CZ6oEV13ooo51rDrz7AI=}

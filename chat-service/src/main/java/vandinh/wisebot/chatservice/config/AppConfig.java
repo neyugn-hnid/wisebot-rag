@@ -17,8 +17,11 @@ import java.util.Base64;
 @EnableConfigurationProperties({AiClientProperties.class, EmbeddingClientProperties.class, DocumentClientProperties.class, BillingProperties.class})
 public class AppConfig {
 
-    @Value("${jwt.secret:change-me}")
-    private String jwtSecret;
+    @Value("${SERVICE_JWT_SECRET:${jwt.secret:change-me}}")
+    private String serviceJwtSecret;
+
+    @Value("${SERVICE_JWT_AUDIENCE:}")
+    private String serviceJwtAudience;
 
     @Value("${spring.application.name:chat-service}")
     private String serviceSubject;
@@ -46,16 +49,19 @@ public class AppConfig {
             String header = Base64.getUrlEncoder()
                     .withoutPadding()
                     .encodeToString("{\"alg\":\"HS256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
+            String audienceClaim = serviceJwtAudience != null && !serviceJwtAudience.isBlank()
+                    ? ",\"aud\":\"" + serviceJwtAudience + "\""
+                    : "";
             String payload = Base64.getUrlEncoder()
                     .withoutPadding()
                     .encodeToString((
                             "{\"sub\":\"" + serviceSubject + "\",\"iss\":\"wisebot\",\"iat\":" + now +
-                                    ",\"exp\":" + (now + 60) + "}"
+                                    ",\"exp\":" + (now + 60) + audienceClaim + "}"
                     ).getBytes(StandardCharsets.UTF_8));
 
             String message = header + "." + payload;
             Mac sha256Hmac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            SecretKeySpec secretKey = new SecretKeySpec(serviceJwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             sha256Hmac.init(secretKey);
             String signature = Base64.getUrlEncoder()
                     .withoutPadding()

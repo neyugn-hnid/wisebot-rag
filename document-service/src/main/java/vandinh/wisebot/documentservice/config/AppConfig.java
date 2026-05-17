@@ -17,8 +17,11 @@ import java.util.Date;
 @EnableConfigurationProperties(BillingProperties.class)
 public class AppConfig {
 
-    @Value("${jwt.secret:change-me}")
-    private String jwtSecret;
+    @Value("${SERVICE_JWT_SECRET:${jwt.secret:change-me}}")
+    private String serviceJwtSecret;
+
+    @Value("${SERVICE_JWT_AUDIENCE:}")
+    private String serviceJwtAudience;
 
     @Bean
     public RestTemplate restTemplate() {
@@ -30,14 +33,17 @@ public class AppConfig {
                 
                 try {
                     String header = Base64.getUrlEncoder().withoutPadding().encodeToString("{\"alg\":\"HS256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
+                    String audienceClaim = serviceJwtAudience != null && !serviceJwtAudience.isBlank()
+                            ? ",\"aud\":\"" + serviceJwtAudience + "\""
+                            : "";
                     String payload = Base64.getUrlEncoder().withoutPadding().encodeToString(
-                            ("{\"sub\":\"document-service\",\"iss\":\"wisebot\",\"iat\":" + (System.currentTimeMillis() / 1000) + 
-                            ",\"exp\":" + ((System.currentTimeMillis() / 1000) + 60) + "}").getBytes(StandardCharsets.UTF_8)
+                            ("{\"sub\":\"document-service\",\"iss\":\"wisebot\",\"iat\":" + (System.currentTimeMillis() / 1000) +
+                            ",\"exp\":" + ((System.currentTimeMillis() / 1000) + 60) + audienceClaim + "}").getBytes(StandardCharsets.UTF_8)
                     );
                     
                     String message = header + "." + payload;
                     Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
-                    SecretKeySpec secret_key = new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+                    SecretKeySpec secret_key = new SecretKeySpec(serviceJwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
                     sha256_HMAC.init(secret_key);
                     String signature = Base64.getUrlEncoder().withoutPadding().encodeToString(sha256_HMAC.doFinal(message.getBytes(StandardCharsets.UTF_8)));
                     

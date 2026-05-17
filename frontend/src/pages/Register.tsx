@@ -5,12 +5,12 @@ import { useToast } from '../contexts/ToastContext';
 import { register } from '../api/auth';
 import { hasMinLength, isValidGmail } from '../lib/validation';
 import Logo from '../components/Logo';
-import { 
-  Mail, 
-  Lock, 
+import {
+  Mail,
+  Lock,
   User,
   Eye,
-  EyeOff
+  EyeOff,
 } from 'lucide-react';
 import { GoogleIcon, GithubIcon } from '../components/SocialIcons';
 
@@ -57,8 +57,8 @@ export default function Register() {
   };
 
   const handleBlur = (field: string) => (e: React.FocusEvent<HTMLInputElement>) => {
-    setTouched(prev => ({ ...prev, [field]: true }));
-    setErrors(prev => ({ ...prev, [field]: validateField(field, e.target.value, password) }));
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    setErrors((prev) => ({ ...prev, [field]: validateField(field, e.target.value, password) }));
   };
 
   const handleChange = (field: string, setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,10 +77,10 @@ export default function Register() {
   };
 
   const inputClass = (field: string) =>
-    `w-full bg-[rgba(255,255,255,0.06)] border pl-10 pr-4 py-3 text-[14px] text-[#ffffff] outline-none transition-all rounded-[8px] focus:border-white focus:ring-2 focus:ring-white/30 placeholder:text-[rgba(255,255,255,0.38)] ${
+    `w-full rounded-[14px] border bg-[rgba(255,255,255,0.04)] pl-11 pr-4 py-3 text-[14px] text-[#ffffff] outline-none transition-all placeholder:text-[rgba(255,255,255,0.38)] ${
       touched[field] && errors[field]
-        ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-[#ff0000]/30'
-        : 'border-[rgba(255,255,255,0.12)]'
+        ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff0000]/20'
+        : 'border-[rgba(255,255,255,0.12)] focus:border-[rgba(59,158,255,0.35)] focus:ring-2 focus:ring-[rgba(59,158,255,0.16)]'
     }`;
 
   const validateAll = (): boolean => {
@@ -122,151 +122,167 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-[#000000] flex items-center justify-center px-6 pt-10 pb-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
-          <div className="max-w-md w-full space-y-4 animate-in fade-in zoom-in-95 duration-500">
-            <div className="text-center flex flex-col items-center">
-              <Logo theme="dark" customSize={142} className="mb-0" />
-            </div>
-
-        <div className="bg-[#000000] p-8 rounded-[16px] space-y-6">
-          <form className="space-y-5" onSubmit={handleRegister} noValidate>
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">{t('auth.register.full_name')}</label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
-                <input 
-                  type="text" 
-                  placeholder="John Doe"
-                  value={fullName}
-                  onChange={handleChange('fullName', setFullName)}
-                  onBlur={handleBlur('fullName')}
-                  className={inputClass('fullName')}
-                  autoComplete="name"
-                  aria-invalid={touched.fullName && !!errors.fullName}
-                />
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(59,158,255,0.08),transparent_28%),#050505] px-6 pt-10 pb-6 selection:bg-[#ff801f] selection:text-[#ffffff]">
+      <div className="mx-auto flex min-h-[calc(100vh-64px)] max-w-6xl items-center justify-center">
+        <section className="w-full max-w-md">
+          <div className="rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.32)] sm:p-8">
+            <div className="mb-8 space-y-4 text-center">
+              <div className="flex justify-center">
+                <Logo theme="dark" customSize={132} />
               </div>
-              {touched.fullName && errors.fullName && (
-                <p className="text-[11px] text-[#ff0000] font-medium mt-1">{errors.fullName}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">{t('auth.email')}</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
-                <input 
-                  type="email" 
-                  value={email}
-                  onChange={handleChange('email', setEmail)}
-                  onBlur={handleBlur('email')}
-                  placeholder="example@gmail.com"
-                  className={inputClass('email')}
-                  autoComplete="email"
-                  aria-invalid={touched.email && !!errors.email}
-                />
+              <div className="space-y-2">
+                <h1 className="text-[30px] font-display font-medium tracking-tight text-[#f5f5f5]">{t('auth.register.title')}</h1>
+                <p className="text-sm leading-6 text-[#8b8f91]">{t('auth.register.desc')}</p>
               </div>
-              {touched.email && errors.email && (
-                <p className="text-[11px] text-[#ff0000] font-medium mt-1">{errors.email}</p>
-              )}
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">{t('auth.password')}</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={handleChange('password', setPassword)}
-                  onBlur={handleBlur('password')}
-                  className={`${inputClass('password')} pr-10`}
-                  autoComplete="new-password"
-                  aria-invalid={touched.password && !!errors.password}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a1a4a5] hover:text-[#f0f0f0] transition-colors"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+            <form className="space-y-5" onSubmit={handleRegister} noValidate>
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-medium tracking-[0.5px] text-[#a1a4a5]">{t('auth.register.full_name')}</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
+                  <input
+                    type="text"
+                    placeholder="John Doe"
+                    value={fullName}
+                    onChange={handleChange('fullName', setFullName)}
+                    onBlur={handleBlur('fullName')}
+                    className={inputClass('fullName')}
+                    autoComplete="name"
+                    aria-invalid={touched.fullName && !!errors.fullName}
+                  />
+                </div>
+                {touched.fullName && errors.fullName ? (
+                  <p className="mt-1 text-[11px] font-medium text-[#ff0000]">{errors.fullName}</p>
+                ) : null}
               </div>
-              {touched.password && errors.password && (
-                <p className="text-[11px] text-[#ff0000] font-medium mt-1">{errors.password}</p>
-              )}
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-sans font-medium text-[#a1a4a5] tracking-[0.5px]">{t('auth.confirm_password')}</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-medium tracking-[0.5px] text-[#a1a4a5]">{t('auth.email')}</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={handleChange('email', setEmail)}
+                    onBlur={handleBlur('email')}
+                    placeholder="example@gmail.com"
+                    className={inputClass('email')}
+                    autoComplete="email"
+                    aria-invalid={touched.email && !!errors.email}
+                  />
+                </div>
+                {touched.email && errors.email ? (
+                  <p className="mt-1 text-[11px] font-medium text-[#ff0000]">{errors.email}</p>
+                ) : null}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-medium tracking-[0.5px] text-[#a1a4a5]">{t('auth.password')}</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={handleChange('password', setPassword)}
+                    onBlur={handleBlur('password')}
+                    className={`${inputClass('password')} pr-11`}
+                    autoComplete="new-password"
+                    aria-invalid={touched.password && !!errors.password}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a1a4a5] transition-colors hover:text-[#f0f0f0]"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                {touched.password && errors.password ? (
+                  <p className="mt-1 text-[11px] font-medium text-[#ff0000]">{errors.password}</p>
+                ) : null}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-medium tracking-[0.5px] text-[#a1a4a5]">{t('auth.confirm_password')}</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={handleChange('confirmPassword', setConfirmPassword)}
+                    onBlur={handleBlur('confirmPassword')}
+                    className={inputClass('confirmPassword')}
+                    autoComplete="new-password"
+                    aria-invalid={touched.confirmPassword && !!errors.confirmPassword}
+                  />
+                </div>
+                {touched.confirmPassword && errors.confirmPassword ? (
+                  <p className="mt-1 text-[11px] font-medium text-[#ff0000]">{errors.confirmPassword}</p>
+                ) : null}
+              </div>
+
+              <div className="flex items-start gap-3">
                 <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={handleChange('confirmPassword', setConfirmPassword)}
-                  onBlur={handleBlur('confirmPassword')}
-                  className={inputClass('confirmPassword')}
-                  autoComplete="new-password"
-                  aria-invalid={touched.confirmPassword && !!errors.confirmPassword}
+                  type="checkbox"
+                  id="terms"
+                  checked={acceptedTerms}
+                  onChange={(e) => {
+                    setAcceptedTerms(e.target.checked);
+                    if (e.target.checked) setErrors((prev) => ({ ...prev, terms: undefined }));
+                  }}
+                  className="mt-1 rounded border-[rgba(255,255,255,0.3)] bg-transparent focus:ring-2 focus:ring-primary/20"
                 />
+                <label htmlFor="terms" className="text-[14px] leading-relaxed text-[#a1a4a5]">
+                  {t('auth.i_agree')}{' '}
+                  <a href="#" className="font-semibold text-[#f0f0f0] hover:underline">{t('landing.footer.links.terms')}</a>{' '}
+                  {t('auth.and')}{' '}
+                  <a href="#" className="font-semibold text-[#f0f0f0] hover:underline">{t('landing.footer.links.privacy')}</a>.
+                </label>
               </div>
-              {touched.confirmPassword && errors.confirmPassword && (
-                <p className="text-[11px] text-[#ff0000] font-medium mt-1">{errors.confirmPassword}</p>
-              )}
+              {touched.terms && errors.terms ? (
+                <p className="-mt-3 ml-2 text-[11px] font-medium text-[#ff0000]">{errors.terms}</p>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#ffffff] py-3 text-[14px] font-semibold text-[#000000] transition-all hover:bg-[#ececec] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? t('auth.register.submitting') : t('auth.register.submit')}
+              </button>
+            </form>
+
+            <div className="relative py-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[rgba(255,255,255,0.08)]"></div>
+              </div>
+              <div className="relative flex justify-center text-[12px]">
+                <span className="bg-[#090909] px-4 font-semibold tracking-[0.5px] text-[rgba(255,255,255,0.5)]">
+                  {t('auth.or_continue')}
+                </span>
+              </div>
             </div>
 
-            <div className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                id="terms"
-                checked={acceptedTerms}
-                onChange={(e) => {
-                  setAcceptedTerms(e.target.checked);
-                  if (e.target.checked) setErrors(prev => ({ ...prev, terms: undefined }));
-                }}
-                className="mt-1 rounded border-[rgba(255,255,255,0.3)] bg-transparent focus:ring-2 focus:ring-primary/20"
-              />
-              <label htmlFor="terms" className="text-[14px] text-[#a1a4a5] leading-relaxed">
-                {t('auth.i_agree')} <a href="#" className="text-[#f0f0f0] font-semibold hover:underline">{t('landing.footer.links.terms')}</a> {t('auth.and')} <a href="#" className="text-[#f0f0f0] font-semibold hover:underline">{t('landing.footer.links.privacy')}</a>.
-              </label>
+            <div className="grid grid-cols-2 gap-4">
+              <button className="flex items-center justify-center gap-2 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] py-3 text-[14px] font-semibold text-[#f0f0f0] transition-all hover:bg-[rgba(255,255,255,0.08)]">
+                <GoogleIcon size={16} /> Google
+              </button>
+              <button className="flex items-center justify-center gap-2 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] py-3 text-[14px] font-semibold text-[#f0f0f0] transition-all hover:bg-[rgba(255,255,255,0.08)]">
+                <GithubIcon size={16} className="text-[#f0f0f0]" /> GitHub
+              </button>
             </div>
-            {touched.terms && errors.terms && (
-              <p className="text-[11px] text-[#ff0000] font-medium -mt-4 ml-2">{errors.terms}</p>
-            )}
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-[#ffffff] text-[#000000] py-3 rounded-full font-semibold text-[14px] hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? t('auth.register.submitting') : t('auth.register.submit')}
-            </button>
-          </form>
-
-          <div className="relative py-2">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[rgba(255,255,255,0.3)]"></div>
-            </div>
-            <div className="relative flex justify-center text-[12px]">
-              <span className="bg-[#000000] px-4 text-[#a1a4a5] font-semibold tracking-[0.5px]">{t('auth.or_continue')}</span>
-            </div>
+            <p className="mt-8 text-center text-[14px] text-[#a1a4a5]">
+              {t('auth.register.have_account')}{' '}
+              <Link to="/login" className="font-semibold text-[#f0f0f0] hover:text-[#ffffff]">
+                {t('auth.register.login')}
+              </Link>
+            </p>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <button className="flex items-center justify-center gap-2 py-2.5 rounded-full bg-transparent border border-[rgba(255,255,255,0.3)] text-[14px] font-semibold text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.05)] transition-all">
-              <GoogleIcon size={16} /> Google
-            </button>
-            <button className="flex items-center justify-center gap-2 py-2.5 rounded-full bg-transparent border border-[rgba(255,255,255,0.3)] text-[14px] font-semibold text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.05)] transition-all">
-              <GithubIcon size={16} className="text-[#f0f0f0]" /> GitHub
-            </button>
-          </div>
-        </div>
-
-        <p className="text-center text-[14px] text-[#a1a4a5]">
-          {t('auth.register.have_account')} <Link to="/login" className="text-[#f0f0f0] font-semibold">{t('auth.register.login')}</Link>
-        </p>
+        </section>
       </div>
     </div>
   );

@@ -70,7 +70,7 @@ spring:
 
             # Chat service WebSocket (protected)
             - id: chat-service-ws
-              uri: ${CHAT_WS_URL:ws://localhost:8083}
+              uri: ${CHAT_WS_URL:ws://localhost:8082}
               predicates:
                 - Path=/ws/chat/**
               filters:
@@ -78,7 +78,7 @@ spring:
 
             # Widget service (protected)
             - id: widget-service-public
-              uri: ${WIDGET_SERVICE_URL:http://localhost:8084}
+              uri: ${WIDGET_SERVICE_URL:http://localhost:8083}
               predicates:
                 - Path=/api/widget/public/**
               filters:

@@ -62,6 +62,7 @@ services:
       DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-password}
       JWT_SECRET: ${SERVICE_JWT_SECRET:-change-me}
+      SERVICE_JWT_AUDIENCE: ${SERVICE_JWT_AUDIENCE:-}
       STORAGE_BASE_PATH: /app/data/uploads
       EMBEDDING_BASE_URL: http://embedding-service:8001
       BILLING_BASE_URL: http://billing-service:8085
@@ -86,6 +87,7 @@ services:
       DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-password}
       JWT_SECRET: ${SERVICE_JWT_SECRET:-change-me}
+      SERVICE_JWT_AUDIENCE: ${SERVICE_JWT_AUDIENCE:-}
       BILLING_BASE_URL: http://billing-service:8085
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-wisebot-internal-key}
       EMBEDDING_BASE_URL: http://embedding-service:8001
