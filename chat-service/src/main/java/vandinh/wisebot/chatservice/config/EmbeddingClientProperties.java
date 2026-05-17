@@ -10,5 +10,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class EmbeddingClientProperties {
     private String baseUrl;
     private String searchPath;
+    private String providerPath;
     private String serviceToken;
 }

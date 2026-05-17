@@ -96,6 +96,13 @@ export async function listMessages(sessionId: string): Promise<ChatMessageRespon
   return handleResponse<ChatMessageResponse[]>(res);
 }
 
+export async function deleteSession(sessionId: string): Promise<void> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/sessions/${sessionId}`, {
+    method: 'DELETE',
+  });
+  await handleResponse<unknown>(res);
+}
+
 // --- Message APIs ---
 
 export async function ask(sessionId: string, request: AskRequest): Promise<AskResponse> {
@@ -119,6 +126,20 @@ export async function getProviderInfo(): Promise<ChatProviderInfo> {
 
 export async function updateProviderMode(request: UpdateProviderModeRequest): Promise<ChatProviderInfo> {
   const res = await fetchWithAuth(`${CHAT_BASE}/provider/mode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<ChatProviderInfo>(res);
+}
+
+export async function getEmbeddingProviderInfo(): Promise<ChatProviderInfo> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/embedding-provider`);
+  return handleResponse<ChatProviderInfo>(res);
+}
+
+export async function updateEmbeddingProviderMode(request: UpdateProviderModeRequest): Promise<ChatProviderInfo> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/embedding-provider/mode`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),

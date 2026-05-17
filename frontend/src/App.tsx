@@ -13,7 +13,6 @@ import VerifyEmail from './pages/VerifyEmail';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import ActivityLog from './pages/ActivityLog';
-import Demo from './pages/Demo';
 import KnowledgeBase from './pages/KnowledgeBase';
 import ChatbotPlayground from './pages/ChatbotPlayground';
 import WidgetCustomization from './pages/WidgetCustomization';
@@ -54,35 +53,34 @@ function App() {
           <NotificationModalProvider>
             <RoleProvider>
               <Router>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/verify-email" element={<VerifyEmail />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* Dashboard Routes */}
-              <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/activity" element={<ProtectedRoute><DashboardLayout><ActivityLog /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/demo" element={<Demo />} />
-              <Route path="/knowledge-base" element={<ProtectedRoute><DashboardLayout><KnowledgeBase /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/playground" element={<ProtectedRoute><DashboardLayout><ChatbotPlayground /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/customization" element={<ProtectedRoute><DashboardLayout><WidgetCustomization /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/widget-test" element={<ProtectedRoute><WidgetEmbedTest /></ProtectedRoute>} />
-              <Route path="/analytics" element={<ProtectedRoute allowedRoles={['ADMIN']}><DashboardLayout><Analytics /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/users" element={<ProtectedRoute allowedRoles={['ADMIN']}><DashboardLayout><UserManagement /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/api-keys" element={<ProtectedRoute><DashboardLayout><APIKeys /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/billing" element={<ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/billing/upgrade" element={<ProtectedRoute><DashboardLayout><UpgradePlan /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><DashboardLayout><Settings /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
+                  {/* Dashboard Routes */}
+                  <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
+                  <Route path="/activity" element={<ProtectedRoute><DashboardLayout><ActivityLog /></DashboardLayout></ProtectedRoute>} />
+                  <Route path="/knowledge-base" element={<ProtectedRoute><DashboardLayout><KnowledgeBase /></DashboardLayout></ProtectedRoute>} />
+                  <Route path="/playground" element={<ProtectedRoute><DashboardLayout><ChatbotPlayground /></DashboardLayout></ProtectedRoute>} />
+                  <Route path="/customization" element={<ProtectedRoute><DashboardLayout><WidgetCustomization /></DashboardLayout></ProtectedRoute>} />
+                  <Route path="/widget-test" element={<ProtectedRoute><WidgetEmbedTest /></ProtectedRoute>} />
+                  <Route path="/analytics" element={<ProtectedRoute allowedRoles={['ADMIN']}><DashboardLayout><Analytics /></DashboardLayout></ProtectedRoute>} />
+                  <Route path="/users" element={<ProtectedRoute allowedRoles={['ADMIN']}><DashboardLayout><UserManagement /></DashboardLayout></ProtectedRoute>} />
+                  <Route path="/api-keys" element={<ProtectedRoute><DashboardLayout><APIKeys /></DashboardLayout></ProtectedRoute>} />
+                  <Route path="/billing" element={<ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute>} />
+                  <Route path="/billing/upgrade" element={<ProtectedRoute><DashboardLayout><UpgradePlan /></DashboardLayout></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><DashboardLayout><Settings /></DashboardLayout></ProtectedRoute>} />
+                  <Route path="/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
 
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Router>
-        </RoleProvider>
+                  {/* Fallback */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Router>
+            </RoleProvider>
         </NotificationModalProvider>
         </ToastProvider>
       </ThemeProvider>

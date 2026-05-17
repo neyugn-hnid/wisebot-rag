@@ -39,4 +39,8 @@ public interface ChatService {
     Map<String, Object> getProviderInfo();
 
     Map<String, Object> updateProviderMode(String mode);
+
+    Map<String, Object> getEmbeddingProviderInfo();
+
+    Map<String, Object> updateEmbeddingProviderMode(String mode);
 }

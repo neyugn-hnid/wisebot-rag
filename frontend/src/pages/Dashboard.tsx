@@ -165,32 +165,45 @@ export default function Dashboard() {
   const activityFeed = isAdmin ? adminActivity : recentActivity;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
       {/* Header & Status */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+      <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-[24px] font-display font-medium text-[#f0f0f0] tracking-tight">
-            {isAdmin ? t('dashboard.admin_welcome') : t('dashboard.welcome')}
-          </h2>
+          <div className=" inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9fa3a5]">
+            <Activity size={13} />
+            {t('dashboard.status.operational')}
+          </div>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/users" className="inline-flex items-center gap-2 rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-xs font-semibold text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.07)]">
+            <Users size={14} />
+            {t('dashboard.action.manage_users')}
+          </Link>
+          <Link to="/settings" className="inline-flex items-center gap-2 rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[#ffffff] px-3 py-2 text-xs font-bold text-[#000000] transition-colors hover:bg-[#f0f0f0]">
+            <ShieldCheck size={14} />
+            {t('dashboard.action.system_settings')}
+          </Link>
+        </div>
+      </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi, idx) => (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
             key={kpi.label} 
-            className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 hover:border-[rgba(255,255,255,0.4)] transition-all"
+            className="rounded-[20px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-5 shadow-[0_14px_36px_rgba(0,0,0,0.18)] transition-colors hover:border-[rgba(59,158,255,0.24)]"
           >
             <div className="flex items-center justify-between mb-4">
-              <div className={cn("w-10 h-10 rounded-[8px] bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] flex items-center justify-center", kpi.color || "text-[#a1a4a5]")}>
+              <div className={cn("flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)]", kpi.color || "text-[#a1a4a5]")}>
                 <kpi.icon size={18} />
               </div>
               <span className={cn(
-                "text-[12px] font-semibold flex items-center gap-1",
+                "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold",
                 kpi.trend === 'up' ? "text-[#11ff99]" : 
                 kpi.trend === 'down' ? "text-[#ff801f]" : 
                 "text-[#a1a4a5]"
@@ -200,20 +213,21 @@ export default function Dashboard() {
                 {kpi.change}
               </span>
             </div>
-            <p className="text-[#a1a4a5] text-[12px] font-semibold uppercase tracking-[0.5px]">{kpi.label}</p>
-            <h3 className="text-[24px] font-display font-medium text-[#f0f0f0] mt-1 tracking-tight">{kpi.value}</h3>
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8b8f91]">{kpi.label}</p>
+            <h3 className="mt-2 text-[28px] font-display font-medium tracking-tight text-[#f0f0f0]">{kpi.value}</h3>
           </motion.div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Chart Section */}
-        <div className="lg:col-span-2 bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
+        <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)] lg:col-span-2">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-[16px] font-sans font-semibold text-[#f0f0f0]">
                 {isAdmin ? t('dashboard.admin.chart_title') : t('dashboard.chart.title')}
               </h3>
+              <p className="mt-1 text-xs text-[#8b8f91]">{t('dashboard.chart.desc')}</p>
             </div>
             <div className="flex items-center gap-6">
               <div className="text-right hidden sm:block">
@@ -222,7 +236,7 @@ export default function Dashboard() {
                 </p>
                 <p className="text-[#11ff99] text-[12px] font-semibold mt-1">{t('dashboard.chart.trend_up')}</p>
               </div>
-              <select className="bg-transparent border border-[rgba(255,255,255,0.3)] text-[12px] font-semibold py-2 px-4 outline-none rounded-[8px] text-[#f0f0f0] text-[14px] focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40">
+              <select className="rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-[12px] font-semibold text-[#f0f0f0] outline-none transition-colors focus:border-[rgba(59,158,255,0.5)] focus:ring-2 focus:ring-[rgba(59,158,255,0.18)]">
                 <option value="7d" className="bg-[#000000] text-[#f0f0f0]">{t('dashboard.chart.last_7d')}</option>
                 <option value="30d" className="bg-[#000000] text-[#f0f0f0]">{t('dashboard.chart.last_30d')}</option>
               </select>
@@ -278,15 +292,15 @@ export default function Dashboard() {
 
         {/* Activity Feed for Admin */}
         {isAdmin ? (
-          <div className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
+          <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-[16px] font-sans font-semibold text-[#f0f0f0]">{t('dashboard.activity.title')}</h3>
               <Activity size={18} className="text-[#a1a4a5]" />
             </div>
-            <div className="space-y-6">
+            <div className="space-y-4">
               {activityFeed.map((activity) => (
-                <div key={activity.id} className="flex gap-4 group">
-                  <div className={cn("w-10 h-10 rounded-[8px] bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] flex items-center justify-center shrink-0", activity.color)}>
+                <div key={activity.id} className="group flex gap-3 rounded-[16px] border border-transparent p-2 transition-colors hover:border-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.03)]">
+                  <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)]", activity.color)}>
                     <activity.icon size={16} />
                   </div>
                   <div className="space-y-1">
@@ -300,7 +314,7 @@ export default function Dashboard() {
             </div>
             <Link 
               to="/activity"
-              className="w-full mt-8 py-2.5 bg-transparent text-[#a1a4a5] text-[12px] font-semibold rounded-full hover:bg-[rgba(255,255,255,0.05)] hover:text-[#f0f0f0] transition-all border border-[rgba(255,255,255,0.3)] block text-center"
+              className="mt-6 block w-full rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] py-2.5 text-center text-[12px] font-semibold text-[#d7d9da] transition-colors hover:bg-[rgba(255,255,255,0.07)] hover:text-[#f0f0f0]"
             >
               {t('dashboard.view_all')}
             </Link>
@@ -345,9 +359,9 @@ export default function Dashboard() {
 
       {/* Additional Analytics */}
       {isAdmin && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Bar Chart */}
-          <div className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
+          <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-[16px] font-sans font-semibold text-[#f0f0f0]">{t('dashboard.conversation_volume')}</h3>
               <Activity size={18} className="text-[#a1a4a5]" />
@@ -360,7 +374,7 @@ export default function Dashboard() {
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#f0f0f0' }} />
                   <Tooltip 
                     cursor={{fill: 'rgba(255,255,255,0.02)'}}
-                    contentStyle={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.3)', backgroundColor: '#000000', boxShadow: 'rgba(176,199,217,0.145) 0px 0px 0px 1px' }}
+                    contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', backgroundColor: '#0b0b0c', boxShadow: '0 18px 40px rgba(0,0,0,0.32)' }}
                     itemStyle={{ color: '#f0f0f0' }}
                   />
                   <Bar dataKey="value" fill="#3b9eff" radius={[4, 4, 0, 0]} barSize={32} />
@@ -370,7 +384,7 @@ export default function Dashboard() {
           </div>
 
           {/* Pie Chart */}
-          <div className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
+          <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-[16px] font-sans font-semibold text-[#f0f0f0]">{t('dashboard.plan_distribution')}</h3>
               <Users size={18} className="text-[#a1a4a5]" />
@@ -393,7 +407,7 @@ export default function Dashboard() {
                     ))}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.3)', backgroundColor: '#000000', boxShadow: 'rgba(176,199,217,0.145) 0px 0px 0px 1px' }}
+                    contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', backgroundColor: '#0b0b0c', boxShadow: '0 18px 40px rgba(0,0,0,0.32)' }}
                     itemStyle={{ fontWeight: 500, color: '#f0f0f0' }}
                   />
                   <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 500, color: '#a1a4a5' }}/>

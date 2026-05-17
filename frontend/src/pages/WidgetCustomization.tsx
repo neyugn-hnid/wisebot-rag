@@ -64,14 +64,16 @@ const WIDGET_SETTINGS_STORAGE_KEY = 'wisebot_widget_settings';
 export default function WidgetCustomization() {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const fieldClass = "w-full rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm text-[#f0f0f0] outline-none transition-colors placeholder:text-[#7d8183] focus:border-[rgba(59,158,255,0.45)] focus:bg-[rgba(255,255,255,0.06)] focus:ring-2 focus:ring-[rgba(59,158,255,0.18)] disabled:cursor-not-allowed disabled:opacity-60";
+  const sectionCardClass = "rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.22)]";
   const [primaryColor, setPrimaryColor] = useState('#2563EB');
   const [position, setPosition] = useState<'right' | 'left'>('right');
   const [view, setView] = useState<'desktop' | 'mobile'>('desktop');
   const [mobileTab, setMobileTab] = useState<'settings' | 'preview'>('settings');
   const [activeTab, setActiveTab] = useState<'appearance' | 'embed'>('appearance');
   const [selectedIconId, setSelectedIconId] = useState('bot');
-  const [botName, setBotName] = useState('WiseBot Assistant');
-  const [welcomeMsg, setWelcomeMsg] = useState('Hello! How can I help you today?');
+  const [botName, setBotName] = useState(t('widget.default_name'));
+  const [welcomeMsg, setWelcomeMsg] = useState(t('widget.default_welcome'));
   const [iconColor, setIconColor] = useState('#ffffff');
   const [customIconUrl, setCustomIconUrl] = useState<string | null>(null);
   const [knowledgeBaseId, setKnowledgeBaseId] = useState('');
@@ -84,7 +86,9 @@ export default function WidgetCustomization() {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseResponse[]>([]);
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
   const [widgetCustomizationEnabled, setWidgetCustomizationEnabled] = useState(true);
+  const [isKnowledgeBaseDropdownOpen, setIsKnowledgeBaseDropdownOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const knowledgeBaseDropdownRef = useRef<HTMLDivElement>(null);
   const hasHydratedLocalSettings = useRef(false);
 
   const SelectedIcon = BOT_ICONS.find(i => i.id === selectedIconId)?.icon || Bot;
@@ -123,6 +127,20 @@ export default function WidgetCustomization() {
   const generateWidgetCode = () => {
     return `wb_${Math.random().toString(36).slice(2, 10)}`;
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        knowledgeBaseDropdownRef.current
+        && !knowledgeBaseDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsKnowledgeBaseDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     try {
@@ -202,7 +220,7 @@ export default function WidgetCustomization() {
           setKnowledgeBaseId(scopedItems[0].id);
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Không tải được danh sách kho tri thức.';
+        const message = error instanceof Error ? error.message : t('widget.kb_load_failed');
         showToast(message, 'error');
       } finally {
         setIsLoadingKnowledgeBases(false);
@@ -227,8 +245,8 @@ export default function WidgetCustomization() {
 
         if (existingWidget) {
           if (!hasHydratedLocalSettings.current) {
-            setBotName(existingWidget.name || 'WiseBot Assistant');
-            setWelcomeMsg(existingWidget.welcomeMessage || 'Hello! How can I help you today?');
+            setBotName(existingWidget.name || t('widget.default_name'));
+            setWelcomeMsg(existingWidget.welcomeMessage || t('widget.default_welcome'));
             if (existingWidget.appearanceConfig?.primaryColor) {
               setPrimaryColor(existingWidget.appearanceConfig.primaryColor);
             }
@@ -256,7 +274,7 @@ export default function WidgetCustomization() {
           }
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Không tải được widget.';
+        const message = error instanceof Error ? error.message : t('widget.load_failed');
         showToast(message, 'error');
       } finally {
         setIsLoadingWidget(false);
@@ -268,20 +286,20 @@ export default function WidgetCustomization() {
 
   const handleCopyCode = () => {
     if (!widget?.code) {
-      showToast('Hãy publish widget trước để tạo embed code.', 'error');
+      showToast(t('widget.publish_first'), 'error');
       return;
     }
 
     navigator.clipboard.writeText(widgetScript);
     setIsCopied(true);
-    showToast(t('widget.code_copied') || 'Code copied to clipboard!', 'success');
+    showToast(t('widget.code_copied'), 'success');
     setTimeout(() => setIsCopied(false), 2000);
   };
 
   const handlePublish = async () => {
     setIsPublishing(true);
     
-    // Save settings to localStorage to persist for Demo page
+    // Save settings locally so widget preview state survives page changes.
     const settings = {
       primaryColor,
       botName,
@@ -299,7 +317,7 @@ export default function WidgetCustomization() {
     try {
       const tenantId = resolveTenantIdFromToken();
       if (!tenantId) {
-        throw new Error('Không lấy được tenantId từ access token.');
+        throw new Error(t('widget.tenant_missing'));
       }
 
       const appearanceConfig = {
@@ -317,7 +335,7 @@ export default function WidgetCustomization() {
       if (!activeWidget) {
         const created = await createWidget({
           tenantId,
-          name: botName.trim() || 'WiseBot Assistant',
+          name: botName.trim() || t('widget.default_name'),
           code: generateWidgetCode(),
           welcomeMessage: welcomeMsg.trim(),
           createdBy: resolveUserIdFromToken() || null,
@@ -328,7 +346,7 @@ export default function WidgetCustomization() {
         setWidget(created);
       } else {
         const updated = await updateWidget(activeWidget.id, {
-          name: botName.trim() || 'WiseBot Assistant',
+          name: botName.trim() || t('widget.default_name'),
           welcomeMessage: welcomeMsg.trim(),
           appearanceConfig,
         });
@@ -338,17 +356,17 @@ export default function WidgetCustomization() {
       }
 
       setIsPublishing(false);
-      showToast(t('widget.publish_success') || 'Changes published successfully!', 'success');
+      showToast(t('widget.publish_success'), 'success');
     } catch (error) {
       setIsPublishing(false);
-      const message = error instanceof Error ? error.message : 'Không thể publish widget.';
+      const message = error instanceof Error ? error.message : t('widget.publish_failed');
       showToast(message, 'error');
     }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!widgetCustomizationEnabled) {
-      showToast('Gói Free chỉ dùng icon mặc định cho widget. Vui lòng nâng cấp gói để tải icon riêng.', 'error');
+      showToast(t('widget.custom_icon_locked'), 'error');
       return;
     }
     const file = e.target.files?.[0];
@@ -380,53 +398,64 @@ export default function WidgetCustomization() {
     '#ffffff', // White
   ];
 
+  const selectedKnowledgeBase = knowledgeBases.find((item) => item.id === knowledgeBaseId) || null;
+  const canChooseKnowledgeBase = !isLoadingKnowledgeBases && knowledgeBases.length > 1;
+  const knowledgeBaseDropdownLabel = isLoadingKnowledgeBases
+    ? t('widget.kb_loading')
+    : knowledgeBases.length === 0
+      ? t('widget.kb_select')
+      : selectedKnowledgeBase?.name || t('widget.kb_select');
+
   return (
-    <div className="-m-4 lg:-m-8 h-screen flex flex-col lg:flex-row overflow-hidden bg-[#000000] relative w-[calc(100%+32px)] lg:w-[calc(100%+64px)]">
+    <div className="-m-4 lg:-m-8 h-screen flex flex-col lg:flex-row overflow-hidden bg-[radial-gradient(circle_at_top,rgba(59,158,255,0.08),transparent_28%),#050505] relative w-[calc(100%+32px)] lg:w-[calc(100%+64px)]">
       {/* Mobile Tab Switcher */}
-      <div className="lg:hidden flex shrink-0 border-b border-[rgba(255,255,255,0.3)] bg-[#000000] z-20">
+      <div className="lg:hidden flex shrink-0 border-b border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] backdrop-blur-xl z-20">
         <button 
           onClick={() => setMobileTab('settings')}
           className={cn(
             "flex-1 py-3 text-xs font-bold transition-colors",
-            mobileTab === 'settings' ? "text-[#3b9eff] border-b-2 border border-primary" : "text-[#a1a4a5]"
+            mobileTab === 'settings' ? "text-[#f0f0f0] border-b-2 border-[#3b9eff]" : "text-[#8b8f91]"
           )}
         >
-          {t('widget.settings_tab') || 'Settings'}
+          {t('widget.settings_tab')}
         </button>
         <button 
           onClick={() => setMobileTab('preview')}
           className={cn(
             "flex-1 py-3 text-xs font-bold transition-colors",
-            mobileTab === 'preview' ? "text-[#3b9eff] border-b-2 border border-primary" : "text-[#a1a4a5]"
+            mobileTab === 'preview' ? "text-[#f0f0f0] border-b-2 border-[#3b9eff]" : "text-[#8b8f91]"
           )}
         >
-          {t('widget.preview_tab') || 'Preview'}
+          {t('widget.preview_tab')}
         </button>
       </div>
 
       {/* Settings Panel */}
       <div className={cn(
-        "w-full lg:w-96 border-r border-[rgba(255,255,255,0.3)] flex flex-col flex-1 lg:flex-none overflow-y-auto scrollbar-hide",
+        "w-full lg:w-[430px] border-r border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] flex flex-col flex-1 lg:flex-none overflow-y-auto scrollbar-hide backdrop-blur-xl",
         mobileTab === 'preview' ? "hidden lg:flex" : "flex"
       )}>
-        <div className="p-6 border-b border-[rgba(255,255,255,0.3)]">
-          <h2 className="text-[20px] font-display font-medium tracking-tight text-[#f0f0f0]">{t('widget.title')}</h2>
+        <div className="p-6 border-b border-[rgba(255,255,255,0.1)]">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9fa3a5]">
+            <Sparkles size={13} />
+            {t('widget.title')}
+          </div>
           
-          <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] p-1 rounded-[16px] mt-6">
+          <div className="flex gap-1 rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-1 mt-6">
             <button 
               onClick={() => setActiveTab('appearance')}
               className={cn(
                 "flex-1 py-2 text-xs font-bold rounded-[12px] transition-all",
-                activeTab === 'appearance' ? "bg-[#000000] text-[#f0f0f0] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#f0f0f0]"
+                activeTab === 'appearance' ? "bg-[rgba(255,255,255,0.08)] text-[#f0f0f0]" : "text-[#8b8f91] hover:text-[#f0f0f0]"
               )}
             >
-              {t('widget.branding')}
+              {t('widget.general')}
             </button>
             <button 
               onClick={() => setActiveTab('embed')}
               className={cn(
                 "flex-1 py-2 text-xs font-bold rounded-[12px] transition-all",
-                activeTab === 'embed' ? "bg-[#000000] text-[#f0f0f0] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#f0f0f0]"
+                activeTab === 'embed' ? "bg-[rgba(255,255,255,0.08)] text-[#f0f0f0]" : "text-[#8b8f91] hover:text-[#f0f0f0]"
               )}
             >
               {t('nav.integration')}
@@ -438,12 +467,12 @@ export default function WidgetCustomization() {
           {activeTab === 'appearance' ? (
             <>
               {!widgetCustomizationEnabled && (
-                <div className="rounded-[16px] border border-[rgba(255,176,32,0.24)] bg-[rgba(255,176,32,0.08)] p-4 text-sm text-[#f3ddb0]">
-                  Gói Free dùng màu chủ đạo mặc định và icon mặc định cho widget. Nâng cấp gói để mở khóa tùy chỉnh màu và icon.
+                <div className="rounded-[18px] border border-[rgba(255,176,32,0.24)] bg-[rgba(255,176,32,0.08)] p-4 text-sm leading-6 text-[#f3ddb0]">
+                  {t('widget.free_lock')}
                 </div>
               )}
               {/* Bot Identity */}
-              <section className="space-y-4">
+              <section className={cn("space-y-4", sectionCardClass)}>
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#a1a4a5]">
               <Bot size={14} /> {t('widget.identity')}
             </div>
@@ -454,7 +483,7 @@ export default function WidgetCustomization() {
                   type="text" 
                   value={botName}
                   onChange={(e) => setBotName(e.target.value)}
-                  className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                  className={fieldClass}
                 />
               </div>
               <div className="space-y-1.5">
@@ -463,38 +492,92 @@ export default function WidgetCustomization() {
                   value={welcomeMsg}
                   onChange={(e) => setWelcomeMsg(e.target.value)}
                   rows={2}
-                  className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none"
+                  className={cn(fieldClass, "resize-none")}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[#f0f0f0]">Knowledge Base</label>
-                <select
-                  value={knowledgeBaseId}
-                  onChange={(e) => setKnowledgeBaseId(e.target.value)}
-                  className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                >
-                  <option value="">{isLoadingKnowledgeBases ? 'Loading knowledge bases...' : 'Select knowledge base'}</option>
-                  {knowledgeBases.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+                <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.kb_label')}</label>
+                <div ref={knowledgeBaseDropdownRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (canChooseKnowledgeBase) {
+                        setIsKnowledgeBaseDropdownOpen((prev) => !prev);
+                      }
+                    }}
+                    disabled={!canChooseKnowledgeBase}
+                    className="flex w-full items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-[rgba(59,158,255,0.24)] disabled:cursor-not-allowed disabled:text-[#a1a4a5] disabled:opacity-70"
+                  >
+                    <span className="min-w-0 truncate">{knowledgeBaseDropdownLabel}</span>
+                    <ChevronDown
+                      size={16}
+                      className={cn(
+                        "shrink-0 text-[#8d9295] transition-transform",
+                        isKnowledgeBaseDropdownOpen ? "rotate-180" : ""
+                      )}
+                    />
+                  </button>
+
+                  {isKnowledgeBaseDropdownOpen && canChooseKnowledgeBase ? (
+                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[#0b0b0c] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.42)]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setKnowledgeBaseId('');
+                          setIsKnowledgeBaseDropdownOpen(false);
+                        }}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm transition-colors",
+                          !knowledgeBaseId
+                            ? "bg-[rgba(59,158,255,0.10)] text-[#f0f0f0]"
+                            : "text-[#c9cdcf] hover:bg-[rgba(255,255,255,0.05)]"
+                        )}
+                      >
+                        <span className="truncate">{t('widget.kb_select')}</span>
+                        {!knowledgeBaseId ? <Check size={15} className="text-[#3b9eff]" /> : null}
+                      </button>
+                      <div className="mt-1 space-y-1">
+                        {knowledgeBases.map((kb) => {
+                          const isSelected = kb.id === knowledgeBaseId;
+                          return (
+                            <button
+                              key={kb.id}
+                              type="button"
+                              onClick={() => {
+                                setKnowledgeBaseId(kb.id);
+                                setIsKnowledgeBaseDropdownOpen(false);
+                              }}
+                              className={cn(
+                                "flex w-full items-center justify-between gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm transition-colors",
+                                isSelected
+                                  ? "bg-[rgba(59,158,255,0.10)] text-[#f0f0f0]"
+                                  : "text-[#c9cdcf] hover:bg-[rgba(255,255,255,0.05)]"
+                              )}
+                            >
+                              <span className="truncate">{kb.name}</span>
+                              {isSelected ? <Check size={15} className="text-[#3b9eff]" /> : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#f0f0f0]">Top K</label>
+                  <label className="text-xs font-bold text-[#f0f0f0]">{t('playground.topk')}</label>
                   <input
                     type="number"
                     min={1}
                     max={20}
                     value={topK}
                     onChange={(e) => setTopK(Math.max(1, Number(e.target.value) || 1))}
-                    className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                    className={fieldClass}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#f0f0f0]">Temperature</label>
+                  <label className="text-xs font-bold text-[#f0f0f0]">{t('playground.temp')}</label>
                   <input
                     type="number"
                     min={0}
@@ -502,12 +585,12 @@ export default function WidgetCustomization() {
                     step={0.1}
                     value={temperature}
                     onChange={(e) => setTemperature(Math.min(1, Math.max(0, Number(e.target.value) || 0)))}
-                    className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                    className={fieldClass}
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.bot_icon') || 'Bot Icon'}</label>
+                <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.bot_icon')}</label>
                 <div className="grid grid-cols-5 gap-2">
                   {BOT_ICONS.map((item) => (
                     <button
@@ -580,7 +663,7 @@ export default function WidgetCustomization() {
           </section>
 
           {/* Branding & Style */}
-          <section className="space-y-4">
+          <section className={cn("space-y-4", sectionCardClass)}>
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#a1a4a5]">
               <Palette size={14} /> {t('widget.branding')}
             </div>
@@ -619,13 +702,13 @@ export default function WidgetCustomization() {
                     value={primaryColor}
                     disabled={!widgetCustomizationEnabled}
                     onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="flex-1 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-xs font-mono uppercase focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                    className={cn(fieldClass, "text-xs font-mono uppercase")}
                   />
                 </div>
               </div>
 
               <div className="space-y-3">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.icon_color') || 'Icon Color'}</label>
+                <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.icon_color')}</label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {PRESET_COLORS.map((color) => (
                     <button
@@ -658,7 +741,7 @@ export default function WidgetCustomization() {
                     value={iconColor}
                     disabled={!widgetCustomizationEnabled}
                     onChange={(e) => setIconColor(e.target.value)}
-                    className="flex-1 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.3)] rounded-[12px] px-3 py-2 text-xs font-mono uppercase focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                    className={cn(fieldClass, "text-xs font-mono uppercase")}
                   />
                 </div>
               </div>
@@ -691,54 +774,48 @@ export default function WidgetCustomization() {
           </>
           ) : (
             <div className="space-y-8 animate-in fade-in duration-300">
-              <section className="space-y-4">
+              <section className={cn("space-y-4", sectionCardClass)}>
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#a1a4a5]">
                   <Code size={14} /> {t('widget.embed_title')}
                 </div>
+                <p className="text-sm leading-6 text-[#8b8f91]">{t('widget.embed_status_desc')}</p>
                 <div className="relative group">
-                  <pre className="bg-slate-900 text-[rgba(255,255,255,0.3)] p-4 rounded-[16px] text-[10px] font-mono overflow-x-auto border border-slate-800 leading-relaxed">
+                  <pre className="bg-[#0b0b0c] text-[rgba(255,255,255,0.55)] p-4 rounded-[16px] text-[10px] font-mono overflow-x-auto border border-[rgba(255,255,255,0.08)] leading-relaxed">
                     {widgetScript}
                   </pre>
                   <button 
                     onClick={handleCopyCode}
-                    className="absolute top-2 right-2 p-2 bg-[#000000]/10 hover:bg-[#000000]/20 text-white rounded-md transition-all backdrop-blur-sm"
+                    className="absolute top-2 right-2 p-2 bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.12)] text-white rounded-md transition-all backdrop-blur-sm"
                   >
                     {isCopied ? <Check size={16} className="text-emerald-400" /> : <Paperclip size={16} />}
                   </button>
                 </div>
                 <button 
                   onClick={handleCopyCode}
-                  className="w-full py-2.5 bg-[rgba(255,255,255,0.05)] text-[#f0f0f0] text-xs font-bold rounded-md hover:bg-[rgba(255,255,255,0.05)] transition-all flex items-center justify-center gap-2 border-none"
+                  className="w-full py-3 bg-[rgba(255,255,255,0.06)] text-[#f0f0f0] text-xs font-bold rounded-[14px] hover:bg-[rgba(255,255,255,0.1)] transition-all flex items-center justify-center gap-2 border-none"
                 >
                   {isCopied ? t('widget.code_copied') : t('widget.copy_code')}
                 </button>
                 <p className="text-[11px] text-[#a1a4a5]">
                   {isLoadingWidget
-                    ? 'Đang tải widget hiện có...'
+                    ? t('widget.widget_loading')
                     : widget?.id
-                      ? `Widget ID: ${widget.id}`
-                      : 'Chưa có widget trên backend. Publish để tạo mới.'}
+                      ? `${t('widget.widget_id')}: ${widget.id}`
+                      : t('widget.widget_empty')}
                 </p>
               </section>
 
-              <section className="space-y-4 pt-4">
+              <section className={cn("space-y-4", sectionCardClass)}>
                 <div className="flex items-center gap-2 text-xs font-semibold text-[#a1a4a5]">
                   <Sparkles size={14} /> {t('widget.view_demo')}
                 </div>
                 <div className="grid gap-3">
                   <Link 
-                    to="/demo"
-                    className="w-full py-3 bg-[rgba(59,158,255,0.05)] text-[#3b9eff] text-xs font-bold rounded-[16px] hover:bg-[rgba(59,158,255,0.1)] transition-all flex items-center justify-center gap-2"
-                  >
-                    <Monitor size={16} />
-                    {t('widget.view_demo')}
-                  </Link>
-                  <Link 
                     to="/widget-test"
                     className="w-full py-3 bg-[rgba(16,185,129,0.08)] text-[#34d399] text-xs font-bold rounded-[16px] hover:bg-[rgba(16,185,129,0.14)] transition-all flex items-center justify-center gap-2"
                   >
                     <Sparkles size={16} />
-                    Test Public Embed
+                    {t('widget.test_embed')}
                   </Link>
                 </div>
               </section>
@@ -747,7 +824,7 @@ export default function WidgetCustomization() {
         </div>
 
         {activeTab === 'appearance' && (
-          <div className="mt-auto p-6 border-t border-[rgba(255,255,255,0.3)] bg-[#000000] relative">
+          <div className="mt-auto p-6 border-t border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] relative">
             <button 
               onClick={handlePublish}
               disabled={isPublishing}
@@ -773,20 +850,24 @@ export default function WidgetCustomization() {
 
       {/* Live Preview */}
       <div className={cn(
-        "flex-1 bg-[rgba(255,255,255,0.05)]/50 flex flex-col overflow-hidden relative",
+        "flex-1 bg-[rgba(255,255,255,0.02)] flex flex-col overflow-hidden relative",
         mobileTab === 'settings' ? "hidden lg:flex" : "flex"
       )}>
-        <div className="p-4 flex items-center justify-center border-b border-[rgba(255,255,255,0.3)] bg-[#000000]/80 backdrop-blur-sm z-10">
-          <div className="bg-slate-200/50 p-1 rounded-[12px] flex gap-1">
+        <div className="p-4 flex items-center justify-between border-b border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] backdrop-blur-xl z-10">
+          <div>
+            <p className="text-sm font-semibold text-[#f0f0f0]">{t('widget.preview_tab')}</p>
+            <p className="mt-1 text-xs text-[#8b8f91]">{t('widget.preview_modes')}</p>
+          </div>
+          <div className="rounded-[14px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-1 flex gap-1">
             <button 
               onClick={() => setView('desktop')}
-              className={cn("p-1.5 rounded-md transition-all", view === 'desktop' ? "bg-[#000000] text-[#3b9eff] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#a1a4a5]")}
+              className={cn("p-2 rounded-[10px] transition-all", view === 'desktop' ? "bg-[rgba(255,255,255,0.08)] text-[#f0f0f0]" : "text-[#8b8f91] hover:text-[#f0f0f0]")}
             >
               <Monitor size={16} />
             </button>
             <button 
               onClick={() => setView('mobile')}
-              className={cn("p-1.5 rounded-md transition-all", view === 'mobile' ? "bg-[#000000] text-[#3b9eff] shadow-md shadow-black/40" : "text-[#a1a4a5] hover:text-[#a1a4a5]")}
+              className={cn("p-2 rounded-[10px] transition-all", view === 'mobile' ? "bg-[rgba(255,255,255,0.08)] text-[#f0f0f0]" : "text-[#8b8f91] hover:text-[#f0f0f0]")}
             >
               <Smartphone size={16} />
             </button>

@@ -138,4 +138,24 @@ public class ChatController {
                 .data(chatService.updateProviderMode(request.getOrDefault("mode", "")))
                 .build();
     }
+
+    @GetMapping("/embedding-provider")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER','AGENT')")
+    public ApiResponse embeddingProviderInfo() {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Embedding provider info")
+                .data(chatService.getEmbeddingProviderInfo())
+                .build();
+    }
+
+    @PostMapping("/embedding-provider/mode")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ApiResponse updateEmbeddingProviderMode(@RequestBody Map<String, String> request) {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Embedding provider mode updated")
+                .data(chatService.updateEmbeddingProviderMode(request.getOrDefault("mode", "")))
+                .build();
+    }
 }

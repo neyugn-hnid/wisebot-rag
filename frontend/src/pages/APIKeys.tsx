@@ -2,17 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { 
+  Activity,
+  AlertTriangle,
+  Check,
+  Code2,
   Plus, 
   Copy, 
   Trash2, 
   ShieldCheck, 
   X,
-  Check,
-  AlertTriangle,
-  Loader2
+  Loader2,
+  KeyRound,
+  Terminal,
 } from 'lucide-react';
 import DeleteModal from '../components/DeleteModal';
-import { getMySubscription, listPlans, type BillingPlanResponse, type SubscriptionResponse } from '../api/billing';
 
 interface APIKey {
   id: string;
@@ -110,51 +113,96 @@ export default function APIKeys() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-[24px] font-display font-medium tracking-tight tracking-tight text-[#f0f0f0]">{t('api.title')}</h2>
-        </div>
-        <div className="flex items-center gap-3">
-          <button 
+    <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
+      <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9fa3a5]">
+              <KeyRound size={13} />
+              {t('nav.api_keys')}
+            </div>
+            <h2 className="mt-4 text-[30px] font-display font-medium tracking-tight text-[#f0f0f0]">{t('api.title')}</h2>
+            <p className="mt-2 text-sm leading-6 text-[#8b8f91]">{t('api.subtitle')}</p>
+          </div>
+          <button
             onClick={() => setIsGenerateModalOpen(true)}
-            className="bg-[#ffffff] hover:bg-[#e0e0e0] text-[#000000] px-5 py-2 rounded-md font-bold text-sm flex items-center gap-2 transition-all shadow-md shadow-black/40 shadow-primary/20"
+            className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-[#ffffff] px-5 py-2.5 text-sm font-bold text-[#000000] shadow-[0_14px_30px_rgba(0,0,0,0.22)] transition-colors hover:bg-[#f0f0f0]"
           >
-            <Plus size={20} />
+            <Plus size={18} />
             {t('api.generate')}
           </button>
         </div>
       </div>
 
-      <div className="bg-[rgba(40,40,40,1)] rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 overflow-hidden">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="rounded-[20px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-5 shadow-[0_14px_36px_rgba(0,0,0,0.18)]">
+          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-[14px] border border-[#3b9eff]/20 bg-[#3b9eff]/10 text-[#3b9eff]">
+            <KeyRound size={19} />
+          </div>
+          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8b8f91]">{language === 'vi' ? 'Tổng khóa' : 'Total keys'}</p>
+          <p className="mt-2 text-[28px] font-display font-medium text-[#f0f0f0]">{keys.length}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsSecurityModalOpen(true)}
+          className="rounded-[20px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-5 text-left shadow-[0_14px_36px_rgba(0,0,0,0.18)] transition-colors hover:border-[#ff801f]/25 hover:bg-[#ff801f]/5"
+        >
+          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-[14px] border border-[#ff801f]/20 bg-[#ff801f]/10 text-[#ff801f]">
+            <ShieldCheck size={19} />
+          </div>
+          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8b8f91]">{t('api.security.title')}</p>
+          <p className="mt-2 text-sm leading-6 text-[#a1a4a5]">{t('api.security.guide')}</p>
+        </button>
+        <div className="rounded-[20px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-5 shadow-[0_14px_36px_rgba(0,0,0,0.18)]">
+          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-[14px] border border-[#11ff99]/20 bg-[#11ff99]/10 text-[#11ff99]">
+            <Activity size={19} />
+          </div>
+          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8b8f91]">{language === 'vi' ? 'Trạng thái API' : 'API status'}</p>
+          <p className="mt-2 text-sm font-semibold text-[#11ff99]">{apiAccessEnabled ? (language === 'vi' ? 'Đã bật' : 'Enabled') : (language === 'vi' ? 'Chưa bật' : 'Disabled')}</p>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+        <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] p-6">
+          <div>
+            <h3 className="text-[16px] font-semibold text-[#f0f0f0]">{t('api.title')}</h3>
+            <p className="mt-1 text-xs text-[#8b8f91]">{language === 'vi' ? 'Quản lý khóa truy cập cho widget và tích hợp.' : 'Manage access keys for widgets and integrations.'}</p>
+          </div>
+          <Terminal size={18} className="text-[#8b8f91]" />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[700px]">
-            <thead className="border-b border-[rgba(255,255,255,0.3)]">
+            <thead>
               <tr className="bg-[rgba(255,255,255,0.02)]">
-                <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider">{t('api.table.name')}</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider">{t('api.table.key')}</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider">{t('api.table.date')}</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider">{t('api.table.used')}</th>
-                <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider text-right">{t('api.table.actions')}</th>
+                <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">{t('api.table.name')}</th>
+                <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">{t('api.table.key')}</th>
+                <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">{t('api.table.date')}</th>
+                <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">{t('api.table.used')}</th>
+                <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-right text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">{t('api.table.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[rgba(255,255,255,0.3)]">
+            <tbody className="divide-y divide-[rgba(255,255,255,0.08)]">
               {keys.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-[#a1a4a5]">
-                    {language === 'vi'
-                      ? 'Chưa có API key nào.'
-                      : 'No API keys yet.'}
+                  <td colSpan={5} className="px-6 py-14 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] text-[#8b8f91]">
+                        <Code2 size={24} />
+                      </div>
+                      <p className="text-sm font-medium text-[#a1a4a5]">
+                        {language === 'vi' ? 'Chưa có API key nào.' : 'No API keys yet.'}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 keys.map((item) => (
-                  <tr key={item.id} className="hover:bg-[rgba(255,255,255,0.02)]/50 transition-colors">
+                  <tr key={item.id} className="transition-colors hover:bg-[rgba(255,255,255,0.03)]">
                     <td className="px-6 py-5">
                       <span className="text-sm font-semibold text-[#f0f0f0]">{item.name}</span>
                     </td>
                     <td className="px-6 py-5">
-                      <code className="text-xs bg-[rgba(255,255,255,0.05)] px-2 py-1 rounded text-[#a1a4a5] font-mono">
+                      <code className="rounded-[10px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 font-mono text-xs text-[#a1a4a5]">
                         {item.key}
                       </code>
                     </td>
@@ -179,14 +227,14 @@ export default function APIKeys() {
                       <div className="flex items-center justify-end gap-2">
                         <button 
                           onClick={() => handleCopy(item.key, item.id)}
-                          className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-[12px] text-[#3b9eff] transition-colors relative" 
+                          className="relative rounded-[12px] border border-transparent p-2 text-[#3b9eff] transition-colors hover:border-[#3b9eff]/20 hover:bg-[rgba(59,158,255,0.08)]" 
                           title="Copy Key"
                         >
                           {copyStatus === item.id ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
                         </button>
                         <button 
                           onClick={() => openRevokeModal(item)}
-                          className="p-2 hover:bg-[#ff0000]/10 rounded-[12px] text-[#ff0000] transition-colors" 
+                          className="rounded-[12px] border border-transparent p-2 text-[#ff0000] transition-colors hover:border-[#ff0000]/20 hover:bg-[#ff0000]/10" 
                           title="Revoke Key"
                         >
                           <Trash2 size={16} />
@@ -203,10 +251,18 @@ export default function APIKeys() {
 
       {/* Generate Modal */}
       {isGenerateModalOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)]">
-              <h3 className="text-lg font-bold text-[#ffffff]">{t('api.modal.title')}</h3>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] shadow-[0_18px_48px_rgba(0,0,0,0.32)] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] border border-[#3b9eff]/20 bg-[#3b9eff]/10 text-[#3b9eff]">
+                  <KeyRound size={22} />
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b8f91]">{t('nav.api_keys')}</p>
+                  <h3 className="mt-1 text-lg font-semibold text-[#ffffff]">{t('api.modal.title')}</h3>
+                </div>
+              </div>
               <button 
                 onClick={closeGenerateModal}
                 className="text-[rgba(255,255,255,0.7)] hover:text-[#ffffff] p-1 rounded-md hover:bg-[rgba(255,255,255,0.04)] transition-colors"
@@ -231,12 +287,12 @@ export default function APIKeys() {
                         {t('api.table.key')}
                       </p>
                       <div className="flex gap-2">
-                        <code className="flex-1 p-3 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-[12px] text-sm font-mono text-[#f0f0f0] break-all">
+                        <code className="flex-1 break-all rounded-[14px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-3 font-mono text-sm text-[#f0f0f0]">
                           {generatedKey}
                         </code>
                         <button 
                           onClick={() => handleCopy(generatedKey, 'generated')}
-                          className="p-3 bg-[#ffffff] text-[#000000] rounded-[12px] hover:bg-[#f0f0f0] transition-colors shadow-md shadow-black/30 shrink-0"
+                          className="shrink-0 rounded-[14px] bg-[#ffffff] p-3 text-[#000000] shadow-md shadow-black/30 transition-colors hover:bg-[#f0f0f0]"
                         >
                           {copyStatus === 'generated' ? <Check size={20} /> : <Copy size={20} />}
                         </button>
@@ -244,7 +300,7 @@ export default function APIKeys() {
                     </div>
                   </div>
                   
-                  <div className="p-4 bg-amber-500/10 text-amber-500 border-amber-500/20 rounded-[16px] flex gap-3">
+                  <div className="flex gap-3 rounded-[16px] border border-[#ff801f]/20 bg-[#ff801f]/10 p-4 text-[#ff801f]">
                     <AlertTriangle className="text-amber-500 shrink-0" size={20} />
                     <p className="text-xs text-amber-500 leading-relaxed">
                       {t('api.modal.copy_msg')}
@@ -262,7 +318,7 @@ export default function APIKeys() {
                       value={newKeyName}
                       onChange={(e) => setNewKeyName(e.target.value)}
                       placeholder={t('api.modal.placeholder')}
-                      className="w-full px-4 py-2.5 bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[8px] text-sm text-[#ffffff] focus:border-white focus:ring-2 focus:ring-white/30 outline-none transition-all"
+                      className="w-full rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors focus:border-[rgba(59,158,255,0.5)] focus:ring-2 focus:ring-[rgba(59,158,255,0.18)]"
                       autoFocus
                     />
                   </div>
@@ -270,11 +326,11 @@ export default function APIKeys() {
               )}
             </div>
 
-            <div className="p-6 border-t border-[rgba(255,255,255,0.08)] bg-[rgba(44,44,46,0.92)] flex justify-center gap-3">
+            <div className="flex justify-center gap-3 border-t border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] p-6">
               {generatedKey ? (
                 <button 
                   onClick={closeGenerateModal}
-                  className="px-6 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/30"
+                  className="rounded-[16px] bg-[#ffffff] px-6 py-3 text-sm font-semibold text-[#000000] shadow-md shadow-black/30 transition-colors hover:bg-[#f0f0f0]"
                 >
                   {t('common.done')}
                 </button>
@@ -282,14 +338,14 @@ export default function APIKeys() {
                 <>
                   <button 
                     onClick={closeGenerateModal}
-                    className="flex-1 px-6 py-2.5 text-sm font-bold bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff] rounded-md transition-all"
+                    className="flex-1 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-6 py-3 text-sm font-semibold text-[#f0f0f0] transition-all hover:bg-[rgba(255,255,255,0.08)]"
                   >
                     {t('api.modal.cancel')}
                   </button>
                   <button 
                     onClick={handleGenerateKey}
                     disabled={!newKeyName.trim() || isGenerating}
-                    className="flex-1 px-6 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 justify-center"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-[16px] bg-[#ffffff] px-6 py-3 text-sm font-semibold text-[#000000] shadow-md shadow-black/30 transition-colors hover:bg-[#f0f0f0] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isGenerating && <Loader2 size={16} className="animate-spin" />}
                     {t('api.generate')}
@@ -303,46 +359,47 @@ export default function APIKeys() {
 
       {/* Security Guide Modal */}
       {isSecurityModalOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#000000]/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] shadow-2xl shadow-black/50 w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.3)]">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] shadow-[0_18px_48px_rgba(0,0,0,0.32)] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] p-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-500/10 text-amber-500 rounded-[12px] flex items-center justify-center text-amber-500">
+                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] border border-[#ff801f]/20 bg-[#ff801f]/10 text-[#ff801f]">
                   <ShieldCheck size={24} />
                 </div>
-                <h3 className="text-lg font-bold text-[#f0f0f0]">{t('api.guide.title')}</h3>
+                <h3 className="text-lg font-semibold text-[#f0f0f0]">{t('api.guide.title')}</h3>
               </div>
               <button 
                 onClick={() => setIsSecurityModalOpen(false)}
-                className="text-[#a1a4a5] hover:text-[#a1a4a5] transition-colors"
+                className="rounded-md p-1 text-[rgba(255,255,255,0.7)] transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-[#ffffff]"
               >
                 <X size={20} />
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto max-h-[70vh]">
+            <div className="max-h-[70vh] overflow-y-auto p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[1, 2, 3, 4].map((num) => (
-                  <div key={num} className="p-4 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)]">
-                    <div className="w-8 h-8 bg-[#000000] rounded-[12px] border border-[rgba(255,255,255,0.3)] flex items-center justify-center text-sm font-black text-[#a1a4a5] mb-3">
+                  <div key={num} className="rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-4">
+                    <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-[12px] border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.24)] text-sm font-black text-[#a1a4a5]">
                       0{num}
                     </div>
                     <h4 className="font-bold text-[#f0f0f0] mb-1">{t(`api.guide.step${num}.title`)}</h4>
+                    <p className="text-xs leading-5 text-[#8b8f91]">{t(`api.guide.step${num}.desc`)}</p>
                   </div>
                 ))}
               </div>
               
-              <div className="mt-8 p-4 bg-[rgba(59,158,255,0.05)] border border-primary/10 rounded-[16px]">
+              <div className="mt-8 rounded-[16px] border border-[rgba(59,158,255,0.14)] bg-[rgba(59,158,255,0.06)] p-4">
                 <p className="text-xs text-[#a1a4a5] leading-relaxed italic">
                   "Security is a shared responsibility. By following these steps, you protect both your account and your users' data."
                 </p>
               </div>
             </div>
 
-            <div className="p-6 border-t border-[rgba(255,255,255,0.3)] bg-[#000000] flex justify-end">
+            <div className="flex justify-end border-t border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] p-6">
               <button 
                 onClick={() => setIsSecurityModalOpen(false)}
-                className="px-6 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 shadow-primary/20"
+                className="rounded-[16px] bg-[#ffffff] px-6 py-3 text-sm font-semibold text-[#000000] shadow-md shadow-black/30 transition-colors hover:bg-[#f0f0f0]"
               >
                 {t('common.done')}
               </button>

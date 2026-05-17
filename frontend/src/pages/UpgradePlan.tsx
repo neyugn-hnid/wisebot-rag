@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
-import { 
+import {
   CheckCircle2, 
   X,
   ShieldCheck,
@@ -11,7 +11,6 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import PageLoading from '../components/PageLoading';
 import {
   listPlans,
   listPlanPrices,
@@ -183,8 +182,8 @@ export default function UpgradePlan() {
 
   if ((!minRedirectDelayDone || loadingPlans) && upgradeStep === 'selection') {
     return (
-      <div className="relative min-h-[70vh]">
-        <PageLoading message="Đang chuyển hướng..." />
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-[#a1a4a5]" />
       </div>
     );
   }

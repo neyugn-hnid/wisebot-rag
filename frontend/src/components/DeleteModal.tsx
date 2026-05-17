@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface DeleteModalProps {
@@ -30,40 +30,53 @@ export default function DeleteModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-[rgba(44,44,46,0.92)] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="p-6 text-center">
-          <div className="size-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-[#ff0000]/10 text-[#ff0000]">
-            <Trash2 size={32} />
-          </div>
-          <h3 className="text-xl font-black text-[#f0f0f0] mb-2">
-            {title}
-          </h3>
-          <p className="text-sm text-[#a1a4a5] leading-relaxed">
-            {description}
-            <span className="text-[#ff0000] block mt-2">
-              {warningText || t('common.cannot_be_undone') || "This action cannot be undone."}
-            </span>
-          </p>
-        </div>
-        <div className="p-6 border-t border-[rgba(255,255,255,0.08)] bg-[rgba(44,44,46,0.92)] flex gap-3">
-          <button 
-            disabled={isDeleting}
-            onClick={onClose}
-            className="flex-1 py-2.5 text-sm font-bold bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff] rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {cancelText || t('common.cancel')}
-          </button>
-          <button 
-            disabled={isDeleting}
-            onClick={onConfirm}
-            className="flex-1 py-2.5 text-sm font-bold text-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 bg-[#ff0000] hover:bg-[#ff0000]/90 hover:text-white shadow-[0_0_15px_rgba(255,0,0,0.5)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] shadow-[0_18px_48px_rgba(0,0,0,0.32)] animate-in zoom-in-95 duration-200">
+        <button
+          disabled={isDeleting}
+          onClick={onClose}
+          className="absolute right-5 top-5 rounded-md p-1 text-[rgba(255,255,255,0.7)] transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-[#ffffff] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <X size={20} />
+        </button>
+        <div className="flex flex-col items-center px-6 pb-6 pt-8 text-center">
+          <div className="mb-5 flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-[#ff0000]/20 bg-[#ff0000]/10 text-[#ff0000]">
             {isDeleting ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : null}
-            {confirmText || t('common.delete')}
-          </button>
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#ff0000]/30 border-t-[#ff0000]" />
+            ) : (
+              <Trash2 size={22} />
+            )}
+          </div>
+          <div className="w-full max-w-[26rem] space-y-3">
+            <h3 className="text-[24px] font-display font-medium tracking-tight text-[#f5f5f5]">
+              {title}
+            </h3>
+            <div className="text-sm leading-7 text-[#a1a4a5]">
+              {description}
+              <span className="block text-[#ff0000]">
+                {warningText || t('common.cannot_be_undone') || "This action cannot be undone."}
+              </span>
+            </div>
+          </div>
+          <div className="mt-7 flex w-full gap-3">
+            <button 
+              disabled={isDeleting}
+              onClick={onClose}
+              className="flex-1 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] py-3 text-sm font-semibold text-[#f0f0f0] transition-all hover:bg-[rgba(255,255,255,0.08)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {cancelText || t('common.cancel')}
+            </button>
+            <button 
+              disabled={isDeleting}
+              onClick={onConfirm}
+              className="flex flex-1 items-center justify-center gap-2 rounded-[16px] bg-[#ff0000] py-3 text-sm font-semibold text-[#ffffff] transition-colors hover:bg-[#e00000] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isDeleting ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : null}
+              {confirmText || t('common.delete')}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,18 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
-import { 
-  CreditCard, 
-  CheckCircle2, 
-  Download, 
-  Zap,
-  Users,
-  TrendingUp,
+import {
+  CalendarDays,
+  CheckCircle2,
+  CreditCard,
+  Crown,
+  Download,
   DollarSign,
-  ShieldCheck,
+  History,
   Loader2,
-  History
+  Receipt,
+  ShieldCheck,
+  TrendingUp,
+  Users,
+  Zap,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useRole } from '../contexts/RoleContext';
@@ -21,12 +24,11 @@ import {
   listPlanPrices,
   getMySubscription,
   listMyInvoices,
-  createVNPayCheckout,
   verifyVNPayReturn,
-  BillingPlanResponse,
-  BillingPlanPriceResponse,
-  SubscriptionResponse,
-  BillingInvoiceResponse,
+  type BillingPlanResponse,
+  type BillingPlanPriceResponse,
+  type SubscriptionResponse,
+  type BillingInvoiceResponse,
 } from '../api/billing';
 
 interface Invoice {
@@ -44,26 +46,32 @@ function formatCurrency(amount: number, currency = 'VND') {
   }).format(amount);
 }
 
+const fallbackPlans: BillingPlanResponse[] = [
+  { id: 'free', code: 'free', name: 'Free', description: '1.000 tin nhắn/tháng\n1 kho tri thức\nHỗ trợ tiêu chuẩn', active: true },
+  { id: 'plus', code: 'plus', name: 'Plus', description: '10.000 tin nhắn/tháng\n5 kho tri thức\nTruy cập API', active: true },
+  { id: 'pro', code: 'pro', name: 'Pro', description: 'Không giới hạn tin nhắn\nKhông giới hạn kho tri thức\nPhân tích nâng cao', active: true },
+];
+
+const fallbackPrices: Record<string, number> = {
+  Free: 0,
+  Plus: 501581,
+  Pro: 1293551,
+};
+
 export default function Billing() {
   const { t, language } = useLanguage();
   const { role } = useRole();
   const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [isProcessing, setIsProcessing] = useState<string | null>(null);
-  const [currentPlan, setCurrentPlan] = useState('Free');
-  const [upgradeStep, setUpgradeStep] = useState<'selection' | 'checkout'>('selection');
-  const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string; price: number } | null>(null);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
-  // --- Backend state ---
+  const [currentPlan, setCurrentPlan] = useState('Free');
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [backendPlans, setBackendPlans] = useState<BillingPlanResponse[]>([]);
   const [backendPlanPrices, setBackendPlanPrices] = useState<BillingPlanPriceResponse[]>([]);
   const [backendSubscription, setBackendSubscription] = useState<SubscriptionResponse | null>(null);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [loadingSub, setLoadingSub] = useState(true);
-  // --- End backend state ---
 
   async function fetchBackendData() {
     const [plans, subscription, invoicesResult] = await Promise.all([
@@ -75,37 +83,28 @@ export default function Billing() {
     setBackendPlans(plans);
     setBackendSubscription(subscription);
 
-    if (plans.length > 0) {
-      const prices = await Promise.all(
-        plans.map((p) => listPlanPrices(p.id).catch(() => [] as BillingPlanPriceResponse[]))
-      );
-      setBackendPlanPrices(prices.flat());
-    } else {
-      setBackendPlanPrices([]);
-    }
+    const prices = plans.length > 0
+      ? await Promise.all(plans.map((plan) => listPlanPrices(plan.id).catch(() => [] as BillingPlanPriceResponse[])))
+      : [];
+    setBackendPlanPrices(prices.flat());
 
     if (subscription && plans.length > 0) {
-      const activePlan = plans.find((p) => p.id === subscription.planId);
-      if (activePlan) {
-        setCurrentPlan(activePlan.name);
-      }
+      const activePlan = plans.find((plan) => plan.id === subscription.planId);
+      if (activePlan) setCurrentPlan(activePlan.name);
     }
 
-    setInvoices(invoicesResult.map((inv) => ({
-      id: inv.invoiceNo || inv.id,
-      date: new Date(inv.issuedAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-      amount: formatCurrency(inv.totalCents, inv.currency || 'VND'),
-      status: inv.status,
+    setInvoices(invoicesResult.map((invoice) => ({
+      id: invoice.invoiceNo || invoice.id,
+      date: new Date(invoice.issuedAt).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+      }),
+      amount: formatCurrency(invoice.totalCents, invoice.currency || 'VND'),
+      status: invoice.status,
     })));
   }
 
-  useEffect(() => {
-    if (location.state?.selectedPlanId) {
-      setIsUpgradeModalOpen(true);
-    }
-  }, [location.state]);
-
-  // --- Fetch backend data ---
   useEffect(() => {
     let cancelled = false;
 
@@ -113,7 +112,7 @@ export default function Billing() {
       try {
         await fetchBackendData();
       } catch {
-        // backend unavailable, plans will show empty state
+        // Keep billing page usable when billing APIs are unavailable.
       } finally {
         if (!cancelled) {
           setLoadingPlans(false);
@@ -122,34 +121,33 @@ export default function Billing() {
       }
     }
 
-    load();
-    return () => { cancelled = true; };
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-  // --- End fetch backend data ---
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const hasVNPayResult = params.get('vnpay_return') === 'true' && params.has('vnp_ResponseCode');
-    if (!hasVNPayResult) {
-      return;
-    }
+    if (!hasVNPayResult) return;
 
     let cancelled = false;
+
     async function processVNPayReturn() {
       try {
         const result = await verifyVNPayReturn(params);
-        if (cancelled) {
-          return;
-        }
-        if (result.valid && result.status === 'SUCCESS') {
-          showToast('Thanh toán VNPay thành công', 'success');
-        } else {
-          showToast('Thanh toán VNPay chưa thành công', 'error');
-        }
+        if (cancelled) return;
+        showToast(
+          result.valid && result.status === 'SUCCESS'
+            ? 'Thanh toán VNPay thành công'
+            : 'Thanh toán VNPay chưa thành công',
+          result.valid && result.status === 'SUCCESS' ? 'success' : 'error',
+        );
         await fetchBackendData();
-      } catch (err: any) {
+      } catch (error) {
         if (!cancelled) {
-          showToast(err.message || 'Không thể xác minh giao dịch VNPay', 'error');
+          showToast(error instanceof Error ? error.message : 'Không thể xác minh giao dịch VNPay', 'error');
         }
       } finally {
         if (!cancelled) {
@@ -158,431 +156,336 @@ export default function Billing() {
       }
     }
 
-    processVNPayReturn();
+    void processVNPayReturn();
     return () => {
       cancelled = true;
     };
   }, [location.pathname, location.search]);
 
-  const handleSelectPlan = (planId: string, planName: string, planPrice: number) => {
-    if (currentPlan && planName === currentPlan) return;
+  const availablePlans = backendPlans.length > 0 ? backendPlans : fallbackPlans;
 
-    const backendPlan = backendPlans.find(p => p.id === planId);
-    const priceInfo = backendPlanPrices.find(p => p.planId === planId);
-    const monthlyPrice = priceInfo ? priceInfo.amountCents : planPrice;
-
-    setSelectedPlan({ id: planId, name: planName, price: monthlyPrice });
-    setUpgradeStep('checkout');
+  const getMonthlyPrice = (plan: BillingPlanResponse) => {
+    const price = backendPlanPrices.find((item) => item.planId === plan.id && item.billingCycle !== 'YEARLY')
+      || backendPlanPrices.find((item) => item.planId === plan.id);
+    return price?.amountCents ?? fallbackPrices[plan.name] ?? 0;
   };
 
-  const handleCheckoutConfirm = async () => {
-    if (!selectedPlan) return;
-
-    const { id, name } = selectedPlan;
-
-    try {
-      setIsProcessing(id);
-
-      const checkout = await createVNPayCheckout({
-        planId: id,
-        billingCycle: billingCycle === 'yearly' ? 'YEARLY' : 'MONTHLY',
-        seats: 1,
-        orderInfo: `Thanh toan goi ${name}`,
-      });
-
-      window.location.href = checkout.paymentUrl;
-    } catch (err: any) {
-      showToast(err.message || 'Không thể khởi tạo thanh toán VNPay', 'error');
-    } finally {
-      setIsProcessing(null);
-    }
-  };
+  const activePlan = availablePlans.find((plan) => (
+    backendSubscription?.planId === plan.id || plan.name === currentPlan
+  )) ?? availablePlans[0];
+  const activePlanPrice = activePlan ? getMonthlyPrice(activePlan) : 0;
+  const renewalDate = backendSubscription?.currentPeriodEnd
+    ? new Date(backendSubscription.currentPeriodEnd).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+    })
+    : '--';
 
   const handleDownloadInvoice = (invoiceId: string) => {
     const content = `Invoice ID: ${invoiceId}\nDate: ${new Date().toLocaleDateString()}\nStatus: PAID\n\nThank you for your business!`;
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${invoiceId}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${invoiceId}.txt`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
     URL.revokeObjectURL(url);
     showToast(`Invoice ${invoiceId} downloaded successfully`, 'success');
   };
 
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-
-  const planPrice = billingCycle === 'yearly'
-    ? Math.floor((selectedPlan?.price ?? 0) * 0.8)
-    : (selectedPlan?.price ?? 0);
-  const planPriceDisplay = formatCurrency(planPrice);
-
-  const renderCheckout = () => (
-    <div className="max-w-lg mx-auto space-y-6 py-2 animate-in slide-in-from-right-4 duration-300">
-      {/* Order Summary */}
-      <div className="bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)] p-5 space-y-3">
-        <h5 className="text-sm font-black text-[#f0f0f0]">{t('billing.order_summary') || 'Order Summary'}</h5>
-        <div className="flex justify-between text-sm">
-          <span className="text-[#a1a4a5]">{selectedPlan?.name} Plan ({billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')})</span>
-          <span className="font-bold text-[#f0f0f0]">{planPriceDisplay}</span>
-        </div>
-        <div className="border-t border-[rgba(255,255,255,0.1)] pt-3 flex justify-between text-sm">
-          <span className="font-black text-[#f0f0f0]">{t('billing.total_due') || 'Total due'}</span>
-          <span className="font-black text-[#f0f0f0]">{planPriceDisplay}</span>
-        </div>
-        <button 
-          onClick={() => setUpgradeStep('selection')}
-          className="text-[10px] font-bold text-[#3b9eff] hover:underline"
-        >
-          ← {t('common.change')}
-        </button>
-      </div>
-
-      <div className="rounded-[16px] border border-[rgba(59,158,255,0.25)] bg-[rgba(59,158,255,0.06)] p-4 text-sm text-[#c9dfff]">
-        Bạn sẽ được chuyển tới cổng thanh toán VNPay để hoàn tất giao dịch.
-      </div>
-
-      {/* Subscribe Button */}
-      <button 
-        onClick={handleCheckoutConfirm}
-        disabled={isProcessing !== null}
-        className="w-full py-4 bg-[#ffffff] text-[#000000] rounded-[16px] font-black shadow-xl shadow-primary/20 hover:bg-[#f0f0f0] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isProcessing ? (
-          <><Loader2 size={20} className="animate-spin" />{t('common.processing')}</>
-        ) : (
-          <><ShieldCheck size={20} />Thanh toán với VNPay</>
-        )}
-      </button>
-      <p className="text-[10px] text-center text-[#a1a4a5] leading-relaxed -mt-4">
-        Giao dịch được xử lý trên cổng thanh toán VNPay.
-      </p>
-    </div>
-  );
-
-  const renderPlansGrid = () => {
-    if (loadingPlans) {
-      return (
-        <div className="col-span-full flex justify-center py-12">
-          <Loader2 size={32} className="animate-spin text-[#a1a4a5]" />
-        </div>
-      );
-    }
-    if (backendPlans.length === 0) {
-      // Show fallback message with static plans if backend unavailable
-      return (
-        <div className="col-span-full space-y-6">
-          <div className="text-center py-4 text-[#a1a4a5] text-sm">
-            {loadingPlans ? 'Loading plans...' : (t('billing.no_plans') || 'Backend unavailable, showing default plans')}
-          </div>
-          {!loadingPlans && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { id: 'free', name: 'Free', price: 0 },
-                { id: 'plus', name: 'Plus', price: 501581 },
-                { id: 'pro', name: 'Pro', price: 1293551 },
-              ].map((plan) => {
-                const displayPrice = billingCycle === 'yearly' ? Math.floor(plan.price * 0.8) : plan.price;
-                const isActive = plan.name === currentPlan;
-                return (
-                  <div key={plan.id} className={cn(
-                    "relative p-6 rounded-[16px] transition-all",
-                    isActive ? "bg-[rgba(59,158,255,0.05)]" : "bg-[#000000]"
-                  )}>
-                    <h4 className="text-lg font-black text-[#f0f0f0]">{plan.name}</h4>
-                    <div className="mt-4 flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-[#f0f0f0]">{formatCurrency(displayPrice)}</span>
-                      <span className="text-sm font-medium text-[#a1a4a5]">/tháng</span>
-                    </div>
-                    <p className="text-xs text-[#a1a4a5] mt-2">{t('billing.plans.billed')} {billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')}</p>
-                    <button 
-                      onClick={() => !isActive && handleSelectPlan(plan.id, plan.name, plan.price)}
-                      disabled={isActive}
-                      className={cn(
-                        "w-full mt-6 py-3 rounded-[16px] font-black text-sm transition-all",
-                        isActive ? "bg-[rgba(255,255,255,0.05)] text-[#a1a4a5] cursor-not-allowed" : "bg-[#ffffff] text-[#000000] shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0]"
-                      )}
-                    >
-                      {isActive ? t('billing.plans.current') : t('billing.plans.select')}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      );
-    }
-    return backendPlans.map((plan) => {
-      const price = backendPlanPrices.find(p => p.planId === plan.id);
-      const monthlyPrice = price ? price.amountCents.toString() : '--';
-      const yearlyPrice = price ? Math.floor(price.amountCents * 0.8).toString() : '--';
-      const displayPrice = billingCycle === 'yearly' ? yearlyPrice : monthlyPrice;
-      const isActive = backendSubscription?.planId === plan.id || plan.name === currentPlan;
-
-      return (
-        <div 
-          key={plan.id}
-          className={cn(
-            "relative p-6 rounded-[16px] transition-all group",
-            isActive
-              ? "bg-[rgba(59,158,255,0.05)]" 
-              : "bg-[#000000] hover:shadow-xl"
-          )}
-        >
-          <h4 className="text-lg font-black text-[#f0f0f0]">{plan.name}</h4>
-          <div className="mt-4 flex items-baseline gap-1">
-            <span className="text-3xl font-black text-[#f0f0f0]">
-              {displayPrice === '--' ? '--' : formatCurrency(Number(displayPrice))}
-            </span>
-            <span className="text-sm font-medium text-[#a1a4a5]">/tháng</span>
-          </div>
-          <p className="text-xs text-[#a1a4a5] mt-2">{t('billing.plans.billed')} {billingCycle === 'yearly' ? t('billing.plans.yearly') : t('billing.plans.monthly')}</p>
-
-          <button 
-            onClick={() => handleSelectPlan(plan.id, plan.name, price ? price.amountCents : 0)}
-            disabled={isProcessing !== null || isActive}
-            className={cn(
-              "w-full mt-6 py-3 rounded-[16px] font-black text-sm transition-all flex items-center justify-center gap-2",
-              isActive 
-                ? "bg-[rgba(255,255,255,0.05)] text-[#a1a4a5] cursor-not-allowed" 
-                : "bg-[#ffffff] text-[#000000] shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0]"
-            )}
-          >
-            {isProcessing === plan.id ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : isActive ? t('billing.plans.current') : t('billing.plans.select')}
-          </button>
-
-          {plan.description && (
-            <div className="mt-8 space-y-4">
-              <p className="text-[10px] font-black uppercase tracking-wider text-[#a1a4a5]">{t('billing.plans.features')}</p>
-              {plan.description.split('\n').filter(Boolean).map((feature) => (
-                <div key={feature} className="flex items-start gap-3">
-                  <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                  <span className="text-xs text-[#a1a4a5] font-medium">{feature}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    });
-  };
-
   if (role === 'ADMIN') {
     return (
-      <>
-      <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-[24px] font-display font-medium tracking-tight tracking-tight text-[#f0f0f0]">{t('billing.title')}</h2>
-          </div>
-          <div>
-            <button className="px-4 py-2 bg-[#000000] text-[#f0f0f0] border border-[rgba(255,255,255,0.3)] rounded-md text-sm font-bold shadow-md shadow-black/40 hover:bg-[rgba(255,255,255,0.02)] transition-all">
-              {t('billing.create_plan')}
-            </button>
-          </div>
+      <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
+        <BillingHero
+          eyebrow={t('nav.billing')}
+          
+          actionLabel={t('billing.create_plan')}
+          onAction={() => navigate('/billing/upgrade')}
+        />
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <StatCard icon={DollarSign} label={t('billing.mrr')} value={formatCurrency(0)} trend="--" tone="green" />
+          <StatCard icon={Users} label={t('billing.active_subs')} value="0" trend={`${availablePlans.length} ${t('billing.table.plan')}`} tone="blue" />
+          <StatCard icon={CreditCard} label={t('billing.failed_payments')} value="0" trend="--" tone="red" />
         </div>
 
-        {/* Admin Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
-            <div className="flex items-center gap-3 text-[#a1a4a5] mb-2">
-              <DollarSign size={20} />
-              <h3 className="font-bold text-sm">{t('billing.mrr')}</h3>
+        <section className="overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+          <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] p-6">
+            <div>
+              <h3 className="text-[16px] font-semibold text-[#f0f0f0]">{t('billing.recent_subs')}</h3>
+              <p className="mt-1 text-xs text-[#8b8f91]">{language === 'vi' ? 'Theo dõi đăng ký và hóa đơn gần đây.' : 'Track recent subscriptions and invoices.'}</p>
             </div>
-            <div className="flex items-end gap-3">
-              <p className="text-3xl font-black text-[#f0f0f0]">{formatCurrency(0)}</p>
-              <span className="flex items-center text-emerald-500 text-sm font-bold mb-1">
-                <TrendingUp size={16} className="mr-1" /> --
-              </span>
-            </div>
-          </div>
-          <div className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
-            <div className="flex items-center gap-3 text-[#a1a4a5] mb-2">
-              <Users size={20} />
-              <h3 className="font-bold text-sm">{t('billing.active_subs')}</h3>
-            </div>
-            <div className="flex items-end gap-3">
-              <p className="text-3xl font-black text-[#f0f0f0]">0</p>
-              <span className="flex items-center text-emerald-500 text-sm font-bold mb-1">
-                <TrendingUp size={16} className="mr-1" /> --
-              </span>
-            </div>
-          </div>
-          <div className="bg-[#000000] p-6 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40">
-            <div className="flex items-center gap-3 text-[#a1a4a5] mb-2">
-              <CreditCard size={20} />
-              <h3 className="font-bold text-sm">{t('billing.failed_payments')}</h3>
-            </div>
-            <div className="flex items-end gap-3">
-              <p className="text-3xl font-black text-[#f0f0f0]">0</p>
-              <span className="flex items-center text-[#ff0000] text-sm font-bold mb-1">
-                <TrendingUp size={16} className="mr-1" /> --
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Subscriptions */}
-        <div className="bg-[rgba(40,40,40,1)] rounded-[16px] overflow-hidden">
-          <div className="p-6 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
-            <h3 className="text-lg font-bold text-[#f0f0f0]">{t('billing.recent_subs')}</h3>
             <button className="text-xs font-bold text-[#3b9eff] hover:underline">{t('billing.view_all')}</button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead>
-                <tr className="bg-[rgba(255,255,255,0.02)]">
-                  <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider">{t('billing.table.user')}</th>
-                  <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider">{t('billing.table.plan')}</th>
-                  <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider">{t('billing.table.amount')}</th>
-                  <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider">{t('billing.table.status')}</th>
-                  <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider">{t('billing.table.next_billing')}</th>
-                  <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider text-right">{t('billing.table.action')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[rgba(255,255,255,0.3)] border-t border-[rgba(255,255,255,0.3)]">
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <History size={24} className="text-[#a1a4a5]" />
-                      <p className="text-sm text-[#a1a4a5] font-medium">{t('billing.no_data') || 'No subscriptions yet'}</p>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+          <EmptyBillingState text={t('billing.no_data') || 'No subscriptions yet'} />
+        </section>
       </div>
-    </>
     );
   }
 
-  // User View
   return (
-    <>
-      <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-[24px] font-display font-medium tracking-tight tracking-tight text-[#f0f0f0]">{t('billing.title')}</h2>
+    <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
+      <BillingHero
+        eyebrow={t('nav.billing')}
+        actionLabel={t('billing.upgrade') || 'Nâng cấp gói'}
+        onAction={() => navigate('/billing/upgrade')}
+      />
+
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="rounded-[24px] border border-[rgba(59,158,255,0.22)] bg-[rgba(59,158,255,0.06)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)] lg:col-span-2">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-[#3b9eff]/20 bg-[#3b9eff]/10 text-[#3b9eff]">
+                <Crown size={28} />
+              </div>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#9ed1ff]">{t('billing.current_plan')}</p>
+                <h3 className="mt-1 text-[26px] font-display font-medium tracking-tight text-[#f0f0f0]">
+                  {language === 'vi' ? `Gói ${currentPlan === 'Free' ? 'Miễn phí' : currentPlan}` : `${currentPlan} Plan`}
+                </h3>
+                <p className="mt-1 text-sm text-[#a1a4a5]">
+                  {currentPlan === 'Free' ? t('billing.free_forever') : t('billing.billed_monthly')}
+                </p>
+              </div>
+            </div>
+            <div className="rounded-[18px] border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.22)] px-5 py-4 sm:text-right">
+              <p className="text-xs font-semibold text-[#8b8f91]">{language === 'vi' ? 'Chi phí hiện tại' : 'Current cost'}</p>
+              <p className="mt-1 text-[28px] font-display font-medium text-[#f0f0f0]">
+                {loadingSub ? <Loader2 size={24} className="inline animate-spin" /> : formatCurrency(activePlanPrice)}
+                <span className="ml-1 text-sm font-medium text-[#a1a4a5]">/tháng</span>
+              </p>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <button 
-              onClick={() => navigate('/billing/upgrade')}
-              className="px-4 py-2 bg-[#ffffff] text-[#000000] rounded-[12px] text-sm font-bold shadow-md shadow-black/40 shadow-primary/20 hover:bg-[#f0f0f0] transition-all"
+
+          <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <MiniInfo icon={ShieldCheck} label={t('billing.active')} value={backendSubscription?.status || (currentPlan === 'Free' ? 'FREE' : 'ACTIVE')} />
+            <MiniInfo icon={CalendarDays} label={t('billing.next_renewal')} value={renewalDate} />
+            <MiniInfo icon={Receipt} label={t('billing.history')} value={`${invoices.length} ${language === 'vi' ? 'hóa đơn' : 'invoices'}`} />
+          </div>
+        </div>
+
+        <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-[#11ff99]/20 bg-[#11ff99]/10 text-[#11ff99]">
+              <Zap size={20} />
+            </div>
+            <div>
+              <h3 className="text-[16px] font-semibold text-[#f0f0f0]">{t('billing.current_plan.need_more')}</h3>
+              <p className="text-xs text-[#8b8f91]">{t('billing.upgrade_desc')}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/billing/upgrade')}
+            className="mt-6 w-full rounded-[16px] bg-[#ffffff] py-3 text-sm font-bold text-[#000000] transition-colors hover:bg-[#f0f0f0]"
+          >
+            {t('billing.upgrade')}
+          </button>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {availablePlans.slice(0, 3).map((plan) => {
+          const isActive = backendSubscription?.planId === plan.id || plan.name === currentPlan;
+          const features = plan.description.split('\n').filter(Boolean).slice(0, 4);
+          return (
+            <div
+              key={plan.id}
+              className={cn(
+                'rounded-[24px] border p-6 shadow-[0_18px_48px_rgba(0,0,0,0.18)] transition-colors',
+                isActive
+                  ? 'border-[rgba(59,158,255,0.28)] bg-[rgba(59,158,255,0.07)]'
+                  : 'border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] hover:border-[rgba(255,255,255,0.18)]'
+              )}
             >
-              {t('billing.upgrade') || 'Nâng cấp gói'}
-            </button>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-[#f0f0f0]">{plan.name}</h3>
+                  <p className="mt-2 text-[28px] font-display font-medium text-[#f0f0f0]">
+                    {formatCurrency(getMonthlyPrice(plan))}
+                    <span className="ml-1 text-sm text-[#a1a4a5]">/tháng</span>
+                  </p>
+                </div>
+                {isActive && (
+                  <span className="rounded-full border border-[#3b9eff]/20 bg-[#3b9eff]/10 px-3 py-1 text-[11px] font-bold text-[#9ed1ff]">
+                    {t('billing.plans.current')}
+                  </span>
+                )}
+              </div>
+              <div className="mt-6 space-y-3">
+                {features.map((feature) => (
+                  <div key={feature} className="flex items-start gap-3 text-sm text-[#a1a4a5]">
+                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-[#11ff99]" />
+                    <span>{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </section>
+
+      <section className="overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+        <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] p-6">
+          <div>
+            <h3 className="text-[16px] font-semibold text-[#f0f0f0]">{t('billing.history')}</h3>
+            <p className="mt-1 text-xs text-[#8b8f91]">{t('billing.history_desc')}</p>
+          </div>
+          <History size={18} className="text-[#8b8f91]" />
+        </div>
+        {loadingPlans ? (
+          <div className="flex justify-center py-12">
+            <Loader2 size={28} className="animate-spin text-[#a1a4a5]" />
+          </div>
+        ) : invoices.length > 0 ? (
+          <InvoiceTable invoices={invoices} language={language} onDownload={handleDownloadInvoice} t={t} />
+        ) : (
+          <EmptyBillingState text={language === 'vi' ? 'Lịch sử thanh toán sẽ hiển thị tại đây.' : 'Payment history will appear here.'} />
+        )}
+      </section>
+    </div>
+  );
+}
+
+function BillingHero({
+  eyebrow,
+  actionLabel,
+  onAction,
+}: {
+  eyebrow: string;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <section className="rounded-[24px] pt-6 pb-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+      <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div className="max-w-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9fa3a5]">
+            <CreditCard size={13} />
+            {eyebrow}
           </div>
         </div>
-
-        <div className="space-y-8">
-          <div className="space-y-8">
-            {/* Current Plan */}
-            <div className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] overflow-hidden shadow-md shadow-black/40 animate-in slide-in-from-bottom-4 duration-300">
-                  <div className="p-4 sm:p-8 border-b border-[rgba(255,255,255,0.3)] flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-[16px] bg-[rgba(59,158,255,0.1)] flex items-center justify-center text-[#3b9eff] shrink-0">
-                        <Zap size={32} />
-                      </div>
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-xl font-black text-[#f0f0f0]">
-                            {language === 'vi' 
-                               ? (currentPlan === 'Free' ? 'Gói Miễn phí' : `Gói ${currentPlan}`)
-                               : `${currentPlan} Plan`}
-                          </h3>
-                        </div>
-                        <p className="text-sm text-[#a1a4a5] mt-1">
-                          {currentPlan === 'Free' ? t('billing.free_forever') : `${t('billing.billed_monthly')}`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <p className="text-3xl font-black text-[#f0f0f0]">
-                        {loadingSub ? (
-                          <Loader2 size={24} className="animate-spin inline" />
-                        ) : backendSubscription ? (
-                          <>{formatCurrency(backendPlanPrices.find(p => p.planId === backendSubscription.planId)?.amountCents ?? 0)}<span className="text-sm font-medium text-[#a1a4a5]">/tháng</span></>
-                        ) : (
-                          <>{currentPlan === 'Free' ? formatCurrency(0) : '--'}<span className="text-sm font-medium text-[#a1a4a5]">/tháng</span></>
-                        )}
-                      </p>
-                      {backendSubscription && (
-                        <button className="text-xs font-bold text-[#ff0000] hover:underline mt-1">{t('billing.cancel')}</button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment History */}
-                <div className="bg-[#000000] rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
-                  <div className="p-6 border-b border-[rgba(255,255,255,0.3)] flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-[#f0f0f0]">{t('billing.history')}</h3>
-                  </div>
-                  {invoices.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse min-w-[600px]">
-                        <thead>
-                          <tr className="bg-[rgba(255,255,255,0.02)]">
-                            <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider">{t('billing.table.date')}</th>
-                            <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider">{t('billing.table.amount')}</th>
-                            <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider">{t('billing.table.status')}</th>
-                            <th className="px-6 py-4 text-xs font-bold text-[#a1a4a5] uppercase tracking-wider text-right">{t('billing.table.invoice') || 'Hóa đơn'}</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[rgba(255,255,255,0.3)]">
-                          {invoices.map((inv) => (
-                            <tr key={inv.id} className="hover:bg-[rgba(255,255,255,0.02)]/50 transition-colors group">
-                              <td className="px-6 py-4 text-sm font-bold text-[#f0f0f0]">
-                                {new Date(inv.date).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', { month: 'short', day: '2-digit', year: 'numeric' })}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-[#f0f0f0] font-black">{inv.amount}</td>
-                              <td className="px-6 py-4">
-                                <span className={cn(
-                                  "inline-flex items-center gap-1 px-0 py-0.5 text-xs font-black uppercase tracking-wider",
-                                  inv.status === 'PAID' ? "text-emerald-500" : 
-                                  inv.status === 'REFUNDED' ? "text-red-500" : "text-[#a1a4a5]"
-                                )}>
-                                  {language === 'vi' 
-                                    ? (inv.status === 'PAID' ? 'Đã thanh toán' : inv.status === 'REFUNDED' ? 'Đã hoàn tiền' : inv.status)
-                                    : inv.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-right">
-                                <button 
-                                  onClick={() => handleDownloadInvoice(inv.id)}
-                                  className="text-[#3b9eff] transition-colors p-2 rounded-[12px] hover:bg-[rgba(59,158,255,0.05)] inline-flex items-center gap-2 group-hover:text-[#3b9eff]"
-                                >
-                                  <Download size={16} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="p-12 flex flex-col items-center justify-center text-center">
-                      <div className="w-16 h-16 bg-[rgba(255,255,255,0.02)] text-[rgba(255,255,255,0.3)] rounded-full flex items-center justify-center mb-4">
-                        <History size={24} />
-                      </div>
-                      <p className="text-[#a1a4a5] font-medium">
-                        Lịch sử thanh toán khi thanh toán sẽ hiển thị tại đây
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-          </div>
-        </div>
-
+        <button
+          onClick={onAction}
+          className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-[#ffffff] px-5 py-2.5 text-sm font-bold text-[#000000] shadow-[0_14px_30px_rgba(0,0,0,0.22)] transition-colors hover:bg-[#f0f0f0]"
+        >
+          <Zap size={17} />
+          {actionLabel}
+        </button>
       </div>
-    </>
+    </section>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  trend,
+  tone,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  trend: string;
+  tone: 'green' | 'blue' | 'red';
+}) {
+  const toneClass = tone === 'green' ? 'text-[#11ff99]' : tone === 'blue' ? 'text-[#3b9eff]' : 'text-[#ff0000]';
+  return (
+    <div className="rounded-[20px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-5 shadow-[0_14px_36px_rgba(0,0,0,0.18)]">
+      <div className="mb-4 flex items-center justify-between">
+        <div className={cn('flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)]', toneClass)}>
+          <Icon size={19} />
+        </div>
+        <span className={cn('inline-flex items-center gap-1 text-[11px] font-bold', toneClass)}>
+          <TrendingUp size={12} />
+          {trend}
+        </span>
+      </div>
+      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8b8f91]">{label}</p>
+      <p className="mt-2 text-[28px] font-display font-medium tracking-tight text-[#f0f0f0]">{value}</p>
+    </div>
+  );
+}
+
+function MiniInfo({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+  return (
+    <div className="rounded-[16px] border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.18)] p-4">
+      <div className="flex items-center gap-2 text-[#a1a4a5]">
+        <Icon size={15} />
+        <span className="text-[11px] font-bold uppercase tracking-[0.12em]">{label}</span>
+      </div>
+      <p className="mt-2 truncate text-sm font-semibold text-[#f0f0f0]">{value}</p>
+    </div>
+  );
+}
+
+function InvoiceTable({
+  invoices,
+  language,
+  onDownload,
+  t,
+}: {
+  invoices: Invoice[];
+  language: string;
+  onDownload: (invoiceId: string) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[680px] border-collapse text-left">
+        <thead>
+          <tr className="bg-[rgba(255,255,255,0.02)]">
+            <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">{t('billing.table.date')}</th>
+            <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">{t('billing.table.amount')}</th>
+            <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">{t('billing.table.status')}</th>
+            <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-right text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">{t('billing.table.invoice') || 'Hóa đơn'}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[rgba(255,255,255,0.08)]">
+          {invoices.map((invoice) => (
+            <tr key={invoice.id} className="transition-colors hover:bg-[rgba(255,255,255,0.03)]">
+              <td className="px-6 py-4 text-sm font-semibold text-[#f0f0f0]">{invoice.date}</td>
+              <td className="px-6 py-4 text-sm font-bold text-[#f0f0f0]">{invoice.amount}</td>
+              <td className="px-6 py-4">
+                <span className={cn(
+                  'inline-flex rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider',
+                  invoice.status === 'PAID'
+                    ? 'border-[#11ff99]/20 bg-[#11ff99]/10 text-[#11ff99]'
+                    : invoice.status === 'REFUNDED'
+                      ? 'border-[#ff0000]/20 bg-[#ff0000]/10 text-[#ff0000]'
+                      : 'border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] text-[#a1a4a5]'
+                )}>
+                  {language === 'vi'
+                    ? (invoice.status === 'PAID' ? 'Đã thanh toán' : invoice.status === 'REFUNDED' ? 'Đã hoàn tiền' : invoice.status)
+                    : invoice.status}
+                </span>
+              </td>
+              <td className="px-6 py-4 text-right">
+                <button
+                  onClick={() => onDownload(invoice.id)}
+                  className="inline-flex rounded-[12px] border border-transparent p-2 text-[#3b9eff] transition-colors hover:border-[#3b9eff]/20 hover:bg-[rgba(59,158,255,0.08)]"
+                >
+                  <Download size={16} />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function EmptyBillingState({ text }: { text: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] text-[#8b8f91]">
+        <History size={24} />
+      </div>
+      <p className="text-sm font-medium text-[#a1a4a5]">{text}</p>
+    </div>
   );
 }
