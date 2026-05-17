@@ -1,0 +1,21 @@
+package vandinh.wisebot.widgetservice.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+import vandinh.wisebot.widgetservice.dto.WidgetAppearanceConfig;
+
+import java.util.UUID;
+
+@Data
+public class CreateWidgetRequest {
+    @NotNull
+    private UUID tenantId;
+    @NotBlank
+    private String name;
+    @NotBlank
+    private String code;
+    private String welcomeMessage;
+    private UUID createdBy;
+    private WidgetAppearanceConfig appearanceConfig;
+}

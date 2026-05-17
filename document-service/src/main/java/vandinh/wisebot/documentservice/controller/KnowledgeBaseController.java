@@ -3,6 +3,8 @@ package vandinh.wisebot.documentservice.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,12 +26,27 @@ public class KnowledgeBaseController {
 
     private final KnowledgeBaseService knowledgeBaseService;
 
+    private UUID getCurrentTenantId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getDetails() == null) {
+            throw new IllegalStateException("Missing authentication context");
+        }
+        if (!(authentication.getDetails() instanceof java.util.Map<?, ?> details)) {
+            throw new IllegalStateException("Missing tenant context");
+        }
+        Object tenantId = details.get("tenantId");
+        if (!(tenantId instanceof String tenantIdStr) || tenantIdStr.isBlank()) {
+            throw new IllegalStateException("Missing tenantId in authentication context");
+        }
+        return UUID.fromString(tenantIdStr);
+    }
+
     @PostMapping
     public ApiResponse create(@RequestBody @Valid KnowledgeBaseRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.CREATED.value())
-                .message("Knowledge base created")
-                .data(knowledgeBaseService.create(request))
+            .message("Tạo kho tri thức thành công")
+                .data(knowledgeBaseService.create(request, getCurrentTenantId()))
                 .build();
     }
 
@@ -37,8 +54,8 @@ public class KnowledgeBaseController {
     public ApiResponse getById(@PathVariable UUID id) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Knowledge base")
-                .data(knowledgeBaseService.getById(id))
+            .message("Thông tin kho tri thức")
+                .data(knowledgeBaseService.getById(id, getCurrentTenantId()))
                 .build();
     }
 
@@ -46,8 +63,8 @@ public class KnowledgeBaseController {
     public ApiResponse listAll() {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Knowledge bases")
-                .data(knowledgeBaseService.listAll())
+            .message("Danh sách kho tri thức")
+                .data(knowledgeBaseService.listAll(getCurrentTenantId()))
                 .build();
     }
 
@@ -55,17 +72,17 @@ public class KnowledgeBaseController {
     public ApiResponse update(@PathVariable UUID id, @RequestBody @Valid KnowledgeBaseRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
-                .message("Knowledge base updated")
-                .data(knowledgeBaseService.update(id, request))
+            .message("Cập nhật kho tri thức thành công")
+                .data(knowledgeBaseService.update(id, request, getCurrentTenantId()))
                 .build();
     }
 
     @DeleteMapping("/{id}")
     public ApiResponse delete(@PathVariable UUID id) {
-        knowledgeBaseService.delete(id);
+        knowledgeBaseService.delete(id, getCurrentTenantId());
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
-                .message("Knowledge base deleted")
+            .message("Xóa kho tri thức thành công")
                 .build();
     }
 }

@@ -3,6 +3,8 @@ package vandinh.wisebot.documentservice.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import vandinh.wisebot.documentservice.common.enums.DocumentStatus;
 import vandinh.wisebot.documentservice.common.enums.EmbeddingStatus;
@@ -12,6 +14,7 @@ import vandinh.wisebot.documentservice.dto.response.DocumentChunkResponse;
 import vandinh.wisebot.documentservice.dto.response.DocumentResponse;
 import vandinh.wisebot.documentservice.dto.response.DocumentUploadResponse;
 import vandinh.wisebot.documentservice.dto.response.EmbeddingResponse;
+import vandinh.wisebot.documentservice.dto.response.BillingLimitResponse;
 import vandinh.wisebot.documentservice.entity.Document;
 import vandinh.wisebot.documentservice.entity.DocumentChunk;
 import vandinh.wisebot.documentservice.entity.KnowledgeBase;
@@ -20,12 +23,11 @@ import vandinh.wisebot.documentservice.exception.ResourceNotFoundException;
 import vandinh.wisebot.documentservice.repository.DocumentChunkRepository;
 import vandinh.wisebot.documentservice.repository.DocumentRepository;
 import vandinh.wisebot.documentservice.repository.KnowledgeBaseRepository;
+import vandinh.wisebot.documentservice.service.BillingEntitlementService;
 import vandinh.wisebot.documentservice.service.DocumentService;
 import vandinh.wisebot.documentservice.service.embedding.EmbeddingClient;
 import vandinh.wisebot.documentservice.service.storage.StorageService;
-import vandinh.wisebot.documentservice.service.text.TextChunker;
-import vandinh.wisebot.documentservice.service.text.TextExtractor;
-
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,28 +41,36 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentRepository documentRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final BillingEntitlementService billingEntitlementService;
     private final StorageProperties storageProperties;
     private final StorageService storageService;
-    private final TextExtractor textExtractor;
-    private final TextChunker textChunker;
-    private final EmbeddingClient embeddingClient;
+    private final AsyncDocumentProcessor asyncDocumentProcessor;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DocumentUploadResponse upload(UUID knowledgeBaseId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new InvalidDataException("File is required");
+            throw new InvalidDataException("Vui lòng chọn tệp để tải lên");
         }
 
         KnowledgeBase knowledgeBase = knowledgeBaseRepository.findById(knowledgeBaseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Knowledge base not found: " + knowledgeBaseId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kho tri thức: " + knowledgeBaseId));
+        if (knowledgeBase.getTenantId() == null) {
+            throw new InvalidDataException("Kho tri thức chưa có tenantId");
+        }
+        validateUploadWithinPlan(knowledgeBase.getTenantId(), List.of(file));
+        return saveUploadedDocument(knowledgeBaseId, knowledgeBase, file);
+    }
+
+    private DocumentUploadResponse saveUploadedDocument(UUID knowledgeBaseId, KnowledgeBase knowledgeBase, MultipartFile file) {
+        byte[] fileBytes;
+        try {
+            fileBytes = file.getBytes();
+        } catch (IOException e) {
+            throw new InvalidDataException("Không thể đọc tệp");
+        }
 
         String storagePath = storageService.store(knowledgeBaseId, file);
-        String text = textExtractor.extract(file);
-        List<String> chunks = textChunker.chunk(text);
-        if (chunks.isEmpty()) {
-            throw new InvalidDataException("Extracted text is empty");
-        }
 
         Document document = Document.builder()
                 .knowledgeBase(knowledgeBase)
@@ -73,24 +83,13 @@ public class DocumentServiceImpl implements DocumentService {
 
         Document saved = documentRepository.save(document);
 
-        List<DocumentChunk> chunkEntities = new ArrayList<>(chunks.size());
-        for (int i = 0; i < chunks.size(); i++) {
-            chunkEntities.add(DocumentChunk.builder()
-                    .document(saved)
-                    .chunkIndex(i)
-                    .content(chunks.get(i))
-                    .status(EmbeddingStatus.PENDING)
-                    .build());
-        }
-        documentChunkRepository.saveAll(chunkEntities);
-
-        boolean embedded = embedChunks(saved.getId(), knowledgeBaseId, chunkEntities);
-        saved.setStatus(embedded ? DocumentStatus.PROCESSED : DocumentStatus.FAILED);
-        documentRepository.save(saved);
+        runAfterCommit(() ->
+                asyncDocumentProcessor.processDocumentAsync(saved.getId(), knowledgeBase.getTenantId(), knowledgeBaseId, fileBytes)
+        );
 
         return DocumentUploadResponse.builder()
                 .document(toResponse(saved))
-                .chunkCount(chunkEntities.size())
+                .chunkCount(0)
                 .build();
     }
 
@@ -98,11 +97,20 @@ public class DocumentServiceImpl implements DocumentService {
     @Transactional(rollbackFor = Exception.class)
     public List<DocumentUploadResponse> uploadBulk(UUID knowledgeBaseId, List<MultipartFile> files) {
         if (files == null || files.isEmpty()) {
-            throw new InvalidDataException("Files are required");
+            throw new InvalidDataException("Vui lòng chọn ít nhất một tệp");
         }
         List<DocumentUploadResponse> responses = new ArrayList<>(files.size());
+        KnowledgeBase knowledgeBase = knowledgeBaseRepository.findById(knowledgeBaseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kho tri thức: " + knowledgeBaseId));
+        if (knowledgeBase.getTenantId() == null) {
+            throw new InvalidDataException("Kho tri thức chưa có tenantId");
+        }
+        validateUploadWithinPlan(knowledgeBase.getTenantId(), files);
         for (MultipartFile file : files) {
-            responses.add(upload(knowledgeBaseId, file));
+            if (file == null || file.isEmpty()) {
+                throw new InvalidDataException("Vui lòng chọn ít nhất một tệp hợp lệ");
+            }
+            responses.add(saveUploadedDocument(knowledgeBaseId, knowledgeBase, file));
         }
         return responses;
     }
@@ -139,7 +147,7 @@ public class DocumentServiceImpl implements DocumentService {
     @Transactional(readOnly = true)
     public Document getDocument(UUID id) {
         return documentRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài liệu: " + id));
     }
 
     @Override
@@ -152,19 +160,28 @@ public class DocumentServiceImpl implements DocumentService {
     @Transactional(rollbackFor = Exception.class)
     public DocumentResponse reprocess(UUID id) {
         Document document = getDocument(id);
-        UUID knowledgeBaseId = document.getKnowledgeBase() != null ? document.getKnowledgeBase().getId() : null;
+        KnowledgeBase knowledgeBase = document.getKnowledgeBase();
+        UUID knowledgeBaseId = knowledgeBase != null ? knowledgeBase.getId() : null;
         if (knowledgeBaseId == null) {
-            throw new InvalidDataException("Knowledge base is missing for document");
+            throw new InvalidDataException("Tài liệu chưa gắn với kho tri thức");
+        }
+        UUID tenantId = knowledgeBase.getTenantId();
+        if (tenantId == null) {
+            throw new InvalidDataException("Kho tri thức chưa có tenantId");
         }
 
         List<DocumentChunk> chunks = documentChunkRepository.findAllByDocument_Id(id);
         if (chunks.isEmpty()) {
-            throw new InvalidDataException("No chunks to reprocess");
+            throw new InvalidDataException("Không có đoạn dữ liệu để đồng bộ lại");
         }
 
-        boolean embedded = embedChunks(id, knowledgeBaseId, chunks);
-        document.setStatus(embedded ? DocumentStatus.PROCESSED : DocumentStatus.FAILED);
+        document.setStatus(DocumentStatus.PROCESSING);
         documentRepository.save(document);
+
+        runAfterCommit(() ->
+                asyncDocumentProcessor.reprocessDocumentAsync(id, tenantId, knowledgeBaseId, chunks)
+        );
+        
         return toResponse(document);
     }
 
@@ -232,47 +249,44 @@ public class DocumentServiceImpl implements DocumentService {
                 .build();
     }
 
-    private boolean embedChunks(UUID documentId, UUID knowledgeBaseId, List<DocumentChunk> chunks) {
-        try {
-            List<EmbeddingRequest.EmbeddingChunk> requestChunks = chunks.stream()
-                    .map(c -> EmbeddingRequest.EmbeddingChunk.builder()
-                            .index(c.getChunkIndex())
-                            .content(c.getContent())
-                            .build())
-                    .toList();
+    private void runAfterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
 
-            EmbeddingRequest request = EmbeddingRequest.builder()
-                    .knowledgeBaseId(knowledgeBaseId)
-                    .documentId(documentId)
-                    .chunks(requestChunks)
-                    .build();
-
-            EmbeddingResponse response = embeddingClient.embed(request);
-            Map<Integer, String> embeddingMap = new HashMap<>();
-            if (response != null && response.getResults() != null) {
-                for (EmbeddingResponse.EmbeddingResult result : response.getResults()) {
-                    embeddingMap.put(result.getIndex(), result.getEmbeddingId());
-                }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
             }
+        });
+    }
 
-            for (DocumentChunk chunk : chunks) {
-                String embeddingId = embeddingMap.get(chunk.getChunkIndex());
-                if (embeddingId != null && !embeddingId.isBlank()) {
-                    chunk.setEmbeddingId(embeddingId);
-                    chunk.setStatus(EmbeddingStatus.EMBEDDED);
-                } else {
-                    chunk.setStatus(EmbeddingStatus.FAILED);
-                }
-            }
-            documentChunkRepository.saveAll(chunks);
+    private void validateUploadWithinPlan(UUID tenantId, List<MultipartFile> files) {
+        BillingLimitResponse entitlements = billingEntitlementService.getKnowledgeBaseLimit(tenantId);
+        long currentDocumentCount = documentRepository.countByKnowledgeBase_TenantId(tenantId);
+        long currentStorageBytes = documentRepository.sumFileSizeByTenantId(tenantId);
 
-            return chunks.stream().anyMatch(c -> c.getStatus() == EmbeddingStatus.EMBEDDED);
-        } catch (Exception ex) {
-            for (DocumentChunk chunk : chunks) {
-                chunk.setStatus(EmbeddingStatus.FAILED);
-            }
-            documentChunkRepository.saveAll(chunks);
-            return false;
+        long incomingDocumentCount = files.stream()
+                .filter(file -> file != null && !file.isEmpty())
+                .count();
+        long incomingStorageBytes = files.stream()
+                .filter(file -> file != null && !file.isEmpty())
+                .mapToLong(MultipartFile::getSize)
+                .sum();
+
+        int documentUploadLimit = entitlements.getDocumentUploadLimit();
+        if (documentUploadLimit >= 0 && currentDocumentCount + incomingDocumentCount > documentUploadLimit) {
+            throw new InvalidDataException(
+                    "Gói hiện tại chỉ cho phép tối đa " + documentUploadLimit
+                            + " tài liệu. Vui lòng nâng cấp gói để tải thêm.");
+        }
+
+        long storageLimitBytes = entitlements.getStorageLimitBytes();
+        if (storageLimitBytes >= 0 && currentStorageBytes + incomingStorageBytes > storageLimitBytes) {
+            throw new InvalidDataException(
+                    "Dung lượng lưu trữ của gói hiện tại không đủ cho tệp tải lên. Vui lòng nâng cấp gói để có thêm dung lượng.");
         }
     }
 }

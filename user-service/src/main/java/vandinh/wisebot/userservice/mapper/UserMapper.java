@@ -35,7 +35,31 @@ public class UserMapper {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .phone(user.getPhone())
+                .role(resolvePrimaryRole(user))
+                .status(user.getStatus())
+                .lastLogin(user.getLastLogin())
                 .createdAt(user.getCreatedAt())
                 .build();
+    }
+
+    private String resolvePrimaryRole(UserEntity user) {
+        if (user.getRoles() == null || user.getRoles().isEmpty()) {
+            return "USER";
+        }
+
+        return user.getRoles().stream()
+                .map(Role::getName)
+                .map(Enum::name)
+                .sorted((left, right) -> Integer.compare(priorityOf(left), priorityOf(right)))
+                .findFirst()
+                .orElse("USER");
+    }
+
+    private int priorityOf(String roleName) {
+        return switch (roleName) {
+            case "ADMIN" -> 0;
+            case "OWNER" -> 1;
+            default -> 2;
+        };
     }
 }

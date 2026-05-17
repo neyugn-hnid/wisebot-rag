@@ -35,6 +35,14 @@ spring:
                 - StripPrefix=1
                 - JwtAuthenticationFilter
 
+            - id: admin-system-service
+              uri: ${USER_SERVICE_URL:http://localhost:8080}
+              predicates:
+                - Path=/api/admin/**
+              filters:
+                - StripPrefix=1
+                - JwtAuthenticationFilter
+
             # Document service (protected)
             - id: document-service
               uri: ${DOCUMENT_SERVICE_URL:http://localhost:8081}
@@ -42,6 +50,55 @@ spring:
                 - Path=/api/knowledge-bases/**,/api/documents/**
               filters:
                 - StripPrefix=1
+                - JwtAuthenticationFilter
+
+            # Chat service REST (protected)
+            - id: chat-service-public
+              uri: ${CHAT_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/chat/public/**
+              filters:
+                - StripPrefix=2
+
+            - id: chat-service
+              uri: ${CHAT_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/chat/**
+              filters:
+                - StripPrefix=2
+                - JwtAuthenticationFilter
+
+            # Chat service WebSocket (protected)
+            - id: chat-service-ws
+              uri: ${CHAT_WS_URL:ws://localhost:8082}
+              predicates:
+                - Path=/ws/chat/**
+              filters:
+                - JwtAuthenticationFilter
+
+            # Widget service (protected)
+            - id: widget-service-public
+              uri: ${WIDGET_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/widget/public/**
+              filters:
+                - StripPrefix=2
+
+            - id: widget-service
+              uri: ${WIDGET_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/widget/**
+              filters:
+                - StripPrefix=2
+                - JwtAuthenticationFilter
+
+            # Billing service (protected)
+            - id: billing-service
+              uri: ${BILLING_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/billing/**
+              filters:
+                - StripPrefix=2
                 - JwtAuthenticationFilter
 
 jwt:

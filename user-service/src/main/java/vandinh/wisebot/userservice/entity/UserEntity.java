@@ -55,6 +55,18 @@ public class UserEntity implements UserDetails, Serializable {
     @Column(name = "is_email_verified")
     private Boolean isEmailVerified = false;
 
+    @Column(name = "email_verification_token")
+    private String emailVerificationToken;
+
+    @Column(name = "email_verification_expires_at")
+    private LocalDateTime emailVerificationExpiresAt;
+
+    @Column(name = "password_reset_token")
+    private String passwordResetToken;
+
+    @Column(name = "password_reset_expires_at")
+    private LocalDateTime passwordResetExpiresAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "login_provider", nullable = false, length = 20)
     private LoginProvider loginProvider = LoginProvider.LOCAL;
@@ -112,6 +124,6 @@ public class UserEntity implements UserDetails, Serializable {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return status != UserStatus.DISABLED;
     }
 }

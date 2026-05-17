@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.UUID;
 
 public interface JwtService {
-    String generateAccessToken(UUID userId, String email, List<String> authorities);
-    String generateRefreshToken(UUID userId, String email, List<String> authorities);
+    String generateAccessToken(UUID userId, UUID tenantId, String email, List<String> authorities);
+    String generateRefreshToken(UUID userId, UUID tenantId, String email, List<String> authorities);
     String extractEmail(String token, TokenType type);
     UUID extractUserId(String token, TokenType type);
     boolean isTokenValid(String token, UserDetails userDetails);

@@ -1,1 +1,4 @@
 .github/skills/
+**/target/
+.env
+**/.env
