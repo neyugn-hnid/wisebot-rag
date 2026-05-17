@@ -1,85 +1,26 @@
 # Wisebot RAG
 
-Enterprise AI assistant built with RAG (Retrieval-Augmented Generation) on top of React, Spring Boot, FastAPI, PostgreSQL, Qdrant, and Ollama.
+Wisebot RAG is an enterprise AI assistant built with React, Spring Boot, FastAPI, PostgreSQL, Qdrant, and Ollama.
 
-The system supports:
-- User authentication and role-based access
-- Knowledge base and document management
-- Embedding generation and vector search
-- AI answer generation with switchable provider mode
-- Admin settings for AI and embedding providers
-- Widget/API integration paths for external usage
+It supports:
+- user authentication and role-based access
+- knowledge base and document management
+- retrieval-augmented generation
+- local or API-based AI providers
+- local or API-based embedding providers
 
-## Architecture
+## Quick start
 
-### Main services
+### Prerequisites
 
-| Service | Port | Stack | Responsibility |
-| --- | --- | --- | --- |
-| `frontend` | `3000` | React + Vite | Admin/user UI |
-| `api-gateway` | `9000` | Spring Boot | Public API gateway and JWT validation |
-| `user-service` | `8080` | Spring Boot | Auth, users, roles, internal system settings |
-| `document-service` | `8081` | Spring Boot | Knowledge bases, documents, uploads |
-| `chat-service` | `8082` | Spring Boot | Chat sessions, RAG orchestration, provider settings bridge |
-| `widget-service` | `8084` | Spring Boot | Widget-facing APIs |
-| `billing-service` | `8085` | Spring Boot | Billing and entitlement flow |
-| `embedding-service` | `8001` | FastAPI | Embedding generation, indexing, vector search |
-| `ai-service` | `8002` | FastAPI | LLM answer generation and provider switching |
-| `postgres` | `5432` | PostgreSQL | Persistent storage |
-| `qdrant` | `6333` | Qdrant | Vector database |
-| `ollama` | `11434` | Ollama | Local LLM and embedding runtime |
+- Docker Desktop
+- 8GB+ RAM recommended
 
-### High-level request flow
+### 1. Configure environment
 
-1. User logs in through `frontend`.
-2. `frontend` sends requests to `api-gateway`.
-3. `api-gateway` validates user JWT and forwards requests to downstream Java services.
-4. `document-service` manages uploaded files and knowledge-base metadata.
-5. `embedding-service` creates vectors and stores/searches them in Qdrant.
-6. `chat-service` coordinates RAG requests.
-7. `ai-service` retrieves relevant context and generates the final answer.
+Use the root [.env](C:/Users/VanDinh/OneDrive/Máy tính/ĐATN/.env).
 
-## Repository layout
-
-```text
-frontend/             React application
-api-gateway/          Spring Cloud Gateway
-user-service/         User/auth service
-document-service/     Knowledge base and document service
-chat-service/         Chat and RAG orchestration service
-widget-service/       Widget APIs
-billing-service/      Billing service
-embedding-service/    Python embedding service
-ai-service/           Python LLM service
-docker/               Docker build/init files
-docker-compose.yml    Full local stack
-```
-
-## Core concepts
-
-### AI provider mode
-
-`ai-service` supports:
-- `ollama`: local model via Ollama
-- `openai-compatible`: external API such as DeepSeek/OpenAI-compatible providers
-
-Admin users can switch the active answer-generation mode from the settings page.
-
-### Embedding provider mode
-
-`embedding-service` supports:
-- local embeddings via Ollama
-- external OpenAI-compatible embeddings
-
-If the embedding provider or model changes, rebuild embeddings for affected knowledge bases to avoid vector-space mismatch.
-
-## Environment variables
-
-### Root `.env`
-
-The root `.env` is primarily used by Docker Compose.
-
-Important keys:
+Minimum important values:
 
 ```env
 POSTGRES_USER=postgres
@@ -91,38 +32,10 @@ JWT_REFRESH_KEY=...
 SERVICE_JWT_SECRET=...
 SERVICE_JWT_AUDIENCE=
 
-INTERNAL_API_KEY=wisebot-internal-key
-INTERNAL_CONFIG_API_KEY=change-me
-
 AI_PROVIDER_MODE=ollama
 OLLAMA_LLM_MODEL=llama3:latest
 OLLAMA_EMBEDDING_MODEL=nomic-embed-text
-EMBEDDING_DIMENSION=1536
-
-THIRD_PARTY_BASE_URL=https://api.openai.com/v1
-THIRD_PARTY_API_KEY=
-THIRD_PARTY_LLM_MODEL=gpt-4o-mini
-THIRD_PARTY_EMBEDDING_MODEL=text-embedding-3-small
 ```
-
-### JWT keys used in this repo
-
-- `JWT_ACCESS_KEY`: user-facing access token signing key
-- `JWT_REFRESH_KEY`: user-facing refresh token signing key
-- `SERVICE_JWT_SECRET`: internal service-to-service JWT signing key
-- `SERVICE_JWT_AUDIENCE`: optional audience claim for internal JWTs; keep empty unless every internal service is configured to verify the same audience
-
-### Important auth note
-
-Internal Java services call Python services using service JWTs, not user JWTs.
-
-For local development, keep these aligned:
-- `chat-service`
-- `document-service`
-- `embedding-service`
-- `ai-service`
-
-They must share the same `SERVICE_JWT_SECRET`.
 
 If you do not explicitly need audience validation, keep:
 
@@ -130,119 +43,131 @@ If you do not explicitly need audience validation, keep:
 SERVICE_JWT_AUDIENCE=
 ```
 
-## Running with Docker
-
-### Prerequisites
-
-- Docker Desktop
-- Enough RAM for Java services, Qdrant, PostgreSQL, and Ollama
-
-### Start the full stack
+### 2. Start the stack
 
 ```bash
 docker compose up --build -d
 ```
 
-### Pull local Ollama models
+### 3. Pull Ollama models
 
 ```bash
 docker exec -it wisebot-ollama ollama pull llama3:latest
 docker exec -it wisebot-ollama ollama pull nomic-embed-text
 ```
 
-### Rebuild only the AI-related services
+### 4. Open the app
+
+- Frontend: `http://localhost:3000`
+- API Gateway: `http://localhost:9000`
+
+## Services
+
+| Service | Port | Responsibility |
+| --- | --- | --- |
+| `frontend` | `3000` | Admin and user UI |
+| `api-gateway` | `9000` | Public API gateway |
+| `user-service` | `8080` | Auth, users, roles |
+| `document-service` | `8081` | Knowledge bases and documents |
+| `chat-service` | `8082` | Chat orchestration and RAG flow |
+| `widget-service` | `8084` | Widget APIs |
+| `billing-service` | `8085` | Billing |
+| `embedding-service` | `8001` | Embedding generation and vector search |
+| `ai-service` | `8002` | LLM answer generation |
+| `postgres` | `5432` | Relational storage |
+| `qdrant` | `6333` | Vector storage |
+| `ollama` | `11434` | Local model runtime |
+
+## Architecture
+
+High-level flow:
+
+1. `frontend` sends requests to `api-gateway`.
+2. `api-gateway` validates user JWTs and forwards requests.
+3. `document-service` manages files and knowledge bases.
+4. `embedding-service` creates and searches vectors in Qdrant.
+5. `chat-service` coordinates retrieval and answer generation.
+6. `ai-service` generates the final answer.
+
+## AI and embedding modes
+
+### AI provider mode
+
+`ai-service` supports:
+- `ollama`
+- `openai-compatible`
+
+### Embedding provider mode
+
+`embedding-service` supports:
+- local embeddings via Ollama
+- external OpenAI-compatible embeddings
+
+If you change embedding provider or model, rebuild embeddings for affected knowledge bases.
+
+## Running only selected services
+
+To rebuild the AI-related part of the stack:
 
 ```bash
 docker compose up -d --build document-service chat-service embedding-service ai-service
 ```
 
-### Stop the stack
+To stop everything:
 
 ```bash
 docker compose down
 ```
 
-### Access
+## Local development
 
-- Frontend: `http://localhost:3000`
-- API Gateway: `http://localhost:9000`
-- User service: `http://localhost:8080`
-- Document service: `http://localhost:8081`
-- Chat service: `http://localhost:8082`
-- Widget service: `http://localhost:8084`
-- Billing service: `http://localhost:8085`
-- Embedding service: `http://localhost:8001`
-- AI service: `http://localhost:8002`
-- PostgreSQL: `localhost:5432`
-- Qdrant: `http://localhost:6333`
-- Ollama: `http://localhost:11434`
+You can also run services outside Docker.
 
-### Docker notes
+Recommended startup order:
 
-- Docker Compose reads the root `.env`.
-- `frontend` runs through Vite and targets `api-gateway`.
-- PostgreSQL is initialized with multiple logical databases for the services.
-- Uploaded files are stored in the `uploads_data` volume.
-- Qdrant data is stored in the `qdrant_data` volume.
-
-## Running locally without Docker
-
-This repo can also be run service-by-service from IntelliJ and Python shells.
-
-### Recommended order
-
-1. Start `postgres`
-2. Start `qdrant`
-3. Start `ollama`
-4. Start `user-service`
-5. Start `embedding-service`
-6. Start `ai-service`
-7. Start `document-service`
-8. Start `chat-service`
-9. Start `api-gateway`
-10. Start `frontend`
+1. `postgres`
+2. `qdrant`
+3. `ollama`
+4. `user-service`
+5. `embedding-service`
+6. `ai-service`
+7. `document-service`
+8. `chat-service`
+9. `api-gateway`
+10. `frontend`
 
 ### Java services
 
-Most Java services are Spring Boot applications and can be run from IntelliJ.
-
-Recommended profile:
+Run with profile:
 
 ```env
 SPRING_PROFILES_ACTIVE=dev
 ```
 
-For services that call Python/internal endpoints, set:
+For internal service auth, at minimum set these in local run configs for:
+- `chat-service`
+- `document-service`
 
 ```env
 SERVICE_JWT_SECRET=...
 SERVICE_JWT_AUDIENCE=
 ```
 
-At minimum this applies to:
-- `chat-service`
-- `document-service`
-
 ### Python services
 
-For both Python services:
+Example setup:
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-Run:
-
-```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
 ```
 
-Use the service-local `.env` files:
-- `embedding-service/.env`
-- `ai-service/.env`
+Use:
+- [embedding-service/.env](C:/Users/VanDinh/OneDrive/Máy tính/ĐATN/embedding-service/.env)
+- [ai-service/.env](C:/Users/VanDinh/OneDrive/Máy tính/ĐATN/ai-service/.env)
 
 ### Frontend
 
@@ -252,98 +177,313 @@ npm install
 npm run dev
 ```
 
-By default Vite proxies API calls to `http://localhost:9000`.
+## Important auth note
 
-## Database and vector storage
+This repo uses two different JWT categories:
 
-### PostgreSQL
+- `JWT_ACCESS_KEY` and `JWT_REFRESH_KEY` for user auth
+- `SERVICE_JWT_SECRET` for service-to-service auth
 
-The project uses PostgreSQL for:
-- users and auth
-- chat sessions and messages
-- documents and knowledge bases
-- billing
-- AI request logging and metadata
-
-### Qdrant
-
-Qdrant stores vector embeddings used by the RAG flow.
-
-If embedding mode/model changes:
-- rebuild affected embeddings
-- reprocess relevant documents
-
-## Admin settings
-
-The settings page in the frontend includes:
-- AI provider mode switching
-- embedding provider mode switching
-- rebuild/reprocess actions for knowledge bases
-
-These actions depend on successful internal service JWT validation between:
-- `chat-service` and `ai-service`
-- `chat-service` and `embedding-service`
-- `document-service` and `embedding-service`
+Internal JWT settings must match across:
+- `chat-service`
+- `document-service`
+- `embedding-service`
+- `ai-service`
 
 ## Common issues
 
 ### `401 Unauthorized` on `/v1/provider`
 
-Usually caused by internal service JWT mismatch.
+Usually caused by internal JWT mismatch.
 
 Check:
-- `SERVICE_JWT_SECRET` is identical in all relevant services
-- `SERVICE_JWT_AUDIENCE` is either empty everywhere or the same everywhere
-- local IntelliJ run configs are not overriding values unexpectedly
+- `SERVICE_JWT_SECRET` is the same in all internal services
+- `SERVICE_JWT_AUDIENCE` is empty everywhere, or the same everywhere
+- local IntelliJ run configs are not overriding env values
 - Docker containers were rebuilt after env changes
 
 ### `Signature verification failed`
 
-Usually means the calling service and called service do not share the same `SERVICE_JWT_SECRET`.
+Usually means services are not using the same `SERVICE_JWT_SECRET`.
 
 ### `Token is missing the "aud" claim`
 
-Usually means one service is verifying audience while the caller is not sending `aud`.
+Usually means one service expects `aud` and the caller is not sending it.
 
-If you do not need audience validation, set:
+If you do not need audience validation:
 
 ```env
 SERVICE_JWT_AUDIENCE=
 ```
 
-for all internal services and restart them.
+then restart affected services.
 
-### Low search quality after changing embedding model
+### Search quality dropped after changing embedding model
 
-Rebuild embeddings for the affected knowledge base. Old vectors and new query vectors may no longer live in the same vector space.
+Rebuild embeddings for the affected knowledge base.
 
-### Ollama model not found
+## Repo structure
 
-Pull the required models:
+```text
+frontend/
+api-gateway/
+user-service/
+document-service/
+chat-service/
+widget-service/
+billing-service/
+embedding-service/
+ai-service/
+docker/
+docker-compose.yml
+```
+
+## Additional docs
+
+- [ai-service/README.md](C:/Users/VanDinh/OneDrive/Máy tính/ĐATN/ai-service/README.md)
+
+---
+
+# Wisebot RAG - Bản tiếng Việt
+
+Wisebot RAG là hệ thống trợ lý AI doanh nghiệp được xây dựng bằng React, Spring Boot, FastAPI, PostgreSQL, Qdrant và Ollama.
+
+Hệ thống hỗ trợ:
+- xác thực người dùng và phân quyền
+- quản lý knowledge base và tài liệu
+- hỏi đáp theo mô hình RAG
+- chuyển đổi giữa AI local và AI qua API
+- chuyển đổi giữa embedding local và embedding qua API
+
+## Bắt đầu nhanh
+
+### Điều kiện cần
+
+- Docker Desktop
+- Khuyến nghị RAM từ 8GB trở lên
+
+### 1. Cấu hình môi trường
+
+Sử dụng file [.env](C:/Users/VanDinh/OneDrive/Máy tính/ĐATN/.env) ở thư mục gốc.
+
+Các biến quan trọng tối thiểu:
+
+```env
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=password
+
+JWT_ACCESS_KEY=...
+JWT_REFRESH_KEY=...
+
+SERVICE_JWT_SECRET=...
+SERVICE_JWT_AUDIENCE=
+
+AI_PROVIDER_MODE=ollama
+OLLAMA_LLM_MODEL=llama3:latest
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+```
+
+Nếu bạn không cần kiểm tra audience cho JWT nội bộ, hãy giữ:
+
+```env
+SERVICE_JWT_AUDIENCE=
+```
+
+### 2. Khởi động toàn bộ hệ thống
 
 ```bash
-ollama pull llama3:latest
-ollama pull nomic-embed-text
+docker compose up --build -d
 ```
 
-## Development notes
+### 3. Tải model cho Ollama
 
-- Prefer Docker when bringing up the full stack quickly.
-- Prefer IntelliJ + local Python when debugging individual services.
-- `chat-service` and `document-service` now generate internal JWTs using `SERVICE_JWT_SECRET` and optional `SERVICE_JWT_AUDIENCE`.
-- The API gateway validates user JWTs separately from internal service JWTs.
+```bash
+docker exec -it wisebot-ollama ollama pull llama3:latest
+docker exec -it wisebot-ollama ollama pull nomic-embed-text
+```
 
-## Service-specific docs
+### 4. Truy cập ứng dụng
 
-Additional details exist in service-local READMEs where present:
-- [ai-service/README.md](C:/Users/VanDinh/OneDrive/Máy tính/ĐATN/ai-service/README.md)
-- `embedding-service/README.md`
+- Frontend: `http://localhost:3000`
+- API Gateway: `http://localhost:9000`
 
-## Current status
+## Các service
 
-The repository includes both local-model and external-provider paths, plus admin-facing runtime switching. For stable local development, the safest baseline is:
+| Service | Port | Chức năng |
+| --- | --- | --- |
+| `frontend` | `3000` | Giao diện quản trị và người dùng |
+| `api-gateway` | `9000` | Cổng API public |
+| `user-service` | `8080` | Xác thực, người dùng, phân quyền |
+| `document-service` | `8081` | Knowledge base và tài liệu |
+| `chat-service` | `8082` | Điều phối chat và luồng RAG |
+| `widget-service` | `8084` | API cho widget |
+| `billing-service` | `8085` | Thanh toán và gói dịch vụ |
+| `embedding-service` | `8001` | Sinh embedding và vector search |
+| `ai-service` | `8002` | Sinh câu trả lời từ LLM |
+| `postgres` | `5432` | Cơ sở dữ liệu quan hệ |
+| `qdrant` | `6333` | Cơ sở dữ liệu vector |
+| `ollama` | `11434` | Runtime model local |
+
+## Kiến trúc
+
+Luồng tổng quát:
+
+1. `frontend` gửi request đến `api-gateway`.
+2. `api-gateway` kiểm tra user JWT rồi chuyển tiếp request.
+3. `document-service` quản lý file và knowledge base.
+4. `embedding-service` tạo vector và tìm kiếm trong Qdrant.
+5. `chat-service` điều phối truy xuất dữ liệu và sinh câu trả lời.
+6. `ai-service` tạo câu trả lời cuối cùng.
+
+## Chế độ AI và embedding
+
+### AI provider mode
+
+`ai-service` hỗ trợ:
+- `ollama`
+- `openai-compatible`
+
+### Embedding provider mode
+
+`embedding-service` hỗ trợ:
+- embedding local qua Ollama
+- embedding qua API OpenAI-compatible
+
+Nếu đổi provider hoặc model embedding, cần rebuild embedding cho knowledge base liên quan.
+
+## Chạy riêng một phần hệ thống
+
+Để build lại nhóm service liên quan đến AI:
+
+```bash
+docker compose up -d --build document-service chat-service embedding-service ai-service
+```
+
+Để dừng toàn bộ:
+
+```bash
+docker compose down
+```
+
+## Phát triển local
+
+Bạn có thể chạy từng service ngoài Docker.
+
+Thứ tự khởi động khuyến nghị:
+
+1. `postgres`
+2. `qdrant`
+3. `ollama`
+4. `user-service`
+5. `embedding-service`
+6. `ai-service`
+7. `document-service`
+8. `chat-service`
+9. `api-gateway`
+10. `frontend`
+
+### Java services
+
+Chạy với profile:
 
 ```env
-AI_PROVIDER_MODE=ollama
+SPRING_PROFILES_ACTIVE=dev
+```
+
+Với các service gọi API nội bộ, tối thiểu cần set trong run config:
+- `chat-service`
+- `document-service`
+
+```env
+SERVICE_JWT_SECRET=...
 SERVICE_JWT_AUDIENCE=
 ```
+
+### Python services
+
+Ví dụ thiết lập:
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
+```
+
+Sử dụng:
+- [embedding-service/.env](C:/Users/VanDinh/OneDrive/Máy tính/ĐATN/embedding-service/.env)
+- [ai-service/.env](C:/Users/VanDinh/OneDrive/Máy tính/ĐATN/ai-service/.env)
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Lưu ý quan trọng về auth
+
+Repo này dùng 2 loại JWT khác nhau:
+
+- `JWT_ACCESS_KEY` và `JWT_REFRESH_KEY` cho xác thực người dùng
+- `SERVICE_JWT_SECRET` cho xác thực giữa các service
+
+Cấu hình JWT nội bộ phải đồng bộ giữa:
+- `chat-service`
+- `document-service`
+- `embedding-service`
+- `ai-service`
+
+## Các lỗi thường gặp
+
+### `401 Unauthorized` tại `/v1/provider`
+
+Thường do JWT nội bộ bị lệch.
+
+Cần kiểm tra:
+- `SERVICE_JWT_SECRET` có giống nhau ở tất cả internal service không
+- `SERVICE_JWT_AUDIENCE` có đang để rỗng ở mọi nơi, hoặc cùng một giá trị ở mọi nơi không
+- run config trong IntelliJ có đang ghi đè env không
+- container Docker đã được build lại sau khi đổi env chưa
+
+### `Signature verification failed`
+
+Thường là service gọi và service nhận không dùng cùng `SERVICE_JWT_SECRET`.
+
+### `Token is missing the "aud" claim`
+
+Thường là một service đang yêu cầu `aud`, nhưng service gọi không gửi claim này.
+
+Nếu không cần verify audience:
+
+```env
+SERVICE_JWT_AUDIENCE=
+```
+
+sau đó restart các service liên quan.
+
+### Chất lượng search giảm sau khi đổi embedding model
+
+Cần rebuild embedding cho knowledge base tương ứng.
+
+## Cấu trúc repo
+
+```text
+frontend/
+api-gateway/
+user-service/
+document-service/
+chat-service/
+widget-service/
+billing-service/
+embedding-service/
+ai-service/
+docker/
+docker-compose.yml
+```
+
+## Tài liệu thêm
+
+- [ai-service/README.md](C:/Users/VanDinh/OneDrive/Máy tính/ĐATN/ai-service/README.md)
