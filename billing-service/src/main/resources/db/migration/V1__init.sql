@@ -108,3 +108,46 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_plan_status ON billing_subscription
 CREATE INDEX IF NOT EXISTS idx_usage_events_tenant_meter_time ON billing_usage_events (tenant_id, meter_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invoices_tenant_status ON billing_invoices (tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_payments_invoice_status ON billing_payments (invoice_id, status);
+
+INSERT INTO billing_plans (id, code, name, description, active) VALUES
+  (gen_random_uuid(), 'free', 'Miễn phí', E'Lên đến 1.000 tin nhắn\n1 Cơ sở tri thức\nTối đa 10 tài liệu tải lên\nDung lượng lưu trữ 100 MB\nTruy cập API', true),
+  (gen_random_uuid(), 'plus', 'Plus', E'Lên đến 10.000 tin nhắn\n5 Cơ sở tri thức\nTối đa 200 tài liệu tải lên\nDung lượng lưu trữ 5 GB\nTruy cập API\nTích hợp tùy chỉnh', true),
+  (gen_random_uuid(), 'pro', 'Pro', E'Không giới hạn tin nhắn\nKhông giới hạn Cơ sở tri thức\nKhông giới hạn tài liệu tải lên\nDung lượng lưu trữ 50 GB\nTruy cập API\nTích hợp tùy chỉnh', true)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    active = EXCLUDED.active;
+
+INSERT INTO billing_plan_prices (plan_id, billing_cycle, currency, amount_cents, trial_days, effective_from)
+SELECT p.id, 'MONTHLY', 'VND', price_cents, 0, CURRENT_TIMESTAMP
+FROM (
+  VALUES
+    ('free', 0),
+    ('plus', 501581),
+    ('pro', 1293551)
+) AS t(code, price_cents)
+JOIN billing_plans p ON p.code = t.code
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM billing_plan_prices bpp
+  WHERE bpp.plan_id = p.id
+    AND bpp.billing_cycle = 'MONTHLY'
+    AND bpp.currency = 'VND'
+);
+
+INSERT INTO billing_plan_prices (plan_id, billing_cycle, currency, amount_cents, trial_days, effective_from)
+SELECT p.id, 'YEARLY', 'VND', price_cents, 0, CURRENT_TIMESTAMP
+FROM (
+  VALUES
+    ('free', 0),
+    ('plus', 4815178),
+    ('pro', 12418090)
+) AS t(code, price_cents)
+JOIN billing_plans p ON p.code = t.code
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM billing_plan_prices bpp
+  WHERE bpp.plan_id = p.id
+    AND bpp.billing_cycle = 'YEARLY'
+    AND bpp.currency = 'VND'
+);
