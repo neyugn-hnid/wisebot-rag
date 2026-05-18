@@ -5,48 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9395e225-b2fc-43f8-8b76-11165b432eb5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/ai-service/.env" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/embedding-service/.env" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/embedding-service/app/embedding_client.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-service/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/ai-service/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.yml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/AppConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/AppConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/EmbeddingClientProperties.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/EmbeddingClientProperties.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/ChatController.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/ChatController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/ChatService.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/ChatService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/client/EmbeddingSearchClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/client/EmbeddingSearchClient.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/impl/ChatServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/impl/ChatServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chat-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/resources/application.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/embedding-service/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/embedding-service/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/embedding-service/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/embedding-service/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/embedding-service/app/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/embedding-service/app/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/embedding-service/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/embedding-service/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/embedding-service/app/schemas.py" beforeDir="false" afterPath="$PROJECT_DIR$/embedding-service/app/schemas.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/public/widget.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/public/widget.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/App.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/api/chat.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/chat.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/components/ChatWidget.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/ChatWidget.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/components/DashboardLayout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/DashboardLayout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/components/DeleteModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/DeleteModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/components/PageLoading.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/contexts/LanguageContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/contexts/LanguageContext.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/APIKeys.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/APIKeys.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Analytics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Analytics.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Billing.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Billing.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/ChatbotPlayground.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/ChatbotPlayground.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Demo.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/KnowledgeBase.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/KnowledgeBase.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Login.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Login.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Profile.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Profile.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Register.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Register.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Settings.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Settings.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/UpgradePlan.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/UpgradePlan.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/UserManagement.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/UserManagement.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/WidgetCustomization.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/WidgetCustomization.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/WidgetEmbedTest.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/WidgetEmbedTest.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -106,45 +65,45 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
-    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
-    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
-    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
-    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
-    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;Spring Boot.ApiGatewayApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.BillingServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.ChatServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.DocumentServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.UserServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.WidgetServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;fix/minor-bugs&quot;,
-    &quot;jdk.selected.JAVA_MODULE&quot;: &quot;17&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/VanDinh/OneDrive/Máy tính/wisebot-rag&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
-    &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_ADD_EXTERNAL_FILES": "true",
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "Spring Boot.ApiGatewayApplication.executor": "Run",
+    "Spring Boot.BillingServiceApplication.executor": "Run",
+    "Spring Boot.ChatServiceApplication.executor": "Run",
+    "Spring Boot.DocumentServiceApplication.executor": "Run",
+    "Spring Boot.UserServiceApplication.executor": "Run",
+    "Spring Boot.WidgetServiceApplication.executor": "Run",
+    "git-widget-placeholder": "develop",
+    "jdk.selected.JAVA_MODULE": "17",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/VanDinh/OneDrive/Máy tính/wisebot-rag",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.0",
+    "run.configurations.included.in.services": "true",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "vue.rearranger.settings.migration": "true"
   },
-  &quot;keyToStringList&quot;: {
-    &quot;DatabaseDriversLRU&quot;: [
-      &quot;postgresql&quot;
+  "keyToStringList": {
+    "DatabaseDriversLRU": [
+      "postgresql"
     ]
   }
-}</component>
+}]]></component>
   <component name="RunDashboard">
     <option name="configurationTypes">
       <set>
