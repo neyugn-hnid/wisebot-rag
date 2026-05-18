@@ -19,20 +19,24 @@ CREATE TABLE tenants
 -- ===============================
 CREATE TABLE users
 (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id         UUID         NOT NULL,
-    username          VARCHAR(100) NOT NULL UNIQUE,
-    email             VARCHAR(150) NOT NULL UNIQUE,
-    password          VARCHAR(255) NOT NULL,
-    full_name         VARCHAR(150),
-    avatar_url        TEXT,
-    phone             VARCHAR(20),
-    status            VARCHAR(20)      DEFAULT 'ACTIVE',
-    is_email_verified BOOLEAN          DEFAULT false,
-    login_provider    VARCHAR(20)      DEFAULT 'LOCAL',
-    last_login        TIMESTAMP,
-    created_at        TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
-    updated_at        TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
+    id                            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id                     UUID         NOT NULL,
+    username                      VARCHAR(100) NOT NULL UNIQUE,
+    email                         VARCHAR(150) NOT NULL UNIQUE,
+    password                      VARCHAR(255) NOT NULL,
+    full_name                     VARCHAR(150),
+    avatar_url                    TEXT,
+    phone                         VARCHAR(20),
+    status                        VARCHAR(20)      DEFAULT 'ACTIVE',
+    is_email_verified             BOOLEAN          DEFAULT false,
+    email_verification_token      VARCHAR(255),
+    email_verification_expires_at TIMESTAMP,
+    password_reset_token          VARCHAR(255),
+    password_reset_expires_at     TIMESTAMP,
+    login_provider                VARCHAR(20)      DEFAULT 'LOCAL',
+    last_login                    TIMESTAMP,
+    created_at                    TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
+    updated_at                    TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_users_tenant
         FOREIGN KEY (tenant_id)
@@ -108,6 +112,8 @@ CREATE TABLE role_permissions
 CREATE INDEX idx_users_email ON users (email);
 CREATE INDEX idx_users_username ON users (username);
 CREATE INDEX idx_users_tenant ON users (tenant_id);
+CREATE INDEX idx_users_email_verification_token ON users (email_verification_token);
+CREATE INDEX idx_users_password_reset_token ON users (password_reset_token);
 
 CREATE INDEX idx_user_roles_user ON user_roles (user_id);
 CREATE INDEX idx_user_roles_role ON user_roles (role_id);
@@ -162,3 +168,120 @@ CREATE TABLE blacklisted_tokens
     token       TEXT      NOT NULL,
     expiry_date TIMESTAMP NOT NULL
 );
+
+-- ===============================
+-- TENANT INVITES
+-- ===============================
+CREATE TABLE tenant_invites
+(
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id   UUID         NOT NULL,
+    email       VARCHAR(255) NOT NULL,
+    token       VARCHAR(64)  NOT NULL UNIQUE,
+    status      VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    expires_at  TIMESTAMP,
+    created_at  TIMESTAMP             DEFAULT CURRENT_TIMESTAMP,
+    accepted_at TIMESTAMP,
+
+    CONSTRAINT fk_tenant_invites_tenant
+        FOREIGN KEY (tenant_id)
+            REFERENCES tenants (id)
+            ON DELETE CASCADE
+);
+
+CREATE INDEX idx_tenant_invites_token ON tenant_invites (token);
+CREATE INDEX idx_tenant_invites_tenant_email ON tenant_invites (tenant_id, email);
+
+-- ===============================
+-- EMAIL LOGS
+-- ===============================
+CREATE TABLE email_logs
+(
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    recipient     VARCHAR(200) NOT NULL,
+    template_id   VARCHAR(100),
+    status        VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    error_message TEXT,
+    sent_at       TIMESTAMP,
+    created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_email_logs_recipient ON email_logs (recipient);
+CREATE INDEX idx_email_logs_status ON email_logs (status);
+
+-- ===============================
+-- SYSTEM SETTINGS
+-- ===============================
+CREATE TABLE system_settings
+(
+    id            UUID PRIMARY KEY,
+    setting_key   VARCHAR(120) NOT NULL UNIQUE,
+    setting_value TEXT         NOT NULL,
+    description   VARCHAR(255),
+    updated_by    UUID,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_system_settings_key ON system_settings (setting_key);
+
+-- ===============================
+-- SEED ROLES
+-- ===============================
+INSERT INTO roles (name, description)
+VALUES
+    ('ADMIN', 'Administrator'),
+    ('USER', 'Normal user'),
+    ('OWNER', 'Tenant owner')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===============================
+-- SEED PERMISSIONS
+-- ===============================
+INSERT INTO permissions (name, description)
+VALUES
+    ('READ', 'Read access'),
+    ('WRITE', 'Write access'),
+    ('DELETE', 'Delete access')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===============================
+-- SEED TENANT
+-- ===============================
+INSERT INTO tenants (id, name, plan)
+VALUES
+    ('11111111-1111-1111-1111-111111111111', 'Wisebot Demo', 'PRO')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===============================
+-- SEED ADMIN USER
+-- ===============================
+INSERT INTO users (id, tenant_id, username, email, password, full_name)
+VALUES (
+    '556d8d6a-e1c1-4fc5-9683-2242aa293a29',
+    '1475b372-1055-4cc5-9cfc-8ab609ce29ac',
+    'admin',
+    'admin@wisebot.com',
+    '$2a$12$4IDC8pKW83xQuxpgnSlxxezgnE3c8ScpteiHYLYSB7s5zY05pqUIK',
+    'Admin User'
+)
+ON CONFLICT (email) DO NOTHING;
+
+-- ===============================
+-- SEED USER ROLE
+-- ===============================
+INSERT INTO user_roles (user_id, role_id)
+SELECT u.id, r.id
+FROM users u, roles r
+WHERE u.username = 'admin'
+  AND r.name = 'ADMIN'
+ON CONFLICT (user_id, role_id) DO NOTHING;
+
+-- ===============================
+-- SEED ROLE PERMISSIONS
+-- ===============================
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.name = 'ADMIN'
+ON CONFLICT (role_id, permission_id) DO NOTHING;
