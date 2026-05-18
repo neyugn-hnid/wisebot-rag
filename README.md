@@ -487,3 +487,12 @@ docker-compose.yml
 ## Tài liệu thêm
 
 - [ai-service/README.md](C:/Users/VanDinh/OneDrive/Máy tính/ĐATN/ai-service/README.md)
+
+
+docker exec -it wisebot-postgres psql -U postgres -d postgres -c "CREATE DATABASE wisebot_user_database;"
+docker exec -it wisebot-postgres psql -U postgres -d postgres -c "CREATE DATABASE wisebot_document_database;"
+docker exec -it wisebot-postgres psql -U postgres -d postgres -c "CREATE DATABASE wisebot_chat_database;"
+docker exec -it wisebot-postgres psql -U postgres -d postgres -c "CREATE DATABASE wisebot_widget_database;"
+docker exec -it wisebot-postgres psql -U postgres -d postgres -c "CREATE DATABASE wisebot_billing_database;"
+docker exec -it wisebot-postgres psql -U postgres -d postgres -c "CREATE DATABASE wisebot_embedding_database;"
+docker exec -it wisebot-postgres psql -U postgres -d postgres -c "CREATE DATABASE wisebot_ai_database;"

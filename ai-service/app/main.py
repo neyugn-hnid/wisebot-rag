@@ -1,3 +1,4 @@
+import asyncio
 import time
 import uuid
 import json
@@ -66,22 +67,29 @@ async def provider_info(_: dict[str, Any] = Depends(require_service_auth)) -> di
 
 async def _load_persisted_provider_mode() -> str | None:
     headers = {"X-Internal-Api-Key": settings.internal_config_api_key}
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(
-                f"{settings.user_service_base_url}{settings.system_setting_mode_path}",
-                headers=headers,
-            )
-        if response.status_code == 404:
-            return None
-        response.raise_for_status()
-        payload = response.json()
-        data = payload.get("data") if isinstance(payload, dict) else None
-        value = data.get("value") if isinstance(data, dict) else None
-        return str(value).strip().lower() if value else None
-    except Exception:
-        logger.exception("Failed to load persisted AI provider mode")
-        return None
+    last_error: Exception | None = None
+
+    for attempt in range(1, 6):
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(
+                    f"{settings.user_service_base_url}{settings.system_setting_mode_path}",
+                    headers=headers,
+                )
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            payload = response.json()
+            data = payload.get("data") if isinstance(payload, dict) else None
+            value = data.get("value") if isinstance(data, dict) else None
+            return str(value).strip().lower() if value else None
+        except Exception as exc:
+            last_error = exc
+            if attempt < 5:
+                await asyncio.sleep(2)
+
+    logger.warning("Failed to load persisted AI provider mode after retries: %s", last_error)
+    return None
 
 
 async def _persist_provider_mode(mode: str) -> None:
