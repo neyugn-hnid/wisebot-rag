@@ -108,3 +108,35 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_plan_status ON billing_subscription
 CREATE INDEX IF NOT EXISTS idx_usage_events_tenant_meter_time ON billing_usage_events (tenant_id, meter_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invoices_tenant_status ON billing_invoices (tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_payments_invoice_status ON billing_payments (invoice_id, status);
+
+INSERT INTO billing_plans (
+    id,
+    code,
+    name,
+    description,
+    active
+) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'free', 'Miễn phí', E'Lên đến 1.000 tin nhắn\n1 Cơ sở tri thức\nTối đa 10 tài liệu tải lên\nDung lượng lưu trữ 100 MB\nTruy cập API', true),
+  ('22222222-2222-2222-2222-222222222222', 'plus', 'Plus', E'Lên đến 10.000 tin nhắn\n5 Cơ sở tri thức\nTối đa 200 tài liệu tải lên\nDung lượng lưu trữ 5 GB\nTruy cập API\nTích hợp tùy chỉnh', true),
+  ('33333333-3333-3333-3333-333333333333', 'pro', 'Pro', E'Không giới hạn tin nhắn\nKhông giới hạn Cơ sở tri thức\nKhông giới hạn tài liệu tải lên\nDung lượng lưu trữ 50 GB\nTruy cập API\nTích hợp tùy chỉnh', true)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    active = EXCLUDED.active;
+
+INSERT INTO billing_plan_prices (
+    plan_id,
+    billing_cycle,
+    currency,
+    amount_cents,
+    trial_days,
+    effective_from
+)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'MONTHLY', 'VND', 0, 0, CURRENT_TIMESTAMP),
+  ('22222222-2222-2222-2222-222222222222', 'MONTHLY', 'VND', 501581, 0, CURRENT_TIMESTAMP),
+  ('33333333-3333-3333-3333-333333333333', 'MONTHLY', 'VND', 1293551, 0, CURRENT_TIMESTAMP),
+  ('11111111-1111-1111-1111-111111111111', 'YEARLY', 'VND', 0, 0, CURRENT_TIMESTAMP),
+  ('22222222-2222-2222-2222-222222222222', 'YEARLY', 'VND', 4815178, 0, CURRENT_TIMESTAMP),
+  ('33333333-3333-3333-3333-333333333333', 'YEARLY', 'VND', 12418090, 0, CURRENT_TIMESTAMP)
+ON CONFLICT DO NOTHING;

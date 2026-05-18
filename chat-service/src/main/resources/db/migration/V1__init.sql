@@ -1,6 +1,9 @@
 CREATE SCHEMA IF NOT EXISTS chat_service;
 SET search_path TO chat_service, public;
 
+-- ===============================
+-- CHAT SESSIONS
+-- ===============================
 CREATE TABLE IF NOT EXISTS chat_sessions
 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -16,6 +19,9 @@ CREATE TABLE IF NOT EXISTS chat_sessions
     closed_at TIMESTAMP
 );
 
+-- ===============================
+-- CHAT MESSAGES
+-- ===============================
 CREATE TABLE IF NOT EXISTS chat_messages
 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -34,6 +40,9 @@ CREATE TABLE IF NOT EXISTS chat_messages
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ===============================
+-- MESSAGE CITATIONS
+-- ===============================
 CREATE TABLE IF NOT EXISTS chat_message_citations
 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -46,6 +55,9 @@ CREATE TABLE IF NOT EXISTS chat_message_citations
     snippet TEXT
 );
 
+-- ===============================
+-- MESSAGE FEEDBACK
+-- ===============================
 CREATE TABLE IF NOT EXISTS chat_message_feedback
 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -58,6 +70,9 @@ CREATE TABLE IF NOT EXISTS chat_message_feedback
     UNIQUE (message_id, user_id)
 );
 
+-- ===============================
+-- INDEXES
+-- ===============================
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_tenant_user ON chat_sessions (tenant_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_widget ON chat_sessions (widget_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session_created ON chat_messages (session_id, created_at);

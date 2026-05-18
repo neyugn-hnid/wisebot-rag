@@ -228,7 +228,10 @@ CREATE INDEX idx_system_settings_key ON system_settings (setting_key);
 -- ===============================
 -- SEED ROLES
 -- ===============================
-INSERT INTO roles (name, description)
+INSERT INTO roles (
+    name,
+    description
+)
 VALUES
     ('ADMIN', 'Administrator'),
     ('USER', 'Normal user'),
@@ -238,7 +241,10 @@ ON CONFLICT (name) DO NOTHING;
 -- ===============================
 -- SEED PERMISSIONS
 -- ===============================
-INSERT INTO permissions (name, description)
+INSERT INTO permissions (
+    name,
+    description
+)
 VALUES
     ('READ', 'Read access'),
     ('WRITE', 'Write access'),
@@ -248,22 +254,57 @@ ON CONFLICT (name) DO NOTHING;
 -- ===============================
 -- SEED TENANT
 -- ===============================
-INSERT INTO tenants (id, name, plan)
+INSERT INTO tenants (
+    id,
+    name,
+    plan
+)
 VALUES
-    ('11111111-1111-1111-1111-111111111111', 'Wisebot Demo', 'PRO')
+    ('33f0dc52-44da-4410-ac20-feb4f5578316', 'Wisebot Demo', 'PRO')
 ON CONFLICT (name) DO NOTHING;
 
 -- ===============================
 -- SEED ADMIN USER
 -- ===============================
-INSERT INTO users (id, tenant_id, username, email, password, full_name)
+INSERT INTO users (
+    id,
+    tenant_id,
+    username,
+    email,
+    password,
+    full_name,
+    avatar_url,
+    phone,
+    status,
+    is_email_verified,
+    email_verification_token,
+    email_verification_expires_at,
+    password_reset_token,
+    password_reset_expires_at,
+    login_provider,
+    last_login,
+    created_at,
+    updated_at
+)
 VALUES (
     '556d8d6a-e1c1-4fc5-9683-2242aa293a29',
-    '1475b372-1055-4cc5-9cfc-8ab609ce29ac',
+    '33f0dc52-44da-4410-ac20-feb4f5578316',
     'admin',
     'admin@wisebot.com',
-    '$2a$12$4IDC8pKW83xQuxpgnSlxxezgnE3c8ScpteiHYLYSB7s5zY05pqUIK',
-    'Admin User'
+    '$2a$12$Fmd3UXPB3KjyHGW7v0EaMexwry3NpVCA3cJ2P6BzZ/kGJr11TCW8C',
+    'Admin User',
+    NULL,
+    NULL,
+    'ACTIVE',
+    true,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    'LOCAL',
+    NULL,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
 )
 ON CONFLICT (email) DO NOTHING;
 
