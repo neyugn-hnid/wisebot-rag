@@ -144,6 +144,9 @@ services:
     environment:
       APP_PORT: 8001
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/wisebot_embedding_database
+      USER_SERVICE_BASE_URL: http://user-service:8080
+      SYSTEM_SETTING_MODE_PATH: /internal/system-settings/embedding.provider_mode
+      INTERNAL_CONFIG_API_KEY: ${INTERNAL_CONFIG_API_KEY:-change-me}
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
@@ -157,6 +160,7 @@ services:
       - postgres
       - qdrant
       - ollama
+      - user-service
     ports:
       - "8001:8001"
 

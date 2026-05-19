@@ -2,6 +2,7 @@ import asyncio
 from typing import Any
 
 import httpx
+from httpx import HTTPStatusError
 
 from app.config import Settings
 
@@ -61,15 +62,23 @@ class OllamaEmbeddingClient(BaseEmbeddingClient):
         return result
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        response = await self._post_with_retry(
-            f"{self._base_url}/api/embed",
-            {"model": self.model_name, "input": texts},
-        )
-        payload = response.json()
-        vectors = payload.get("embeddings")
-        if not isinstance(vectors, list):
-            raise ValueError("Invalid embedding response")
-        return [[float(v) for v in vec] for vec in vectors]
+        try:
+            response = await self._post_with_retry(
+                f"{self._base_url}/api/embed",
+                {"model": self.model_name, "input": texts},
+            )
+            payload = response.json()
+            vectors = payload.get("embeddings")
+            if not isinstance(vectors, list):
+                raise ValueError("Invalid embedding response")
+            return [[float(v) for v in vec] for vec in vectors]
+        except HTTPStatusError as exc:
+            if exc.response.status_code != 404:
+                raise
+
+            # Backward-compatible fallback for Ollama versions without /api/embed.
+            results = await asyncio.gather(*(self.embed(text) for text in texts))
+            return [list(vector) for vector in results]
 
 
 class OpenAiCompatibleEmbeddingClient(BaseEmbeddingClient):
