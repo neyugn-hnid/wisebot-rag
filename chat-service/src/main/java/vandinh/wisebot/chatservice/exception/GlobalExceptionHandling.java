@@ -66,8 +66,12 @@ public class GlobalExceptionHandling {
     @ExceptionHandler(Exception.class)
     public ErrorResponse handleException(Exception e, WebRequest request) {
         log.error("Unhandled exception for {}", request.getDescription(false), e);
+        String message = e.getMessage();
+        if (message == null || message.isBlank()) {
+            message = e.getClass().getSimpleName();
+        }
         return buildErrorResponse(request, HttpStatus.INTERNAL_SERVER_ERROR,
-                HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(), "Unexpected error");
+                HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(), message);
     }
 
     private ErrorResponse buildErrorResponse(WebRequest request, HttpStatus status, String error, String message) {

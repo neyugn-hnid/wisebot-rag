@@ -53,7 +53,7 @@ public class ChatMessage {
     @Column(columnDefinition = "text")
     private String content;
 
-    @Column(name = "content_json", columnDefinition = "jsonb")
+    @Column(name = "content_json", columnDefinition = "jsonb", insertable = false, updatable = false)
     private String contentJson;
 
     @Column(name = "model_name", length = 120)
