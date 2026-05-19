@@ -1,7 +1,10 @@
 package vandinh.wisebot.chatservice.exception;
 
 import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -12,6 +15,7 @@ import vandinh.wisebot.chatservice.common.response.ErrorResponse;
 import java.util.Date;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandling {
 
     @ExceptionHandler({ConstraintViolationException.class,
@@ -35,8 +39,33 @@ public class GlobalExceptionHandling {
         return buildErrorResponse(request, HttpStatus.BAD_REQUEST, HttpStatus.BAD_REQUEST.getReasonPhrase(), e.getMessage());
     }
 
+    @ExceptionHandler(RestClientResponseException.class)
+    public ErrorResponse handleRestClientResponseException(RestClientResponseException e, WebRequest request) {
+        HttpStatus status = HttpStatus.resolve(e.getStatusCode().value());
+        if (status == null) {
+            status = HttpStatus.BAD_GATEWAY;
+        }
+
+        String responseBody = e.getResponseBodyAsString();
+        String message = (responseBody == null || responseBody.isBlank()) ? e.getMessage() : responseBody;
+        log.error("Downstream service returned {} for {}: {}", status.value(), request.getDescription(false), message, e);
+        return buildErrorResponse(request, status, status.getReasonPhrase(), message);
+    }
+
+    @ExceptionHandler(ResourceAccessException.class)
+    public ErrorResponse handleResourceAccessException(ResourceAccessException e, WebRequest request) {
+        log.error("Downstream service unreachable for {}", request.getDescription(false), e);
+        return buildErrorResponse(
+                request,
+                HttpStatus.BAD_GATEWAY,
+                HttpStatus.BAD_GATEWAY.getReasonPhrase(),
+                "Downstream service unreachable: " + e.getMessage()
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ErrorResponse handleException(Exception e, WebRequest request) {
+        log.error("Unhandled exception for {}", request.getDescription(false), e);
         return buildErrorResponse(request, HttpStatus.INTERNAL_SERVER_ERROR,
                 HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(), "Unexpected error");
     }
