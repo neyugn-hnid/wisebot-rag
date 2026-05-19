@@ -175,6 +175,21 @@ def _generate_service_token() -> str:
     return f"{message}.{signature_b64}"
 
 
+def _raise_llm_http_exception(exc: httpx.HTTPError) -> None:
+    if isinstance(exc, httpx.HTTPStatusError):
+        status_code = exc.response.status_code
+        detail = exc.response.text
+        raise HTTPException(
+            status_code=status_code,
+            detail=f"LLM request failed ({status_code}): {detail}",
+        ) from exc
+
+    raise HTTPException(
+        status_code=502,
+        detail=f"LLM service unreachable: {exc}",
+    ) from exc
+
+
 async def _retrieve_context(
     tenant_id: uuid.UUID,
     question: str,
@@ -305,11 +320,14 @@ async def rag_ask(
             )
 
         system_prompt, user_prompt = _build_prompts(payload.question, retrieved)
-        llm_result = await llm_client.chat(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            temperature=payload.temperature,
-        )
+        try:
+            llm_result = await llm_client.chat(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=payload.temperature,
+            )
+        except httpx.HTTPError as exc:
+            _raise_llm_http_exception(exc)
         latency_ms = int((time.perf_counter() - llm_start) * 1000)
 
         answer_text = (
@@ -404,6 +422,7 @@ async def rag_ask(
         raise
 
     except Exception as exc:
+        logger.exception("RAG ask failed for request %s", request_id)
         async with pool.acquire() as conn:
             await conn.execute(
                 """
@@ -485,22 +504,25 @@ async def rag_ask_stream(
 
             system_prompt, user_prompt = _build_prompts(payload.question, retrieved)
 
-            async for item in llm_client.chat_stream(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                temperature=payload.temperature,
-            ):
-                message = item.get("message") if isinstance(item, dict) else None
-                token = ""
-                if isinstance(message, dict):
-                    token = str(message.get("content") or "")
+            try:
+                async for item in llm_client.chat_stream(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=payload.temperature,
+                ):
+                    message = item.get("message") if isinstance(item, dict) else None
+                    token = ""
+                    if isinstance(message, dict):
+                        token = str(message.get("content") or "")
 
-                if token:
-                    answer_parts.append(token)
-                    yield f"data: {json.dumps({'type': 'TOKEN', 'token': token}, ensure_ascii=True)}\n\n"
+                    if token:
+                        answer_parts.append(token)
+                        yield f"data: {json.dumps({'type': 'TOKEN', 'token': token}, ensure_ascii=True)}\n\n"
 
-                if item.get("done") is True:
-                    final_llm = item
+                    if item.get("done") is True:
+                        final_llm = item
+            except httpx.HTTPError as exc:
+                _raise_llm_http_exception(exc)
 
             latency_ms = int((time.perf_counter() - llm_start) * 1000)
             answer_text = "".join(answer_parts).strip()
@@ -578,6 +600,7 @@ async def rag_ask_stream(
             }
             yield f"data: {json.dumps(done_event, ensure_ascii=True)}\n\n"
         except Exception as exc:
+            logger.exception("RAG stream failed for request %s", request_id)
             async with pool.acquire() as conn:
                 await conn.execute(
                     """
