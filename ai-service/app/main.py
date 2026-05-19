@@ -190,6 +190,10 @@ def _raise_llm_http_exception(exc: httpx.HTTPError) -> None:
     ) from exc
 
 
+def _to_jsonb_param(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, default=str)
+
+
 async def _retrieve_context(
     tenant_id: uuid.UUID,
     question: str,
@@ -377,8 +381,8 @@ async def rag_ask(
                     total_tokens,
                     latency_ms,
                     llm_result.get("done_reason", "stop"),
-                    {"system": system_prompt, "user": user_prompt},
-                    llm_result.get("raw", llm_result),
+                    _to_jsonb_param({"system": system_prompt, "user": user_prompt}),
+                    _to_jsonb_param(llm_result.get("raw", llm_result)),
                 )
 
                 await conn.execute(
@@ -567,8 +571,11 @@ async def rag_ask_stream(
                         total_tokens,
                         latency_ms,
                         final_llm.get("done_reason", "stop") if isinstance(final_llm, dict) else "stop",
-                        {"system": system_prompt, "user": user_prompt},
-                        (final_llm.get("raw") if isinstance(final_llm, dict) else None) or (final_llm if isinstance(final_llm, dict) else {}),
+                        _to_jsonb_param({"system": system_prompt, "user": user_prompt}),
+                        _to_jsonb_param(
+                            (final_llm.get("raw") if isinstance(final_llm, dict) else None)
+                            or (final_llm if isinstance(final_llm, dict) else {})
+                        ),
                     )
 
                     await conn.execute(
