@@ -200,14 +200,27 @@ async def _retrieve_context(
         "Content-Type": "application/json",
     }
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            f"{settings.embedding_base_url}{settings.embedding_search_path}",
-            json=payload,
-            headers=headers,
-        )
-        response.raise_for_status()
-        body = response.json()
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{settings.embedding_base_url}{settings.embedding_search_path}",
+                json=payload,
+                headers=headers,
+            )
+            response.raise_for_status()
+            body = response.json()
+    except httpx.HTTPStatusError as exc:
+        status_code = exc.response.status_code
+        detail = exc.response.text
+        raise HTTPException(
+            status_code=status_code,
+            detail=f"Embedding search failed ({status_code}): {detail}",
+        ) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Embedding service unreachable: {exc}",
+        ) from exc
 
     items = body.get("items")
     if not isinstance(items, list):
@@ -377,6 +390,19 @@ async def rag_ask(
             model_name=str(llm_result.get("model") or llm_client.model_name),
             citations=citations,
         )
+    except HTTPException as exc:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE ai_service.ai_rag_requests
+                SET status='FAILED', error_message=$2, finished_at=CURRENT_TIMESTAMP
+                WHERE id=$1
+                """,
+                request_id,
+                str(exc.detail),
+            )
+        raise
+
     except Exception as exc:
         async with pool.acquire() as conn:
             await conn.execute(
