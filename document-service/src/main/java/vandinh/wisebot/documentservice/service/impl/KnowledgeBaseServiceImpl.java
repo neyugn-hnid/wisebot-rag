@@ -5,9 +5,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vandinh.wisebot.documentservice.dto.request.KnowledgeBaseRequest;
 import vandinh.wisebot.documentservice.dto.response.KnowledgeBaseResponse;
+import vandinh.wisebot.documentservice.entity.Document;
 import vandinh.wisebot.documentservice.entity.KnowledgeBase;
 import vandinh.wisebot.documentservice.exception.InvalidDataException;
 import vandinh.wisebot.documentservice.exception.ResourceNotFoundException;
+import vandinh.wisebot.documentservice.repository.DocumentChunkRepository;
+import vandinh.wisebot.documentservice.repository.DocumentRepository;
 import vandinh.wisebot.documentservice.repository.KnowledgeBaseRepository;
 import vandinh.wisebot.documentservice.service.BillingEntitlementService;
 import vandinh.wisebot.documentservice.service.KnowledgeBaseService;
@@ -20,6 +23,8 @@ import java.util.UUID;
 public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final DocumentRepository documentRepository;
+    private final DocumentChunkRepository documentChunkRepository;
     private final BillingEntitlementService billingEntitlementService;
 
     @Override
@@ -71,6 +76,14 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     public void delete(UUID id, UUID tenantId) {
         KnowledgeBase kb = knowledgeBaseRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Knowledge base not found: " + id));
+
+        // Xóa tất cả document chunks và documents thuộc KB này
+        List<Document> documents = documentRepository.findAllByKnowledgeBase_Id(id);
+        for (Document doc : documents) {
+            documentChunkRepository.deleteAllByDocument_Id(doc.getId());
+            documentRepository.delete(doc);
+        }
+
         knowledgeBaseRepository.delete(kb);
     }
 

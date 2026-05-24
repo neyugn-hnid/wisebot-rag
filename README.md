@@ -496,3 +496,5 @@ docker exec -it wisebot-postgres psql -U postgres -d postgres -c "CREATE DATABAS
 docker exec -it wisebot-postgres psql -U postgres -d postgres -c "CREATE DATABASE wisebot_billing_database;"
 docker exec -it wisebot-postgres psql -U postgres -d postgres -c "CREATE DATABASE wisebot_embedding_database;"
 docker exec -it wisebot-postgres psql -U postgres -d postgres -c "CREATE DATABASE wisebot_ai_database;"
+
+docker compose up postgres

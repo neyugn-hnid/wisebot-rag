@@ -20,7 +20,10 @@ import vandinh.wisebot.billingservice.dto.request.CreatePaymentRequest;
 import vandinh.wisebot.billingservice.dto.request.CreateUsageEventRequest;
 import vandinh.wisebot.billingservice.dto.request.CreateUsageMeterRequest;
 import vandinh.wisebot.billingservice.dto.request.SubscribeRequest;
+import vandinh.wisebot.billingservice.dto.request.DowngradeRequest;
+import vandinh.wisebot.billingservice.dto.request.CreateVietQRCheckoutRequest;
 import vandinh.wisebot.billingservice.service.BillingService;
+import vandinh.wisebot.billingservice.service.VietQRService;
 import vandinh.wisebot.billingservice.exception.InvalidDataException;
 
 import java.util.UUID;
@@ -31,6 +34,9 @@ import java.util.UUID;
 public class BillingController {
 
     private final BillingService billingService;
+    private final VietQRService vietQRService;
+
+    // ── Plans ────────────────────────────────────────────────────────────
 
     @PostMapping("/plans")
     @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
@@ -143,6 +149,30 @@ public class BillingController {
                 .build();
     }
 
+    @PostMapping("/subscriptions/me/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER')")
+    public ApiResponse cancelMySubscription(@RequestHeader(value = "X-Tenant-Id", required = false) String tenantIdHeader) {
+        UUID tenantId = parseTenantId(tenantIdHeader);
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Subscription will be cancelled at period end")
+                .data(billingService.cancelSubscription(tenantId))
+                .build();
+    }
+
+    @PostMapping("/subscriptions/me/downgrade")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER')")
+    public ApiResponse downgradeMySubscription(
+            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantIdHeader,
+            @Valid @RequestBody DowngradeRequest request) {
+        UUID tenantId = parseTenantId(tenantIdHeader);
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Subscription downgraded")
+                .data(billingService.downgradeSubscription(tenantId, request.getPlanId()))
+                .build();
+    }
+
     @GetMapping("/invoices")
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','FINANCE','USER')")
     public ApiResponse listInvoices(@RequestParam UUID tenantId) {
@@ -203,6 +233,34 @@ public class BillingController {
                 .data(billingService.listPayments(invoiceId))
                 .build();
     }
+
+    // ── VietQR ──────────────────────────────────────────────────────────
+
+    @PostMapping("/vietqr/checkout")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER')")
+    public ApiResponse createVietQRCheckout(
+            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantIdHeader,
+            @Valid @RequestBody CreateVietQRCheckoutRequest request) {
+        UUID tenantId = parseTenantId(tenantIdHeader);
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("VietQR checkout created")
+                .data(vietQRService.createCheckout(request, tenantId))
+                .build();
+    }
+
+    @PostMapping("/vietqr/confirm/{orderId}")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','FINANCE')")
+    public ApiResponse confirmVietQRPayment(@PathVariable String orderId) {
+        vietQRService.confirmPayment(orderId);
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Payment confirmed")
+                .data(null)
+                .build();
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────
 
     private UUID parseTenantId(String tenantIdHeader) {
         if (tenantIdHeader == null || tenantIdHeader.isBlank()) {

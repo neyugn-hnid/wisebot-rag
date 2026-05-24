@@ -234,8 +234,8 @@ export default function Billing() {
         onAction={() => navigate('/billing/upgrade')}
       />
 
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="rounded-[24px] border border-[rgba(59,158,255,0.22)] bg-[rgba(59,158,255,0.06)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)] lg:col-span-2">
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-1">
+        <div className="rounded-[24px] border border-[rgba(59,158,255,0.22)] bg-[rgba(59,158,255,0.06)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-[#3b9eff]/20 bg-[#3b9eff]/10 text-[#3b9eff]">
@@ -266,65 +266,6 @@ export default function Billing() {
             <MiniInfo icon={Receipt} label={t('billing.history')} value={`${invoices.length} ${language === 'vi' ? 'hóa đơn' : 'invoices'}`} />
           </div>
         </div>
-
-        <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-[15px] border border-[#11ff99]/20 bg-[#11ff99]/10 text-[#11ff99]">
-              <Zap size={20} />
-            </div>
-            <div>
-              <h3 className="text-[16px] font-semibold text-[#f0f0f0]">{t('billing.current_plan.need_more')}</h3>
-              <p className="text-xs text-[#8b8f91]">{t('billing.upgrade_desc')}</p>
-            </div>
-          </div>
-          <button
-            onClick={() => navigate('/billing/upgrade')}
-            className="mt-6 w-full rounded-[16px] bg-[#ffffff] py-3 text-sm font-bold text-[#000000] transition-colors hover:bg-[#f0f0f0]"
-          >
-            {t('billing.upgrade')}
-          </button>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {availablePlans.slice(0, 3).map((plan) => {
-          const isActive = backendSubscription?.planId === plan.id || plan.name === currentPlan;
-          const features = plan.description.split('\n').filter(Boolean).slice(0, 4);
-          return (
-            <div
-              key={plan.id}
-              className={cn(
-                'rounded-[24px] border p-6 shadow-[0_18px_48px_rgba(0,0,0,0.18)] transition-colors',
-                isActive
-                  ? 'border-[rgba(59,158,255,0.28)] bg-[rgba(59,158,255,0.07)]'
-                  : 'border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] hover:border-[rgba(255,255,255,0.18)]'
-              )}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-[#f0f0f0]">{plan.name}</h3>
-                  <p className="mt-2 text-[28px] font-display font-medium text-[#f0f0f0]">
-                    {formatCurrency(getMonthlyPrice(plan))}
-                    <span className="ml-1 text-sm text-[#a1a4a5]">/tháng</span>
-                  </p>
-                </div>
-                {isActive && (
-                  <span className="rounded-full border border-[#3b9eff]/20 bg-[#3b9eff]/10 px-3 py-1 text-[11px] font-bold text-[#9ed1ff]">
-                    {t('billing.plans.current')}
-                  </span>
-                )}
-              </div>
-              <div className="mt-6 space-y-3">
-                {features.map((feature) => (
-                  <div key={feature} className="flex items-start gap-3 text-sm text-[#a1a4a5]">
-                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-[#11ff99]" />
-                    <span>{feature}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
       </section>
 
       <section className="overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] shadow-[0_18px_48px_rgba(0,0,0,0.22)]">

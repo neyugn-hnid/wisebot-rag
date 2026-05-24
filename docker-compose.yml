@@ -28,6 +28,13 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   user-service:
     build:
@@ -132,6 +139,9 @@ services:
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-password}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-wisebot-internal-key}
       VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:3000/billing?vnpay_return=true}
+      VIETQR_BANK_CODE: ${VIETQR_BANK_CODE:-970422}
+      VIETQR_ACCOUNT_NO: ${VIETQR_ACCOUNT_NO:-0912345678}
+      VIETQR_ACCOUNT_NAME: ${VIETQR_ACCOUNT_NAME:-WISEBOT}
     depends_on:
       - postgres
     ports:

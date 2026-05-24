@@ -30,3 +30,9 @@ vnpay:
 
 internal:
   api-key: ${INTERNAL_API_KEY:wisebot-internal-key}
+
+vietqr:
+  bank-code: ${VIETQR_BANK_CODE:970422}
+  account-no: ${VIETQR_ACCOUNT_NO:}
+  account-name: ${VIETQR_ACCOUNT_NAME:}
+  template: qr_only

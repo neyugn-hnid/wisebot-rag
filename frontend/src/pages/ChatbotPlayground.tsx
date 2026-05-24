@@ -26,6 +26,8 @@ import {
   listMessages,
   deleteSession,
   ask,
+  getUserPreference,
+  saveUserPreference,
   getCitations,
   type ChatSessionResponse,
   type ChatMessageResponse,
@@ -79,6 +81,7 @@ export default function ChatbotPlayground() {
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
   const [isSettingsCollapsed, setIsSettingsCollapsed] = useState(false);
+  const [hasLoadedPreferences, setHasLoadedPreferences] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState('');
   const [isKnowledgeBaseDropdownOpen, setIsKnowledgeBaseDropdownOpen] = useState(false);
   
@@ -346,20 +349,45 @@ export default function ChatbotPlayground() {
     }
   };
 
+  const loadUserPreference = async (resolvedTenantId: string) => {
+    if (hasLoadedPreferences) return;
+    try {
+      const pref = await getUserPreference(resolvedTenantId);
+      if (pref?.knowledgeBaseId) {
+        setKnowledgeBaseId(pref.knowledgeBaseId);
+        window.localStorage.setItem('wisebot_kb_id', pref.knowledgeBaseId);
+      }
+      if (typeof pref?.topK === 'number') {
+        setTopK(pref.topK);
+      }
+      if (typeof pref?.temperature === 'number') {
+        setTemperature(pref.temperature);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('playground.settings_save_failed');
+      showToast(message, 'error');
+    } finally {
+      setHasLoadedPreferences(true);
+    }
+  };
+
   useEffect(() => {
     const resolvedTenantId = resolveTenantIdFromToken();
     if (!resolvedTenantId) {
       setKnowledgeBases([]);
       setChatHistories([]);
+      setHasLoadedPreferences(false);
       return;
     }
     if (tenantId !== resolvedTenantId) {
       setTenantId(resolvedTenantId);
       window.localStorage.setItem('wisebot_tenant_id', resolvedTenantId);
+      setHasLoadedPreferences(false);
       return;
     }
     void loadKnowledgeBases();
     void loadChatHistories(resolvedTenantId, sessionId || undefined);
+    void loadUserPreference(resolvedTenantId);
   }, [tenantId]);
 
   const handleStartNewChat = () => {
@@ -367,6 +395,36 @@ export default function ChatbotPlayground() {
     setMessages(INITIAL_MESSAGES);
     window.localStorage.removeItem(CHAT_SESSION_STORAGE_KEY);
     showToast(t('playground.new_chat_created'), 'success');
+  };
+
+  const handleSaveSettings = async () => {
+    const resolvedTenantId = tenantId.trim();
+    if (!resolvedTenantId) {
+      showToast(t('playground.tenant_missing'), 'error');
+      return;
+    }
+
+    try {
+      const payload = {
+        tenantId: resolvedTenantId,
+        knowledgeBaseId: knowledgeBaseId.trim() ? knowledgeBaseId.trim() : null,
+        topK,
+        temperature,
+      };
+
+      await saveUserPreference(payload);
+      window.localStorage.setItem('wisebot_tenant_id', resolvedTenantId);
+      if (payload.knowledgeBaseId) {
+        window.localStorage.setItem('wisebot_kb_id', payload.knowledgeBaseId);
+      } else {
+        window.localStorage.removeItem('wisebot_kb_id');
+      }
+      showToast(t('playground.save_success'), 'success');
+      setShowSettings(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('playground.settings_save_failed');
+      showToast(message, 'error');
+    }
   };
 
   const handleSelectHistory = (history: ChatHistoryItem) => {
@@ -876,14 +934,7 @@ export default function ChatbotPlayground() {
 
               <button 
                 onClick={() => {
-                  setShowSettings(false);
-                  if (tenantId.trim()) {
-                    window.localStorage.setItem('wisebot_tenant_id', tenantId.trim());
-                  }
-                  if (knowledgeBaseId.trim()) {
-                    window.localStorage.setItem('wisebot_kb_id', knowledgeBaseId.trim());
-                  }
-                  showToast(t('playground.save_success'), 'success');
+                  void handleSaveSettings();
                 }}
                 className="w-full py-2.5 bg-[#ffffff] text-[#000000] text-xs font-bold rounded-[12px] hover:bg-gray-200 transition-colors"
               >

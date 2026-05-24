@@ -146,3 +146,33 @@ export async function updateEmbeddingProviderMode(request: UpdateProviderModeReq
   });
   return handleResponse<ChatProviderInfo>(res);
 }
+
+export interface UserPreferenceRequest {
+  tenantId: string;
+  knowledgeBaseId?: string | null;
+  topK?: number;
+  temperature?: number;
+}
+
+export interface UserPreferenceResponse {
+  tenantId?: string;
+  userId?: string;
+  knowledgeBaseId?: string | null;
+  topK?: number;
+  temperature?: number;
+  updatedAt?: string;
+}
+
+export async function getUserPreference(tenantId: string): Promise<UserPreferenceResponse | null> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/users/me/preferences?tenantId=${encodeURIComponent(tenantId)}`);
+  return handleResponse<UserPreferenceResponse | null>(res);
+}
+
+export async function saveUserPreference(request: UserPreferenceRequest): Promise<UserPreferenceResponse> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/users/me/preferences`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<UserPreferenceResponse>(res);
+}

@@ -52,4 +52,8 @@ public interface BillingService {
     List<PaymentResponse> listPayments(UUID invoiceId);
 
     InternalPlanLimitResponse getKnowledgeBaseLimit(UUID tenantId);
+
+    SubscriptionResponse cancelSubscription(UUID tenantId);
+
+    SubscriptionResponse downgradeSubscription(UUID tenantId, UUID newPlanId);
 }

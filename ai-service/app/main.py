@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
+import asyncpg
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 import httpx
@@ -19,12 +20,22 @@ from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 from app.config import settings
 from app.db import close_db_pool, get_pool, init_db_pool, init_qdrant, close_qdrant, get_qdrant
 from app.llm_client import RuntimeLlmManager, build_llm_client_for_mode
+from app.query_rewriter import QueryRewriter
+from app.hybrid_search import HybridSearcher
+from app.reranker import Reranker
+from app.judge import LlmJudge
 from app.schemas import AskRequest, AskResponse, Citation, ProviderConfigResponse, ProviderModeUpdateRequest, RagRequestDetail
 from app.security import require_service_auth
 
 
 llm_manager = RuntimeLlmManager(settings)
 logger = logging.getLogger(__name__)
+
+# ── Khởi tạo các service nâng cao RAG ─────────────────────────────────────
+query_rewriter = QueryRewriter(llm_manager.client)  # sẽ được refresh khi switch mode
+hybrid_searcher = HybridSearcher()
+reranker = Reranker(llm_manager.client)
+judge = LlmJudge(shared_llm=llm_manager.client)  # Judge: dedicated DeepSeek hoặc shared LLM
 
 
 @asynccontextmanager
@@ -35,10 +46,16 @@ async def lifespan(_: FastAPI):
     if persisted_mode and persisted_mode != llm_manager.mode:
         try:
             await llm_manager.switch_mode(persisted_mode)
+            # Refresh RAG advanced services với LLM client sau khi switch
+            global query_rewriter, reranker, judge
+            query_rewriter = QueryRewriter(llm_manager.client)
+            reranker = Reranker(llm_manager.client)
+            judge.set_shared_llm(llm_manager.client)
         except Exception:
             logger.exception("Failed to restore persisted AI mode '%s'", persisted_mode)
     yield
     await llm_manager.close()
+    await judge.close()
     await close_qdrant()
     await close_db_pool()
 
@@ -120,6 +137,13 @@ async def update_provider_mode(
     await preview_client.close()
     await _persist_provider_mode(next_mode)
     client = await llm_manager.switch_mode(payload.mode)
+
+    # Refresh các RAG advanced service với LLM client mới
+    global query_rewriter, reranker, judge
+    query_rewriter = QueryRewriter(client)
+    reranker = Reranker(client)
+    judge.set_shared_llm(client)
+
     return ProviderConfigResponse(
         mode=llm_manager.mode,
         provider=client.provider_key,
@@ -128,26 +152,63 @@ async def update_provider_mode(
     )
 
 
+async def _judge_and_persist(
+    judge_instance: LlmJudge,
+    pool: asyncpg.Pool,
+    request_id: uuid.UUID,
+    question: str,
+    answer: str,
+    retrieved_chunks: list[dict],
+) -> None:
+    """Chạy judge ngầm, ghi kết quả vào DB khi xong."""
+    try:
+        scores = await judge_instance.evaluate(
+            question=question,
+            answer=answer,
+            retrieved_chunks=retrieved_chunks,
+        )
+        if any(scores.get(k, 0) > 0 for k in ("faithfulness", "answer_relevance", "context_relevance")):
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    UPDATE ai_service.ai_rag_requests
+                    SET judge_faithfulness=$2, judge_answer_relevance=$3,
+                        judge_context_relevance=$4, judge_brief=$5
+                    WHERE id=$1
+                    """,
+                    request_id,
+                    scores.get("faithfulness", 0),
+                    scores.get("answer_relevance", 0),
+                    scores.get("context_relevance", 0),
+                    scores.get("brief", ""),
+                )
+    except Exception:
+        logger.warning("Background judge failed for request %s", request_id, exc_info=True)
+
+
 def _build_prompts(question: str, retrieved_chunks: list[dict]) -> tuple[str, str]:
     context_lines: list[str] = []
-    for idx, chunk in enumerate(retrieved_chunks, start=1):
-        context_lines.append(f"[{idx}] (score={chunk['score']:.4f}) {chunk['chunk_text']}")
+    for chunk in retrieved_chunks:
+        context_lines.append(chunk["chunk_text"])
 
-    context_text = "\n\n".join(context_lines) if context_lines else "No relevant context found."
+    context_text = "\n\n---\n\n".join(context_lines) if context_lines else "No relevant context found."
 
     system_prompt = (
         "You are WISEBOT AI assistant. "
-        "STRICT RULES:"
-        " - ONLY answer using the provided CONTEXT."
-        " - DO NOT use outside knowledge."
-        " - If the answer is not in the context, say:"
-        "   \"Không tìm thấy thông tin trong tài liệu.\""
-        " - DO NOT hallucinate."
-        "Answer in Vietnamese."
-        "Always cite sources like [1], [2]."
+        "STRICT RULES:\n"
+        " - ONLY answer in VIETNAMESE. Never use English.\n"
+        " - ONLY answer using the provided CONTEXT. DO NOT use outside knowledge.\n"
+        " - DO NOT hallucinate or make up information.\n"
+        " - Answer DIRECTLY. No greetings, no apologies, no \"xin chào\", no \"xin lỗi\".\n"
+        " - Be CONCISE. Go straight to the point.\n"
+        " - Do NOT use citation markers like [1], [2].\n"
+        " - Do NOT mention sources, scores, or document names unless asked.\n"
+        " - CHITCHAT: If the user only says hi/hello/chào, reply briefly: \"Chào bạn, tôi có thể giúp gì?\"\n"
+        " - NO MATCH: If the context doesn't answer the question, say ONLY:\n"
+        '   "Không tìm thấy thông tin trong tài liệu."'
     )
 
-    user_prompt = f"Question:\n{question}\n\nContext:\n{context_text}\n\nAnswer in Vietnamese with citations."
+    user_prompt = f"Question:\n{question}\n\nContext:\n{context_text}\n\nTrả lời thẳng vào câu hỏi, không chào hỏi, không xin lỗi. Chỉ dùng context đã cho."
     return system_prompt, user_prompt
 
 
@@ -295,13 +356,48 @@ async def rag_ask(
 
     llm_start = time.perf_counter()
     try:
+        # ── Bước 1: Query Rewriting ────────────────────────────────────────
+        rewritten_question = await query_rewriter.rewrite(payload.question)
+
+        # ── Bước 2: Vector Search (giữ nguyên pipeline hiện tại) ───────────
+        # Lấy nhiều hơn top_k để có dư địa cho hybrid search + rerank
+        retrieval_top_k = payload.top_k * settings.rerank_top_k_multiplier
         retrieved = await _retrieve_context(
             tenant_id=payload.tenant_id,
-            question=payload.question,
-            top_k=payload.top_k,
+            question=rewritten_question,  # dùng câu đã rewrite
+            top_k=retrieval_top_k,
             collection_id=payload.collection_id,
             knowledge_base_id=payload.knowledge_base_id,
         )
+
+        # ── Bước 3: Hybrid Search (fusion vector + keyword) ────────────────
+        if hybrid_searcher.enabled and retrieved:
+            qdrant = await get_qdrant()
+            retrieved = await hybrid_searcher.search(
+                qdrant_client=qdrant,
+                vector_results=retrieved,
+                tenant_id=payload.tenant_id,
+                query_text=rewritten_question,
+                top_k=retrieval_top_k,
+                collection_id=payload.collection_id,
+            )
+
+        # ── Bước 4: Re-ranking ─────────────────────────────────────────────
+        if reranker.enabled and len(retrieved) > payload.top_k:
+            retrieved = await reranker.rerank(
+                question=payload.question,  # câu gốc để rerank chính xác hơn
+                chunks=retrieved,
+                final_top_k=payload.top_k,
+            )
+
+        # ── Lọc chunk có score quá thấp (không liên quan) ──────────────────
+        if retrieved:
+            avg_score = sum(c["score"] for c in retrieved) / len(retrieved)
+            best_score = retrieved[0]["score"]
+            # Nếu chunk tốt nhất < 0.5 hoặc trung bình < 0.4 → coi như không liên quan
+            if best_score < 0.5 or avg_score < 0.4:
+                logger.info("Low relevance chunks (best=%.3f avg=%.3f), returning not-found", best_score, avg_score)
+                retrieved = []
 
         if not retrieved:
             answer_text = "Không tìm thấy thông tin trong tài liệu."
@@ -394,6 +490,13 @@ async def rag_ask(
                     request_id,
                 )
 
+        # ── Bước 5: LLM-as-a-Judge (chạy ngầm, không block response) ───────
+        asyncio.create_task(
+            _judge_and_persist(
+                judge, pool, request_id, payload.question, answer_text, retrieved
+            )
+        )
+
         citations = [
             Citation(
                 source_document_id=item["source_document_id"],
@@ -475,14 +578,46 @@ async def rag_ask_stream(
         final_llm: dict[str, Any] = {}
 
         try:
+            # ── Bước 1: Query Rewriting ────────────────────────────────────
+            rewritten_question = await query_rewriter.rewrite(payload.question)
+
+            # ── Bước 2: Vector Search ───────────────────────────────────────
+            retrieval_top_k = payload.top_k * settings.rerank_top_k_multiplier
             nonlocal_retrieved = await _retrieve_context(
                 tenant_id=payload.tenant_id,
-                question=payload.question,
-                top_k=payload.top_k,
+                question=rewritten_question,
+                top_k=retrieval_top_k,
                 collection_id=payload.collection_id,
                 knowledge_base_id=payload.knowledge_base_id,
             )
             retrieved.extend(nonlocal_retrieved)
+
+            # ── Bước 3: Hybrid Search ───────────────────────────────────────
+            if hybrid_searcher.enabled and retrieved:
+                qdrant = await get_qdrant()
+                retrieved = await hybrid_searcher.search(
+                    qdrant_client=qdrant,
+                    vector_results=retrieved,
+                    tenant_id=payload.tenant_id,
+                    query_text=rewritten_question,
+                    top_k=retrieval_top_k,
+                    collection_id=payload.collection_id,
+                )
+
+            # ── Bước 4: Re-ranking ─────────────────────────────────────────
+            if reranker.enabled and len(retrieved) > payload.top_k:
+                retrieved = await reranker.rerank(
+                    question=payload.question,
+                    chunks=retrieved,
+                    final_top_k=payload.top_k,
+                )
+
+            # ── Lọc chunk score thấp ───────────────────────────────────────
+            if retrieved:
+                avg_score = sum(c["score"] for c in retrieved) / len(retrieved)
+                if retrieved[0]["score"] < 0.5 or avg_score < 0.4:
+                    logger.info("Stream: low relevance, returning not-found")
+                    retrieved = []
 
             if not retrieved:
                 async with pool.acquire() as conn:
@@ -586,6 +721,13 @@ async def rag_ask_stream(
                         """,
                         request_id,
                     )
+
+            # ── Bước 5: LLM-as-a-Judge (chạy ngầm) ─────────────────────────
+            asyncio.create_task(
+                _judge_and_persist(
+                    judge, pool, request_id, payload.question, answer_text, retrieved
+                )
+            )
 
             citations_payload = [
                 {

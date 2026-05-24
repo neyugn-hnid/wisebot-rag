@@ -212,3 +212,78 @@ export async function verifyVNPayReturn(search: string | URLSearchParams): Promi
   const res = await fetchWithAuth(`${BILLING_BASE}/payments/vnpay-return?${query}`);
   return handleResponse<VNPayReturnResponse>(res);
 }
+
+// --- VietQR ---
+
+export interface CreateVietQRCheckoutRequest {
+  planId: string;
+  billingCycle?: 'MONTHLY' | 'YEARLY';
+  seats?: number;
+}
+
+export interface VietQRCheckoutResponse {
+  orderId: string;
+  invoiceId: string;
+  amount: number;
+  currency: string;
+  description: string;
+  qrImageUrl: string;
+  deepLink: string;
+  bankAccount: string;
+  bankName: string;
+  accountName: string;
+  expiresAt: string;
+}
+
+export async function createVietQRCheckout(request: CreateVietQRCheckoutRequest): Promise<VietQRCheckoutResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/vietqr/checkout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<VietQRCheckoutResponse>(res);
+}
+
+// --- System Config ---
+
+export interface VietQRConfigResponse {
+  bankCode: string;
+  accountNo: string;
+  accountName: string;
+  template: string;
+}
+
+export interface VietQRConfigRequest {
+  bankCode?: string;
+  accountNo?: string;
+  accountName?: string;
+}
+
+export async function getVietQRConfig(): Promise<VietQRConfigResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/system-config/vietqr`);
+  return handleResponse<VietQRConfigResponse>(res);
+}
+
+export async function updateVietQRConfig(request: VietQRConfigRequest): Promise<VietQRConfigResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/system-config/vietqr`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<VietQRConfigResponse>(res);
+}
+
+export interface VietQRBank {
+  id: number;
+  code: string;
+  bin: string;
+  name: string;
+  shortName: string;
+  logo: string;
+}
+
+export async function getVietQRBanks(): Promise<{ data: VietQRBank[] }> {
+  const res = await fetch('https://api.vietqr.io/v2/banks');
+  if (!res.ok) throw new Error('Cannot fetch banks');
+  return res.json();
+}
