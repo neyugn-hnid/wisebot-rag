@@ -17,11 +17,10 @@ import {
   listPlans,
   listPlanPrices,
   getMySubscription,
-  createVietQRCheckout,
+  createVNPayCheckout,
   BillingPlanResponse,
   BillingPlanPriceResponse,
   SubscriptionResponse,
-  VietQRCheckoutResponse,
 } from '../api/billing';
 
 function formatCurrency(amount: number, currency = 'VND') {
@@ -40,9 +39,8 @@ export default function UpgradePlan() {
 
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [currentPlan, setCurrentPlan] = useState('Free');
-  const [upgradeStep, setUpgradeStep] = useState<'selection' | 'checkout' | 'payment'>('selection');
+  const [upgradeStep, setUpgradeStep] = useState<'selection' | 'checkout'>('selection');
   const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string; price: number } | null>(null);
-  const [vietQRData, setVietQRData] = useState<VietQRCheckoutResponse | null>(null);
 
   const [backendPlans, setBackendPlans] = useState<BillingPlanResponse[]>([]);
   const [backendPlanPrices, setBackendPlanPrices] = useState<BillingPlanPriceResponse[]>([]);
@@ -100,16 +98,18 @@ export default function UpgradePlan() {
     const { id, name } = selectedPlan;
     try {
       setIsProcessing(id);
-      const checkout = await createVietQRCheckout({
+      const checkout = await createVNPayCheckout({
         planId: id,
         billingCycle: billingCycle === 'yearly' ? 'YEARLY' : 'MONTHLY',
         seats: 1,
       });
-      setVietQRData(checkout);
-      setUpgradeStep('payment');
+      if (checkout && checkout.paymentUrl) {
+        window.location.href = checkout.paymentUrl;
+      } else {
+        throw new Error('Không lấy được URL thanh toán VNPay');
+      }
     } catch (err: any) {
       showToast(err.message || t('toast.error'), 'error');
-    } finally {
       setIsProcessing(null);
     }
   };
@@ -227,58 +227,6 @@ export default function UpgradePlan() {
             {renderPlansGrid()}
           </div>
         </div>
-      ) : (upgradeStep === 'payment' && vietQRData) ? (
-        <div className="max-w-md mx-auto bg-[rgba(52,52,52,0.96)] rounded-[28px] border border-[rgba(255,255,255,0.14)] shadow-2xl shadow-black/40 overflow-hidden">
-          <div className="flex items-center justify-between px-6 pt-6">
-            <h3 className="text-[18px] font-bold text-[#f8f8f8]">Quét mã VietQR</h3>
-            <button onClick={() => { setUpgradeStep('selection'); setSelectedPlan(null); setVietQRData(null); }} className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-lg transition-colors text-[#a1a4a5]">
-              <X size={20} />
-            </button>
-          </div>
-          <div className="px-6 pb-6 pt-4 text-center">
-            <p className="text-sm text-[#a1a4a5] mb-4">
-              Quét mã QR bằng app ngân hàng để thanh toán <span className="font-bold text-[#f0f0f0]">{formatCurrency(vietQRData.amount)}</span>
-            </p>
-            <img 
-              src={vietQRData.qrImageUrl} 
-              alt="VietQR" 
-              className="mx-auto w-56 h-56 rounded-xl border border-[rgba(255,255,255,0.1)] bg-white p-2"
-            />
-            <div className="mt-4 space-y-2 text-left text-sm">
-              <div className="flex justify-between">
-                <span className="text-[#8b8f91]">Ngân hàng</span>
-                <span className="text-[#f0f0f0]">{vietQRData.bankName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#8b8f91]">Số TK</span>
-                <button 
-                  onClick={() => { navigator.clipboard.writeText(vietQRData.bankAccount); showToast('Đã sao số tài khoản', 'success'); }}
-                  className="flex items-center gap-1 text-[#f0f0f0] hover:text-[#3b9eff]"
-                >
-                  {vietQRData.bankAccount} <Copy size={14} />
-                </button>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#8b8f91]">Tên TK</span>
-                <span className="text-[#f0f0f0]">{vietQRData.accountName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#8b8f91]">Nội dung CK</span>
-                <button 
-                  onClick={() => { navigator.clipboard.writeText(vietQRData.description); showToast('Đã sao nội dung', 'success'); }}
-                  className="flex items-center gap-1 text-[#f0f0f0] hover:text-[#3b9eff]"
-                >
-                  {vietQRData.description} <Copy size={14} />
-                </button>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#8b8f91]">Hết hạn</span>
-                <span className="text-[#f0f0f0]">{new Date(vietQRData.expiresAt).toLocaleString('vi-VN')}</span>
-              </div>
-            </div>
-            <p className="mt-4 text-[11px] text-[#ffa500]">Sau khi chuyển khoản, vui lòng chờ admin xác nhận.</p>
-          </div>
-        </div>
       ) : (
         <div className="max-w-md mx-auto bg-[rgba(52,52,52,0.96)] rounded-[28px] border border-[rgba(255,255,255,0.14)] shadow-2xl shadow-black/40 overflow-hidden">
           <div className="flex items-center justify-between px-6 pt-6">
@@ -331,9 +279,9 @@ export default function UpgradePlan() {
 
               <button onClick={handleCheckoutConfirm} disabled={isProcessing !== null}
                 className="w-full py-4 bg-[#ffffff] text-[#111111] rounded-full font-black text-lg hover:bg-[#f3f3f3] transition-all flex items-center justify-center gap-3 disabled:opacity-50">
-                {isProcessing ? <><Loader2 size={20} className="animate-spin" />{t('billing.subscribing')}</> : <><QrCode size={20} />Thanh toán với VietQR</>}
+                {isProcessing ? <><Loader2 size={20} className="animate-spin" />{t('billing.subscribing')}</> : <><QrCode size={20} />Thanh toán với VNPay</>}
               </button>
-              <p className="text-[11px] text-center text-[#cfcfcf]">Quét mã QR bằng app ngân hàng để thanh toán.</p>
+              <p className="text-[11px] text-center text-[#cfcfcf]">Bạn sẽ được chuyển hướng tới cổng thanh toán VNPay.</p>
             </div>
           </div>
         </div>
