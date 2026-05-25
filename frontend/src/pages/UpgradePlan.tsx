@@ -18,6 +18,7 @@ import {
   listPlanPrices,
   getMySubscription,
   createVNPayCheckout,
+  mySubscribe,
   BillingPlanResponse,
   BillingPlanPriceResponse,
   SubscriptionResponse,
@@ -90,7 +91,26 @@ export default function UpgradePlan() {
     const priceInfo = backendPlanPrices.find(p => p.planId === planId);
     const monthlyPrice = priceInfo ? priceInfo.amountCents : planPrice;
     setSelectedPlan({ id: planId, name: planName, price: monthlyPrice });
-    setUpgradeStep('checkout');
+    if (monthlyPrice === 0) {
+      // Free plan – subscribe directly without payment
+      handleFreeSubscribe(planId, planName);
+    } else {
+      setUpgradeStep('checkout');
+    }
+  };
+
+  const handleFreeSubscribe = async (planId: string, planName: string) => {
+    setIsProcessing(planId);
+    try {
+      await mySubscribe(planId, 1);
+      setCurrentPlan(planName);
+      showToast(`Đã chuyển sang gói ${planName}`, 'success');
+      navigate('/billing');
+    } catch (err: any) {
+      showToast(err.message || t('toast.error'), 'error');
+    } finally {
+      setIsProcessing(null);
+    }
   };
 
   const handleCheckoutConfirm = async () => {

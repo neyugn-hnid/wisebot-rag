@@ -764,15 +764,15 @@ function InvoiceTable({
               <td className="px-6 py-4 text-sm font-bold text-[#f0f0f0]">{invoice.amount}</td>
               <td className="px-6 py-4">
                 <span className={cn(
-                  'inline-flex rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider',
+                  'text-[11px] font-bold uppercase tracking-wider',
                   invoice.status === 'PAID'
-                    ? 'border-[#11ff99]/20 bg-[#11ff99]/10 text-[#11ff99]'
-                    : invoice.status === 'REFUNDED'
-                      ? 'border-[#ff0000]/20 bg-[#ff0000]/10 text-[#ff0000]'
-                      : 'border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] text-[#a1a4a5]'
+                    ? 'text-[#11ff99]'
+                    : invoice.status === 'REFUNDED' || invoice.status === 'FAILED' || invoice.status === 'CANCELED'
+                      ? 'text-[#ff0000]'
+                      : 'text-[#a1a4a5]'
                 )}>
                   {language === 'vi'
-                    ? (invoice.status === 'PAID' ? 'Đã thanh toán' : invoice.status === 'REFUNDED' ? 'Đã hoàn tiền' : invoice.status)
+                    ? (invoice.status === 'PAID' ? 'Đã thanh toán' : invoice.status === 'REFUNDED' ? 'Đã hoàn tiền' : invoice.status === 'FAILED' ? 'Thất bại' : invoice.status === 'CANCELED' ? 'Đã hủy' : invoice.status)
                     : invoice.status}
                 </span>
               </td>

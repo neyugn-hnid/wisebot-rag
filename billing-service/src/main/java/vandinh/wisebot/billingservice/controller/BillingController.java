@@ -167,7 +167,7 @@ public class BillingController {
     }
 
     @PostMapping("/subscriptions")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','FINANCE')")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','FINANCE','USER')")
     public ApiResponse subscribe(@Valid @RequestBody SubscribeRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
