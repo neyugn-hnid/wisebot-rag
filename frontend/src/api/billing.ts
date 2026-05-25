@@ -216,6 +216,16 @@ export async function mySubscribe(planId: string, seats = 1): Promise<Subscripti
   return subscribe({ tenantId, planId, seats });
 }
 
+export async function cancelMySubscription(): Promise<SubscriptionResponse> {
+  const tenantId = resolveTenantIdFromToken();
+  if (!tenantId) throw new Error('No tenant ID found');
+  const res = await fetchWithAuth(`${BILLING_BASE}/subscriptions/me/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId },
+  });
+  return handleResponse<SubscriptionResponse>(res);
+}
+
 export async function listInvoices(tenantId: string): Promise<BillingInvoiceResponse[]> {
   const res = await fetchWithAuth(`${BILLING_BASE}/invoices?tenantId=${tenantId}`);
   return handleResponse<BillingInvoiceResponse[]>(res);

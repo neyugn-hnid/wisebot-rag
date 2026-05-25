@@ -19,6 +19,7 @@ import {
   TrendingUp,
   Users,
   X,
+  XCircle,
   Zap,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -35,6 +36,7 @@ import {
   createPlanPrice,
   updatePlanPrice,
   deletePlanPrice,
+  cancelMySubscription,
   type BillingPlanResponse,
   type BillingPlanPriceResponse,
   type SubscriptionResponse,
@@ -93,6 +95,8 @@ export default function Billing() {
   const [priceLoading, setPriceLoading] = useState(false);
   const [priceForms, setPriceForms] = useState<Record<string, { amountCents: number; currency: string }>>({});
   const [savingPrice, setSavingPrice] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   async function fetchBackendData() {
     const [plans, subscription, invoicesResult] = await Promise.all([
@@ -344,6 +348,20 @@ export default function Billing() {
       showToast(err.message || 'Lỗi khi xóa giá', 'error');
     } finally {
       setSavingPrice(null);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    setCancelling(true);
+    try {
+      await cancelMySubscription();
+      showToast('Đã yêu cầu hủy gói. Gói sẽ hết hạn vào cuối kỳ.', 'success');
+      setShowCancelModal(false);
+      await fetchBackendData();
+    } catch (err: any) {
+      showToast(err.message || 'Lỗi khi hủy gói', 'error');
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -607,14 +625,14 @@ export default function Billing() {
       />
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-1">
-        <div className="rounded-[24px] border border-[rgba(59,158,255,0.22)] bg-[rgba(59,158,255,0.06)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+        <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-[#3b9eff]/20 bg-[#3b9eff]/10 text-[#3b9eff]">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] text-[#f0f0f0]">
                 <Crown size={28} />
               </div>
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#9ed1ff]">{t('billing.current_plan')}</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b8f91]">{t('billing.current_plan')}</p>
                 <h3 className="mt-1 text-[26px] font-display font-medium tracking-tight text-[#f0f0f0]">
                   {language === 'vi' ? `Gói ${currentPlan === 'Free' ? 'Miễn phí' : currentPlan}` : `${currentPlan} Plan`}
                 </h3>
@@ -623,19 +641,14 @@ export default function Billing() {
                 </p>
               </div>
             </div>
-            <div className="rounded-[18px] border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.22)] px-5 py-4 sm:text-right">
-              <p className="text-xs font-semibold text-[#8b8f91]">{language === 'vi' ? 'Chi phí hiện tại' : 'Current cost'}</p>
-              <p className="mt-1 text-[28px] font-display font-medium text-[#f0f0f0]">
-                {loadingSub ? <Loader2 size={24} className="inline animate-spin" /> : formatCurrency(activePlanPrice)}
-                <span className="ml-1 text-sm font-medium text-[#a1a4a5]">/tháng</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
-            <MiniInfo icon={ShieldCheck} label={t('billing.active')} value={backendSubscription?.status || (currentPlan === 'Free' ? 'FREE' : 'ACTIVE')} />
-            <MiniInfo icon={CalendarDays} label={t('billing.next_renewal')} value={renewalDate} />
-            <MiniInfo icon={Receipt} label={t('billing.history')} value={`${invoices.length} ${language === 'vi' ? 'hóa đơn' : 'invoices'}`} />
+            {currentPlan !== 'Free' && (
+              <button
+                onClick={() => setShowCancelModal(true)}
+                className="text-sm font-bold text-[#ff0000] hover:text-[#ff4d4f] transition-colors self-end sm:self-center"
+              >
+                Hủy gói
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -658,6 +671,40 @@ export default function Billing() {
           <EmptyBillingState text={language === 'vi' ? 'Lịch sử thanh toán sẽ hiển thị tại đây.' : 'Payment history will appear here.'} />
         )}
       </section>
+
+      {/* Cancel subscription modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-[24px] border border-[rgba(255,255,255,0.14)] bg-[rgba(30,30,30,0.98)] p-6 shadow-2xl shadow-black/50 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#ff0000]/10">
+              <XCircle size={28} className="text-[#ff0000]" />
+            </div>
+            <h3 className="text-[18px] font-bold text-[#f8f8f8]">Hủy gói dịch vụ</h3>
+            <p className="mt-2 text-sm text-[#a1a4a5] leading-relaxed">
+              Bạn có chắc chắn muốn hủy gói <span className="font-bold text-[#f0f0f0]">{currentPlan === 'Free' ? 'Miễn phí' : currentPlan}</span>?
+            </p>
+            <p className="mt-2 text-xs text-[#ff0000]">
+              Gói sẽ hết hạn vào cuối kỳ thanh toán hiện tại.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setShowCancelModal(false)}
+                disabled={cancelling}
+                className="flex-1 rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-transparent py-2.5 text-sm font-bold text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleCancelSubscription}
+                disabled={cancelling}
+                className="flex-1 rounded-[14px] bg-[#ff0000] py-2.5 text-sm font-bold text-white hover:bg-[#cc0000] transition-colors disabled:opacity-50"
+              >
+                {cancelling ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Hủy gói'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
