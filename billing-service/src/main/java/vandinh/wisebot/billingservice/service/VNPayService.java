@@ -242,7 +242,14 @@ public class VNPayService {
     public boolean verifyReturn(Map<String, String> params) {
         String vnpSecureHash = params.remove("vnp_SecureHash");
         params.remove("vnp_SecureHashType");
-        String calculatedHash = hmacSHA512(vnPayConfig.getHashSecret(), buildHashData(params));
+        // Only include vnp_ prefixed params in hash computation (VNPay's spec)
+        Map<String, String> vnpOnly = new HashMap<>();
+        for (var entry : params.entrySet()) {
+            if (entry.getKey().startsWith("vnp_") && StringUtils.hasText(entry.getValue())) {
+                vnpOnly.put(entry.getKey(), entry.getValue());
+            }
+        }
+        String calculatedHash = hmacSHA512(vnPayConfig.getHashSecret(), buildHashData(vnpOnly));
         return calculatedHash.equalsIgnoreCase(vnpSecureHash);
     }
 

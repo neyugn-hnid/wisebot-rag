@@ -6,6 +6,8 @@ import org.springframework.transaction.annotation.Transactional;
 import vandinh.wisebot.billingservice.dto.request.CreateInvoiceItemRequest;
 import vandinh.wisebot.billingservice.dto.request.CreatePlanRequest;
 import vandinh.wisebot.billingservice.dto.request.CreatePlanPriceRequest;
+import vandinh.wisebot.billingservice.dto.request.UpdatePlanRequest;
+import vandinh.wisebot.billingservice.dto.request.UpdatePlanPriceRequest;
 import vandinh.wisebot.billingservice.dto.request.CreatePaymentRequest;
 import vandinh.wisebot.billingservice.dto.request.CreateUsageEventRequest;
 import vandinh.wisebot.billingservice.dto.request.CreateUsageMeterRequest;
@@ -69,6 +71,36 @@ public class BillingServiceImpl implements BillingService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public BillingPlanResponse updatePlan(UUID planId, UpdatePlanRequest request) {
+        BillingPlan plan = planRepository.findById(planId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan not found: " + planId));
+        if (request.getCode() != null && !request.getCode().isBlank()) {
+            plan.setCode(request.getCode());
+        }
+        if (request.getName() != null && !request.getName().isBlank()) {
+            plan.setName(request.getName());
+        }
+        if (request.getDescription() != null) {
+            plan.setDescription(request.getDescription());
+        }
+        if (request.getActive() != null) {
+            plan.setActive(request.getActive());
+        }
+        return mapPlan(planRepository.save(plan));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePlan(UUID planId) {
+        BillingPlan plan = planRepository.findById(planId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan not found: " + planId));
+        // Deactivate instead of hard-delete to preserve referential integrity
+        plan.setActive(false);
+        planRepository.save(plan);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<BillingPlanResponse> listPlans() {
         return planRepository.findAll().stream().map(this::mapPlan).toList();
@@ -87,6 +119,35 @@ public class BillingServiceImpl implements BillingService {
                 .trialDays(request.getTrialDays())
                 .build();
         return mapPlanPrice(planPriceRepository.save(price));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public BillingPlanPriceResponse updatePlanPrice(UUID priceId, UpdatePlanPriceRequest request) {
+        BillingPlanPrice price = planPriceRepository.findById(priceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan price not found: " + priceId));
+        if (request.getBillingCycle() != null && !request.getBillingCycle().isBlank()) {
+            price.setBillingCycle(request.getBillingCycle());
+        }
+        if (request.getCurrency() != null && !request.getCurrency().isBlank()) {
+            price.setCurrency(request.getCurrency());
+        }
+        if (request.getAmountCents() != null && request.getAmountCents() >= 0) {
+            price.setAmountCents(request.getAmountCents());
+        }
+        if (request.getTrialDays() != null && request.getTrialDays() >= 0) {
+            price.setTrialDays(request.getTrialDays());
+        }
+        return mapPlanPrice(planPriceRepository.save(price));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePlanPrice(UUID priceId) {
+        if (!planPriceRepository.existsById(priceId)) {
+            throw new ResourceNotFoundException("Plan price not found: " + priceId);
+        }
+        planPriceRepository.deleteById(priceId);
     }
 
     @Override

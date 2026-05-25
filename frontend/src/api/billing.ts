@@ -104,9 +104,89 @@ export async function listPlans(): Promise<BillingPlanResponse[]> {
   return handleResponse<BillingPlanResponse[]>(res);
 }
 
+export interface CreatePlanRequest {
+  code: string;
+  name: string;
+  description?: string;
+}
+
+export interface UpdatePlanRequest {
+  code?: string;
+  name?: string;
+  description?: string;
+  active?: boolean;
+}
+
+export async function createPlan(request: CreatePlanRequest): Promise<BillingPlanResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/plans`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<BillingPlanResponse>(res);
+}
+
+export async function updatePlan(planId: string, request: UpdatePlanRequest): Promise<BillingPlanResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/plans/${planId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<BillingPlanResponse>(res);
+}
+
+export async function deletePlan(planId: string): Promise<void> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/plans/${planId}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { message?: string }).message || `Request failed: ${res.status}`);
+  }
+}
+
 export async function listPlanPrices(planId: string): Promise<BillingPlanPriceResponse[]> {
   const res = await fetchWithAuth(`${BILLING_BASE}/plan-prices?planId=${planId}`);
   return handleResponse<BillingPlanPriceResponse[]>(res);
+}
+
+export interface CreatePlanPriceRequest {
+  planId: string;
+  billingCycle: string;
+  currency?: string;
+  amountCents: number;
+  trialDays?: number;
+}
+
+export interface UpdatePlanPriceRequest {
+  billingCycle?: string;
+  currency?: string;
+  amountCents?: number;
+  trialDays?: number;
+}
+
+export async function createPlanPrice(request: CreatePlanPriceRequest): Promise<BillingPlanPriceResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/plan-prices`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<BillingPlanPriceResponse>(res);
+}
+
+export async function updatePlanPrice(priceId: string, request: UpdatePlanPriceRequest): Promise<BillingPlanPriceResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/plan-prices/${priceId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<BillingPlanPriceResponse>(res);
+}
+
+export async function deletePlanPrice(priceId: string): Promise<void> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/plan-prices/${priceId}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { message?: string }).message || `Request failed: ${res.status}`);
+  }
 }
 
 export async function getSubscription(tenantId: string): Promise<SubscriptionResponse | null> {

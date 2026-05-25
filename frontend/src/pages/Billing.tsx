@@ -11,10 +11,14 @@ import {
   DollarSign,
   History,
   Loader2,
+  Pencil,
+  Plus,
   Receipt,
   ShieldCheck,
+  Trash2,
   TrendingUp,
   Users,
+  X,
   Zap,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -25,10 +29,17 @@ import {
   getMySubscription,
   listMyInvoices,
   verifyVNPayReturn,
+  createPlan,
+  updatePlan,
+  deletePlan,
+  createPlanPrice,
+  updatePlanPrice,
+  deletePlanPrice,
   type BillingPlanResponse,
   type BillingPlanPriceResponse,
   type SubscriptionResponse,
   type BillingInvoiceResponse,
+  type CreatePlanRequest,
 } from '../api/billing';
 
 interface Invoice {
@@ -72,6 +83,16 @@ export default function Billing() {
   const [backendSubscription, setBackendSubscription] = useState<SubscriptionResponse | null>(null);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [loadingSub, setLoadingSub] = useState(true);
+
+  // ── Admin plan management state ────────────────────────────────────
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<BillingPlanResponse | null>(null);
+  const [planForm, setPlanForm] = useState<CreatePlanRequest>({ code: '', name: '', description: '' });
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [editingPrices, setEditingPrices] = useState<BillingPlanPriceResponse[]>([]);
+  const [priceLoading, setPriceLoading] = useState(false);
+  const [priceForms, setPriceForms] = useState<Record<string, { amountCents: number; currency: string }>>({});
+  const [savingPrice, setSavingPrice] = useState<string | null>(null);
 
   async function fetchBackendData() {
     const [plans, subscription, invoicesResult] = await Promise.all([
@@ -196,32 +217,383 @@ export default function Billing() {
     showToast(`Invoice ${invoiceId} downloaded successfully`, 'success');
   };
 
+  // ── Admin plan handlers ────────────────────────────────────────────
+  const openCreateModal = () => {
+    setEditingPlan(null);
+    setPlanForm({ code: '', name: '', description: '' });
+    setShowPlanModal(true);
+  };
+
+  const openEditModal = async (plan: BillingPlanResponse) => {
+    setEditingPlan(plan);
+    setPlanForm({ code: plan.code, name: plan.name, description: plan.description || '' });
+    setShowPlanModal(true);
+    // Fetch prices for this plan
+    setPriceLoading(true);
+    try {
+      const prices = await listPlanPrices(plan.id).catch(() => [] as BillingPlanPriceResponse[]);
+      setEditingPrices(prices);
+      const forms: Record<string, { amountCents: number; currency: string }> = {};
+      for (const p of prices) {
+        forms[p.id] = { amountCents: p.amountCents, currency: p.currency };
+      }
+      setPriceForms(forms);
+    } catch { /* ignore */ } finally {
+      setPriceLoading(false);
+    }
+  };
+
+  const handleSavePlan = async () => {
+    if (!planForm.code.trim() || !planForm.name.trim()) return;
+    setSavingPlan(true);
+    try {
+      if (editingPlan) {
+        await updatePlan(editingPlan.id, planForm);
+        showToast('Đã cập nhật gói dịch vụ', 'success');
+      } else {
+        await createPlan(planForm);
+        showToast('Đã tạo gói dịch vụ mới', 'success');
+      }
+      setShowPlanModal(false);
+      await fetchBackendData();
+    } catch (err: any) {
+      showToast(err.message || 'Lỗi khi lưu gói dịch vụ', 'error');
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
+  const handleTogglePlan = async (plan: BillingPlanResponse) => {
+    try {
+      const updated = await updatePlan(plan.id, { active: !plan.active });
+      showToast(updated.active ? 'Đã kích hoạt gói' : 'Đã vô hiệu hóa gói', 'success');
+      await fetchBackendData();
+    } catch (err: any) {
+      showToast(err.message || 'Lỗi', 'error');
+    }
+  };
+
+  const handleDeletePlan = async (plan: BillingPlanResponse) => {
+    if (!window.confirm(`Bạn có chắc muốn vô hiệu hóa gói "${plan.name}"?`)) return;
+    try {
+      await deletePlan(plan.id);
+      showToast('Đã vô hiệu hóa gói dịch vụ', 'success');
+      await fetchBackendData();
+    } catch (err: any) {
+      showToast(err.message || 'Lỗi khi xóa', 'error');
+    }
+  };
+
+  const handleSavePrice = async (priceId: string) => {
+    const form = priceForms[priceId];
+    if (!form || form.amountCents < 0) return;
+    setSavingPrice(priceId);
+    try {
+      await updatePlanPrice(priceId, { amountCents: form.amountCents, currency: form.currency });
+      showToast('Đã cập nhật giá', 'success');
+      // Refresh prices
+      if (editingPlan) {
+        const prices = await listPlanPrices(editingPlan.id).catch(() => [] as BillingPlanPriceResponse[]);
+        setEditingPrices(prices);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Lỗi khi cập nhật giá', 'error');
+    } finally {
+      setSavingPrice(null);
+    }
+  };
+
+  const handleAddPrice = async (billingCycle: string) => {
+    if (!editingPlan) return;
+    const defaultAmount = billingCycle === 'YEARLY' ? 5000000 : 500000;
+    setSavingPrice(`new-${billingCycle}`);
+    try {
+      await createPlanPrice({
+        planId: editingPlan.id,
+        billingCycle,
+        currency: 'VND',
+        amountCents: defaultAmount,
+        trialDays: 0,
+      });
+      showToast(`Đã thêm giá ${billingCycle === 'YEARLY' ? 'năm' : 'tháng'}`, 'success');
+      const prices = await listPlanPrices(editingPlan.id).catch(() => [] as BillingPlanPriceResponse[]);
+      setEditingPrices(prices);
+      const forms: Record<string, { amountCents: number; currency: string }> = { ...priceForms };
+      for (const p of prices) {
+        if (!forms[p.id]) forms[p.id] = { amountCents: p.amountCents, currency: p.currency };
+      }
+      setPriceForms(forms);
+    } catch (err: any) {
+      showToast(err.message || 'Lỗi khi thêm giá', 'error');
+    } finally {
+      setSavingPrice(null);
+    }
+  };
+
+  const handleRemovePrice = async (priceId: string) => {
+    if (!window.confirm('Xóa mức giá này?')) return;
+    setSavingPrice(priceId);
+    try {
+      await deletePlanPrice(priceId);
+      showToast('Đã xóa mức giá', 'success');
+      if (editingPlan) {
+        const prices = await listPlanPrices(editingPlan.id).catch(() => [] as BillingPlanPriceResponse[]);
+        setEditingPrices(prices);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Lỗi khi xóa giá', 'error');
+    } finally {
+      setSavingPrice(null);
+    }
+  };
+
   if (role === 'ADMIN') {
     return (
       <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
         <BillingHero
           eyebrow={t('nav.billing')}
-          
-          actionLabel={t('billing.create_plan')}
-          onAction={() => navigate('/billing/upgrade')}
+          actionLabel="Thêm gói dịch vụ"
+          onAction={openCreateModal}
         />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <StatCard icon={DollarSign} label={t('billing.mrr')} value={formatCurrency(0)} trend="--" tone="green" />
-          <StatCard icon={Users} label={t('billing.active_subs')} value="0" trend={`${availablePlans.length} ${t('billing.table.plan')}`} tone="blue" />
-          <StatCard icon={CreditCard} label={t('billing.failed_payments')} value="0" trend="--" tone="red" />
+          <StatCard icon={Users} label={t('billing.active_subs')} value="0" trend={`${availablePlans.filter(p => p.active).length} gói`} tone="blue" />
+          <StatCard icon={CreditCard} label="Tổng gói" value={`${availablePlans.length}`} trend={`${availablePlans.filter(p => !p.active).length} ẩn`} tone="red" />
         </div>
 
+        {/* Plan management table */}
         <section className="overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
           <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] p-6">
             <div>
-              <h3 className="text-[16px] font-semibold text-[#f0f0f0]">{t('billing.recent_subs')}</h3>
-              <p className="mt-1 text-xs text-[#8b8f91]">{language === 'vi' ? 'Theo dõi đăng ký và hóa đơn gần đây.' : 'Track recent subscriptions and invoices.'}</p>
+              <h3 className="text-[16px] font-semibold text-[#f0f0f0]">Quản lý gói dịch vụ</h3>
+              <p className="mt-1 text-xs text-[#8b8f91]">Thêm, sửa, ẩn/hiện các gói dịch vụ.</p>
             </div>
-            <button className="text-xs font-bold text-[#3b9eff] hover:underline">{t('billing.view_all')}</button>
+            <button
+              onClick={openCreateModal}
+              className="inline-flex items-center gap-2 rounded-[12px] bg-[#3b9eff] px-4 py-2 text-xs font-bold text-white hover:bg-[#2f8ae6] transition-colors"
+            >
+              <Plus size={14} />
+              Thêm gói
+            </button>
           </div>
-          <EmptyBillingState text={t('billing.no_data') || 'No subscriptions yet'} />
+
+          {loadingPlans ? (
+            <div className="flex justify-center py-16">
+              <Loader2 size={28} className="animate-spin text-[#a1a4a5]" />
+            </div>
+          ) : availablePlans.length === 0 ? (
+            <EmptyBillingState text="Chưa có gói dịch vụ nào. Nhấn &quot;Thêm gói&quot; để tạo." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px] border-collapse text-left">
+                <thead>
+                  <tr className="bg-[rgba(255,255,255,0.02)]">
+                    <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">Tên gói</th>
+                    <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">Mã</th>
+                    <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">Giá / tháng</th>
+                    <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">Trạng thái</th>
+                    <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-right text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[rgba(255,255,255,0.08)]">
+                  {availablePlans.map((plan) => {
+                    const price = backendPlanPrices.find(p => p.planId === plan.id && p.billingCycle !== 'YEARLY')
+                      || backendPlanPrices.find(p => p.planId === plan.id);
+                    return (
+                      <tr key={plan.id} className="transition-colors hover:bg-[rgba(255,255,255,0.03)]">
+                        <td className="px-6 py-4">
+                          <div>
+                            <p className="text-sm font-bold text-[#f0f0f0]">{plan.name}</p>
+                            <p className="mt-0.5 text-xs text-[#8b8f91] line-clamp-1">{plan.description || '—'}</p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <code className="rounded-md bg-[rgba(255,255,255,0.06)] px-2 py-1 text-xs font-mono text-[#3b9eff]">{plan.code}</code>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-semibold text-[#f0f0f0]">
+                          {price ? formatCurrency(price.amountCents, price.currency) : '—'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => handleTogglePlan(plan)}
+                            className={cn(
+                              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-colors',
+                              plan.active
+                                ? 'border-[#11ff99]/20 bg-[#11ff99]/10 text-[#11ff99] hover:bg-[#11ff99]/20'
+                                : 'border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] text-[#8b8f91] hover:bg-[rgba(255,255,255,0.06)]'
+                            )}
+                          >
+                            {plan.active ? 'ACTIVE' : 'ẨN'}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => openEditModal(plan)}
+                              className="rounded-[10px] p-2 text-[#3b9eff] hover:bg-[rgba(59,158,255,0.1)] transition-colors"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePlan(plan)}
+                              className="rounded-[10px] p-2 text-[#ff4d4f] hover:bg-[rgba(255,77,79,0.1)] transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
+
+        {/* Plan edit/create modal */}
+        {showPlanModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-[24px] border border-[rgba(255,255,255,0.14)] bg-[rgba(30,30,30,0.98)] p-6 shadow-2xl shadow-black/50">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[18px] font-bold text-[#f8f8f8]">
+                  {editingPlan ? 'Sửa gói dịch vụ' : 'Thêm gói dịch vụ mới'}
+                </h3>
+                <button
+                  onClick={() => setShowPlanModal(false)}
+                  className="rounded-lg p-1.5 text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mt-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#a1a4a5] mb-1.5">Mã gói (code)</label>
+                  <input
+                    type="text"
+                    value={planForm.code}
+                    onChange={e => setPlanForm(p => ({ ...p, code: e.target.value }))}
+                    placeholder="VD: pro, plus, enterprise"
+                    className="w-full rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.05)] px-4 py-2.5 text-sm text-[#f0f0f0] placeholder:text-[#6b6f71] focus:border-[#3b9eff] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#a1a4a5] mb-1.5">Tên gói</label>
+                  <input
+                    type="text"
+                    value={planForm.name}
+                    onChange={e => setPlanForm(p => ({ ...p, name: e.target.value }))}
+                    placeholder="VD: Pro, Plus"
+                    className="w-full rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.05)] px-4 py-2.5 text-sm text-[#f0f0f0] placeholder:text-[#6b6f71] focus:border-[#3b9eff] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#a1a4a5] mb-1.5">Mô tả (mỗi dòng 1 tính năng)</label>
+                  <textarea
+                    value={planForm.description || ''}
+                    onChange={e => setPlanForm(p => ({ ...p, description: e.target.value }))}
+                    rows={4}
+                    placeholder={'Không giới hạn tin nhắn\n5 kho tri thức\nHỗ trợ ưu tiên'}
+                    className="w-full rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.05)] px-4 py-2.5 text-sm text-[#f0f0f0] placeholder:text-[#6b6f71] focus:border-[#3b9eff] focus:outline-none resize-none"
+                  />
+                </div>
+
+                {/* ── Price management (edit mode only) ── */}
+                {editingPlan && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-bold text-[#a1a4a5]">Giá dịch vụ</label>
+                    </div>
+                    {priceLoading ? (
+                      <Loader2 size={16} className="animate-spin text-[#a1a4a5] mx-auto my-3" />
+                    ) : editingPrices.length === 0 ? (
+                      <p className="text-xs text-[#6b6f71] mb-2">Chưa có mức giá nào.</p>
+                    ) : (
+                      <div className="space-y-2 mb-2">
+                        {editingPrices.map((price) => (
+                          <div key={price.id} className="flex items-center gap-2 rounded-[10px] bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] px-3 py-2">
+                            <span className={cn(
+                              'text-[10px] font-black uppercase px-2 py-0.5 rounded-md shrink-0',
+                              price.billingCycle === 'YEARLY' ? 'bg-[#3b9eff]/15 text-[#3b9eff]' : 'bg-[#11ff99]/10 text-[#11ff99]'
+                            )}>
+                              {price.billingCycle === 'YEARLY' ? 'Năm' : 'Tháng'}
+                            </span>
+                            <input
+                              type="number"
+                              min={0}
+                              value={priceForms[price.id]?.amountCents ?? price.amountCents}
+                              onChange={e => setPriceForms(pf => ({
+                                ...pf,
+                                [price.id]: { ...pf[price.id], amountCents: Number(e.target.value) }
+                              }))}
+                              className="w-24 rounded-[8px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.06)] px-2 py-1 text-xs text-[#f0f0f0] text-right focus:border-[#3b9eff] focus:outline-none"
+                            />
+                            <span className="text-xs text-[#8b8f91]">{price.currency}</span>
+                            <button
+                              onClick={() => handleSavePrice(price.id)}
+                              disabled={savingPrice === price.id}
+                              className="ml-auto rounded-[8px] bg-[#3b9eff] px-2.5 py-1 text-[10px] font-bold text-white hover:bg-[#2f8ae6] transition-colors disabled:opacity-50"
+                            >
+                              {savingPrice === price.id ? <Loader2 size={12} className="animate-spin" /> : 'Lưu'}
+                            </button>
+                            <button
+                              onClick={() => handleRemovePrice(price.id)}
+                              disabled={savingPrice === price.id}
+                              className="rounded-[8px] p-1 text-[#ff4d4f] hover:bg-[rgba(255,77,79,0.1)] transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Add missing price tiers */}
+                    <div className="flex gap-2">
+                      {!editingPrices.some(p => p.billingCycle === 'MONTHLY') && (
+                        <button
+                          onClick={() => handleAddPrice('MONTHLY')}
+                          disabled={savingPrice === 'new-MONTHLY'}
+                          className="inline-flex items-center gap-1 rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 text-[10px] font-bold text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.06)] transition-colors"
+                        >
+                          {savingPrice === 'new-MONTHLY' ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                          Thêm giá tháng
+                        </button>
+                      )}
+                      {!editingPrices.some(p => p.billingCycle === 'YEARLY') && (
+                        <button
+                          onClick={() => handleAddPrice('YEARLY')}
+                          disabled={savingPrice === 'new-YEARLY'}
+                          className="inline-flex items-center gap-1 rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 text-[10px] font-bold text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.06)] transition-colors"
+                        >
+                          {savingPrice === 'new-YEARLY' ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                          Thêm giá năm
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => setShowPlanModal(false)}
+                  className="flex-1 rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-transparent py-2.5 text-sm font-bold text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleSavePlan}
+                  disabled={savingPlan || !planForm.code.trim() || !planForm.name.trim()}
+                  className="flex-1 rounded-[14px] bg-[#ffffff] py-2.5 text-sm font-bold text-[#111111] hover:bg-[#f0f0f0] transition-colors disabled:opacity-40"
+                >
+                  {savingPlan ? <Loader2 size={16} className="animate-spin mx-auto" /> : editingPlan ? 'Cập nhật' : 'Tạo gói'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

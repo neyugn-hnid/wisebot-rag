@@ -4,9 +4,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -16,6 +18,8 @@ import vandinh.wisebot.billingservice.common.response.ApiResponse;
 import vandinh.wisebot.billingservice.dto.request.CreateInvoiceItemRequest;
 import vandinh.wisebot.billingservice.dto.request.CreatePlanRequest;
 import vandinh.wisebot.billingservice.dto.request.CreatePlanPriceRequest;
+import vandinh.wisebot.billingservice.dto.request.UpdatePlanRequest;
+import vandinh.wisebot.billingservice.dto.request.UpdatePlanPriceRequest;
 import vandinh.wisebot.billingservice.dto.request.CreatePaymentRequest;
 import vandinh.wisebot.billingservice.dto.request.CreateUsageEventRequest;
 import vandinh.wisebot.billingservice.dto.request.CreateUsageMeterRequest;
@@ -58,6 +62,28 @@ public class BillingController {
                 .build();
     }
 
+    @PutMapping("/plans/{planId}")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    public ApiResponse updatePlan(@PathVariable UUID planId,
+                                  @RequestBody UpdatePlanRequest request) {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Plan updated")
+                .data(billingService.updatePlan(planId, request))
+                .build();
+    }
+
+    @DeleteMapping("/plans/{planId}")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    public ApiResponse deletePlan(@PathVariable UUID planId) {
+        billingService.deletePlan(planId);
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Plan deactivated")
+                .data(null)
+                .build();
+    }
+
     @PostMapping("/plan-prices")
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','FINANCE')")
     public ApiResponse createPlanPrice(@Valid @RequestBody CreatePlanPriceRequest request) {
@@ -75,6 +101,28 @@ public class BillingController {
                 .status(HttpStatus.OK.value())
                 .message("Plan prices")
                 .data(billingService.listPlanPrices(planId))
+                .build();
+    }
+
+    @PutMapping("/plan-prices/{priceId}")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','FINANCE')")
+    public ApiResponse updatePlanPrice(@PathVariable UUID priceId,
+                                       @RequestBody UpdatePlanPriceRequest request) {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Plan price updated")
+                .data(billingService.updatePlanPrice(priceId, request))
+                .build();
+    }
+
+    @DeleteMapping("/plan-prices/{priceId}")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','FINANCE')")
+    public ApiResponse deletePlanPrice(@PathVariable UUID priceId) {
+        billingService.deletePlanPrice(priceId);
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Plan price deleted")
+                .data(null)
                 .build();
     }
 
