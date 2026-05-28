@@ -21,7 +21,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
+        format_sql: fasle
         cache:
           use_second_level_cache: false
 
@@ -88,6 +88,8 @@ logging:
 app:
   internal:
     api-key: ${INTERNAL_CONFIG_API_KEY:change-me}
+  upload:
+    avatar-dir: ${AVATAR_UPLOAD_DIR:wisebot-data/avatars}
   features:
     jwt-blacklist:
       enabled: true

@@ -59,18 +59,6 @@ function formatCurrency(amount: number, currency = 'VND') {
   }).format(amount);
 }
 
-const fallbackPlans: BillingPlanResponse[] = [
-  { id: 'free', code: 'free', name: 'Free', description: '1.000 tin nhắn/tháng\n1 kho tri thức\nHỗ trợ tiêu chuẩn', active: true },
-  { id: 'plus', code: 'plus', name: 'Plus', description: '10.000 tin nhắn/tháng\n5 kho tri thức\nTruy cập API', active: true },
-  { id: 'pro', code: 'pro', name: 'Pro', description: 'Không giới hạn tin nhắn\nKhông giới hạn kho tri thức\nPhân tích nâng cao', active: true },
-];
-
-const fallbackPrices: Record<string, number> = {
-  Free: 0,
-  Plus: 501581,
-  Pro: 1293551,
-};
-
 export default function Billing() {
   const { t, language } = useLanguage();
   const { role } = useRole();
@@ -187,12 +175,12 @@ export default function Billing() {
     };
   }, [location.pathname, location.search]);
 
-  const availablePlans = backendPlans.length > 0 ? backendPlans : fallbackPlans;
+  const availablePlans = backendPlans;
 
   const getMonthlyPrice = (plan: BillingPlanResponse) => {
     const price = backendPlanPrices.find((item) => item.planId === plan.id && item.billingCycle !== 'YEARLY')
       || backendPlanPrices.find((item) => item.planId === plan.id);
-    return price?.amountCents ?? fallbackPrices[plan.name] ?? 0;
+    return price?.amountCents ?? 0;
   };
 
   const activePlan = availablePlans.find((plan) => (

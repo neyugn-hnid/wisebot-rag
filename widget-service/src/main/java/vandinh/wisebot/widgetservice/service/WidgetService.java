@@ -41,6 +41,8 @@ public interface WidgetService {
 
     List<ApiKeyResponse> listApiKeys(UUID widgetId);
 
+    WidgetResponse validateApiKey(String rawApiKey);
+
     WidgetSessionResponse createSession(UUID widgetId, CreateWidgetSessionRequest request);
 
     List<WidgetSessionResponse> listSessions(UUID widgetId);

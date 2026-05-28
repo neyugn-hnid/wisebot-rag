@@ -153,3 +153,18 @@ export async function changePassword(request: ChangePasswordRequest): Promise<vo
     throw new Error((body as { message?: string })?.message || `Password change failed: ${res.status}`);
   }
 }
+
+export async function uploadAvatar(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetchWithAuth(`${USER_BASE}/upload-avatar`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error((body as { message?: string })?.message || `Avatar upload failed: ${res.status}`);
+  }
+  const body = await res.json() as { data?: string };
+  return body.data ?? '';
+}

@@ -1,31 +1,25 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   User,
   Mail,
   Camera,
   Calendar,
-  MapPin,
-  Twitter,
-  Github,
-  Linkedin,
-  Star,
-  Globe,
   Edit2,
   X,
   Eye,
   EyeOff,
   Shield,
-  CreditCard,
+  Loader2,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { cn } from '../lib/utils';
 import { hasMinLength, isStrongPassword, isValidPhone } from '../lib/validation';
-import { useNavigate } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
 import {
   getProfile,
   updateProfile,
   changePassword,
+  uploadAvatar,
   type UserResponse,
 } from '../api/users';
 
@@ -37,41 +31,8 @@ type PasswordForm = {
 
 type FieldErrors = Record<string, string | undefined>;
 
-function ProfileSection({
-  icon,
-  title,
-  description,
-  actions,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description?: string;
-  actions?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
-      <div className="flex items-start justify-between gap-4 border-b border-[rgba(255,255,255,0.08)] px-6 py-5">
-        <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] text-[#d7d9da]">
-            {icon}
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-base font-semibold text-[#f5f5f5]">{title}</h3>
-            {description ? <p className="text-sm leading-6 text-[#8b8f91]">{description}</p> : null}
-          </div>
-        </div>
-        {actions}
-      </div>
-      <div className="p-6">{children}</div>
-    </section>
-  );
-}
-
 export default function Profile() {
   const { t, language } = useLanguage();
-  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const [profile, setProfile] = useState<UserResponse | null>(null);
@@ -92,6 +53,26 @@ export default function Profile() {
   const [profileTouched, setProfileTouched] = useState<Record<string, boolean>>({});
   const [passwordErrors, setPasswordErrors] = useState<FieldErrors>({});
   const [passwordTouched, setPasswordTouched] = useState<Record<string, boolean>>({});
+
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const avatarUrl = await uploadAvatar(file);
+      setProfile((current) => current ? { ...current, avatarUrl } : current);
+      showToast('Ảnh đại diện đã được cập nhật', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Không thể tải lên ảnh đại diện', 'error');
+    } finally {
+      setUploadingAvatar(false);
+      // Reset input so the same file can be selected again
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const validateProfileField = (name: 'fullName' | 'phone', value: string) => {
     switch (name) {
@@ -131,7 +112,7 @@ export default function Profile() {
   const profileInputClass = (field: 'fullName' | 'phone', editable: boolean) => cn(
     'w-full rounded-[12px] border px-4 py-3 text-sm font-medium outline-none transition-all placeholder:text-[#6f7578]',
     profileTouched[field] && profileErrors[field]
-      ? 'border-[#ff0000] bg-[#ff0000]/5 text-[#f0f0f0] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff0000]/15'
+      ? 'border-[#f00000] bg-[#f00000]/5 text-[#f0f0f0] focus:border-[#f00000] focus:ring-2 focus:ring-[#f00000]/15'
       : editable
         ? 'border-[rgba(255,255,255,0.18)] bg-[rgba(255,255,255,0.03)] text-[#f0f0f0] focus:border-[rgba(59,158,255,0.35)] focus:ring-2 focus:ring-[rgba(59,158,255,0.16)]'
         : 'border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] text-[#a1a4a5]',
@@ -140,7 +121,7 @@ export default function Profile() {
   const passwordInputClass = (field: keyof PasswordForm) => cn(
     'w-full rounded-[12px] border bg-[rgba(255,255,255,0.03)] px-4 py-3 pr-11 text-sm text-[#f0f0f0] outline-none transition-all placeholder:text-[#6f7578]',
     passwordTouched[field] && passwordErrors[field]
-      ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff0000]/15'
+      ? 'border-[#f00000] bg-[#f00000]/5 focus:border-[#f00000] focus:ring-2 focus:ring-[#f00000]/15'
       : 'border-[rgba(255,255,255,0.18)] focus:border-[rgba(59,158,255,0.35)] focus:ring-2 focus:ring-[rgba(59,158,255,0.16)]',
   );
 
@@ -285,138 +266,92 @@ export default function Profile() {
   return (
     <div className="mx-auto max-w-7xl space-y-8 pb-20 animate-in fade-in duration-500">
       <div className="space-y-8">
-        <section className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
-          <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
-            <aside className="space-y-6">
-              <div className="relative h-36 w-36 overflow-hidden rounded-full border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
-                {profile?.avatarUrl ? (
-                  <img
-                    src={profile.avatarUrl}
-                    alt={profile.fullName}
-                    className="h-full w-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
+        <section className="rounded-[24px] shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+          <div className="flex flex-col items-center gap-4 px-6 py-5 sm:flex-row sm:items-start lg:px-8">
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] shadow-[0_18px_48px_rgba(0,0,0,0.28)] cursor-pointer group">
+              {profile?.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt={profile.fullName}
+                  className="h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-3xl font-black text-[#f0f0f0]">
+                  {avatarFallback}
+                </div>
+              )}
+              <div className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border border-[rgba(255,255,255,0.12)] bg-[#000000]/70 text-[#9ed1ff] cursor-pointer hover:bg-[#000000]/90 transition-colors">
+                {uploadingAvatar ? (
+                  <Loader2 size={12} className="animate-spin" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-5xl font-black text-[#f0f0f0]">
-                    {avatarFallback}
-                  </div>
+                  <Camera size={12} />
                 )}
-                <div className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(255,255,255,0.12)] bg-[#000000]/70 text-[#9ed1ff]">
-                  <Camera size={14} />
-                </div>
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9fa3a5]">
-                  <Shield size={13} />
-                  {t('profile.overview')}
-                </div>
-                <h1 className="text-[30px] font-display font-medium tracking-tight text-[#f5f5f5]">
-                  {profile?.fullName || 'Unknown User'}
-                </h1>
-                <p className="text-sm text-[#8b8f91]">@{profile?.username || '-'}</p>
-              </div>
-
-              <div className="space-y-3 rounded-[20px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-5">
-                <div className="flex items-center gap-3 text-sm text-[#d7d9da]">
-                  <Mail size={15} className="text-[#8b8f91]" />
-                  <span>{profile?.email || '-'}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-[#d7d9da]">
-                  <User size={15} className="text-[#8b8f91]" />
-                  <span>{profile?.fullName || '-'}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-[#d7d9da]">
-                  <Calendar size={15} className="text-[#8b8f91]" />
-                  <span>{t('profile.joined')}: {joinedLabel}</span>
-                </div>
-              </div>
-            </aside>
-
-            <div className="flex items-end">
-              <div className="w-full rounded-[24px] border border-[rgba(59,158,255,0.22)] bg-[rgba(59,158,255,0.06)] shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
-                <div className="flex items-center justify-between gap-4 border-b border-[rgba(255,255,255,0.08)] px-6 py-5">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-[16px] border border-[#3b9eff]/20 bg-[#3b9eff]/10 text-[#9ed1ff]">
-                      <Star size={20} />
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="text-base font-semibold text-[#f5f5f5]">{t('billing.current_plan')}</h3>
-                      <p className="text-sm text-[#8b8f91]">{t('billing.current_plan.desc')}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-3xl font-semibold tracking-tight text-[#f5f5f5]">$29</p>
-                    <p className="text-xs text-[#8b8f91]">{t('billing.plans.pro')}</p>
-                  </div>
-                </div>
-                <div className="flex flex-col items-start justify-between gap-4 px-6 py-5 sm:flex-row sm:items-center">
-                  <div className="space-y-1">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(59,158,255,0.18)] bg-[rgba(59,158,255,0.08)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#9ed1ff]">
-                      <CreditCard size={12} />
-                      {t('billing.active')}
-                    </div>
-                    <p className="text-sm text-[#8b8f91]">
-                      {t('billing.current_plan.next_billing')}: {language === 'vi' ? '1 tháng 5, 2026' : 'May 1, 2026'}
-                    </p>
-                  </div>
-                  <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-                    <button
-                      type="button"
-                      onClick={() => navigate('/billing')}
-                      className="rounded-[14px] border border-[#ff0000]/20 bg-[#ff0000]/10 px-5 py-3 text-sm font-bold text-[#ff0000] transition-colors hover:bg-[#ff0000]/15"
-                    >
-                      {t('billing.cancel')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/billing')}
-                      className="rounded-[14px] bg-[#ffffff] px-5 py-3 text-sm font-bold text-[#000000] transition-colors hover:bg-[#f0f0f0]"
-                    >
-                      {t('billing.upgrade')}
-                    </button>
-                  </div>
-                </div>
+            <div className="space-y-1 text-center sm:text-left">
+              <h1 className="text-xl font-display font-medium tracking-tight text-[#f5f5f5]">
+                {profile?.fullName || 'Unknown User'}
+              </h1>
+              <p className="text-sm text-[#8b8f91]">@{profile?.username || '-'}</p>
+              <div className="flex flex-wrap gap-3 pt-1 text-xs text-[#a1a4a5]">
+                <span className="inline-flex items-center gap-1.5">
+                  <Mail size={13} />
+                  {profile?.email || '-'}
+                </span>
               </div>
             </div>
           </div>
-        </section>
 
-        <div className="grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
-          <ProfileSection
-            icon={<User size={18} />}
-            title={t('profile.personal_info')}
-            description={t('profile.personal_info_desc')}
-            actions={(
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => (isEditing ? handleCancelEdit() : setIsEditing(true))}
-                  className={cn(
-                    'flex h-9 items-center justify-center rounded-[12px] border px-3 transition-all',
-                    isEditing
-                      ? 'border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] text-[#d7d9da] hover:bg-[rgba(255,255,255,0.06)]'
-                      : 'border-[rgba(59,158,255,0.18)] bg-[rgba(59,158,255,0.08)] text-[#9ed1ff] hover:bg-[rgba(59,158,255,0.12)]'
-                  )}
-                >
-                  {isEditing ? <X size={16} /> : <Edit2 size={16} />}
-                </button>
-                {isEditing ? (
+          <div className="grid lg:grid-cols-2 ">
+            <div className="p-6 lg:p-8">
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] text-[#d7d9da]">
+                    <User size={16} />
+                  </div>
+                  <div className="space-y-0.5">
+                    <h3 className="text-sm font-semibold text-[#f5f5f5]">{t('profile.personal_info')}</h3>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
                   <button
-                    type="submit"
-                    form="personal-info-form"
-                    disabled={isSavingProfile}
-                    className="rounded-[12px] bg-[#ffffff] px-4 py-2 text-xs font-bold text-[#000000] transition-colors hover:bg-[#ececec] disabled:opacity-60"
+                    type="button"
+                    onClick={() => (isEditing ? handleCancelEdit() : setIsEditing(true))}
+                    className={cn(
+                      'flex h-8 items-center justify-center rounded-[10px] border px-2.5 transition-all text-xs',
+                      isEditing
+                        ? 'border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] text-[#d7d9da] hover:bg-[rgba(255,255,255,0.06)]'
+                        : 'border-[rgba(59,158,255,0.18)] bg-[rgba(59,158,255,0.08)] text-[#9ed1ff] hover:bg-[rgba(59,158,255,0.12)]'
+                    )}
                   >
-                    {isSavingProfile ? 'Saving...' : (t('common.save_short') || 'Save')}
+                    {isEditing ? <X size={14} /> : <Edit2 size={14} />}
                   </button>
-                ) : null}
+                  {isEditing ? (
+                    <button
+                      type="submit"
+                      form="personal-info-form"
+                      disabled={isSavingProfile}
+                      className="rounded-[10px] bg-[#ffffff] px-3.5 py-2 text-xs font-bold text-[#000000] transition-colors hover:bg-[#ececec] disabled:opacity-60"
+                    >
+                      {isSavingProfile ? 'Saving...' : (t('common.save_short') || 'Save')}
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            )}
-          >
-            <form id="personal-info-form" onSubmit={handleProfileSave} className="space-y-8">
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2">
+
+              <form id="personal-info-form" onSubmit={handleProfileSave} className="space-y-4">
+                <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#f0f0f0]">{t('team.full_name')}</label>
                   <input
                     type="text"
@@ -437,11 +372,11 @@ export default function Profile() {
                     aria-invalid={profileTouched.fullName && !!profileErrors.fullName}
                   />
                   {profileTouched.fullName && profileErrors.fullName ? (
-                    <p className="text-[11px] font-medium text-[#ff8d8d]">{profileErrors.fullName}</p>
+                    <p className="text-[11px] font-medium text-[#f00000]">{profileErrors.fullName}</p>
                   ) : null}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#f0f0f0]">{t('team.email_address')}</label>
                   <input
                     type="email"
@@ -451,7 +386,7 @@ export default function Profile() {
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#f0f0f0]">{t('billing.support.phone')}</label>
                   <input
                     type="tel"
@@ -472,11 +407,11 @@ export default function Profile() {
                     aria-invalid={profileTouched.phone && !!profileErrors.phone}
                   />
                   {profileTouched.phone && profileErrors.phone ? (
-                    <p className="text-[11px] font-medium text-[#ff8d8d]">{profileErrors.phone}</p>
+                    <p className="text-[11px] font-medium text-[#f00000]">{profileErrors.phone}</p>
                   ) : null}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#f0f0f0]">Username</label>
                   <input
                     type="text"
@@ -485,177 +420,148 @@ export default function Profile() {
                     className="w-full rounded-[12px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] px-4 py-3 text-sm font-medium text-[#a1a4a5] outline-none"
                   />
                 </div>
-              </div>
+              </form>
+            </div>
 
-              <div className="border-t border-[rgba(255,255,255,0.08)] pt-8">
-                <h4 className="mb-4 text-xs font-bold uppercase tracking-wider text-[#f0f0f0]">{t('profile.social_links')}</h4>
-                <div className="grid gap-6 md:grid-cols-2 opacity-75">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.website')}</label>
-                    <div className="relative">
-                      <Globe size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" />
-                      <input type="text" value="" disabled placeholder={language === 'vi' ? 'Chưa hỗ trợ bởi backend' : 'Not supported by backend yet'} className="w-full rounded-[12px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] py-3 pl-9 pr-3 text-sm font-medium text-[#a1a4a5] outline-none placeholder:text-[#6f7578]" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.twitter')}</label>
-                    <div className="relative">
-                      <Twitter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" />
-                      <input type="text" value="" disabled placeholder={language === 'vi' ? 'Chưa hỗ trợ bởi backend' : 'Not supported by backend yet'} className="w-full rounded-[12px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] py-3 pl-9 pr-3 text-sm font-medium text-[#a1a4a5] outline-none placeholder:text-[#6f7578]" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.github')}</label>
-                    <div className="relative">
-                      <Github size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" />
-                      <input type="text" value="" disabled placeholder={language === 'vi' ? 'Chưa hỗ trợ bởi backend' : 'Not supported by backend yet'} className="w-full rounded-[12px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] py-3 pl-9 pr-3 text-sm font-medium text-[#a1a4a5] outline-none placeholder:text-[#6f7578]" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.linkedin')}</label>
-                    <div className="relative">
-                      <Linkedin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a4a5]" />
-                      <input type="text" value="" disabled placeholder={language === 'vi' ? 'Chưa hỗ trợ bởi backend' : 'Not supported by backend yet'} className="w-full rounded-[12px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] py-3 pl-9 pr-3 text-sm font-medium text-[#a1a4a5] outline-none placeholder:text-[#6f7578]" />
-                    </div>
-                  </div>
+            <div className="p-6 lg:p-8">
+              <div className="flex items-start gap-3 mb-5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] text-[#d7d9da]">
+                  <Shield size={16} />
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="text-sm font-semibold text-[#f5f5f5]">{t('profile.security.password')}</h3>
                 </div>
               </div>
-            </form>
-          </ProfileSection>
 
-          <ProfileSection
-            icon={<Shield size={18} />}
-            title={t('profile.security.password')}
-            description={t('profile.security.password_desc')}
-          >
-            <form onSubmit={handleChangePassword} className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.security.current_password')}</label>
-                <div className="relative">
-                  <input
-                    value={passwordForm.currentPassword}
-                    onChange={(e) => {
-                      const nextForm = { ...passwordForm, currentPassword: e.target.value };
-                      setPasswordForm(nextForm);
-                      setPasswordErrors((current) => {
-                        const nextErrors = { ...current };
-                        if (passwordTouched.currentPassword) {
-                          nextErrors.currentPassword = validatePasswordField('currentPassword', nextForm.currentPassword, nextForm);
-                        }
-                        if (passwordTouched.newPassword) {
-                          nextErrors.newPassword = validatePasswordField('newPassword', nextForm.newPassword, nextForm);
-                        }
-                        return nextErrors;
-                      });
-                    }}
-                    onBlur={() => {
-                      setPasswordTouched((current) => ({ ...current, currentPassword: true }));
-                      setPasswordErrors((current) => ({
-                        ...current,
-                        currentPassword: validatePasswordField('currentPassword', passwordForm.currentPassword),
-                      }));
-                    }}
-                    required
-                    type={showCurrentPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    className={passwordInputClass('currentPassword')}
-                    aria-invalid={passwordTouched.currentPassword && !!passwordErrors.currentPassword}
-                  />
-                  <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a1a4a5] transition-colors hover:text-[#f0f0f0]">
-                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {passwordTouched.currentPassword && passwordErrors.currentPassword ? (
-                  <p className="text-[11px] font-medium text-[#ff8d8d]">{passwordErrors.currentPassword}</p>
-                ) : null}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.security.new_password')}</label>
-                <div className="relative">
-                  <input
-                    value={passwordForm.newPassword}
-                    onChange={(e) => {
-                      const nextForm = { ...passwordForm, newPassword: e.target.value };
-                      setPasswordForm(nextForm);
-                      setPasswordErrors((current) => {
-                        const nextErrors = { ...current };
-                        if (passwordTouched.newPassword) {
-                          nextErrors.newPassword = validatePasswordField('newPassword', nextForm.newPassword, nextForm);
-                        }
-                        if (passwordTouched.confirmNewPassword) {
-                          nextErrors.confirmNewPassword = validatePasswordField('confirmNewPassword', nextForm.confirmNewPassword, nextForm);
-                        }
-                        return nextErrors;
-                      });
-                    }}
-                    onBlur={() => {
-                      setPasswordTouched((current) => ({ ...current, newPassword: true }));
-                      setPasswordErrors((current) => ({
-                        ...current,
-                        newPassword: validatePasswordField('newPassword', passwordForm.newPassword),
-                      }));
-                    }}
-                    required
-                    minLength={8}
-                    type={showNewPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    className={passwordInputClass('newPassword')}
-                    aria-invalid={passwordTouched.newPassword && !!passwordErrors.newPassword}
-                  />
-                  <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a1a4a5] transition-colors hover:text-[#f0f0f0]">
-                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {passwordTouched.newPassword && passwordErrors.newPassword ? (
-                  <p className="text-[11px] font-medium text-[#ff8d8d]">{passwordErrors.newPassword}</p>
-                ) : null}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.security.confirm_password')}</label>
-                <div className="relative">
-                  <input
-                    value={passwordForm.confirmNewPassword}
-                    onChange={(e) => {
-                      const nextForm = { ...passwordForm, confirmNewPassword: e.target.value };
-                      setPasswordForm(nextForm);
-                      setPasswordErrors((current) => passwordTouched.confirmNewPassword
-                        ? {
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.security.current_password')}</label>
+                  <div className="relative">
+                    <input
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => {
+                        const nextForm = { ...passwordForm, currentPassword: e.target.value };
+                        setPasswordForm(nextForm);
+                        setPasswordErrors((current) => {
+                          const nextErrors = { ...current };
+                          if (passwordTouched.currentPassword) {
+                            nextErrors.currentPassword = validatePasswordField('currentPassword', nextForm.currentPassword, nextForm);
+                          }
+                          if (passwordTouched.newPassword) {
+                            nextErrors.newPassword = validatePasswordField('newPassword', nextForm.newPassword, nextForm);
+                          }
+                          return nextErrors;
+                        });
+                      }}
+                      onBlur={() => {
+                        setPasswordTouched((current) => ({ ...current, currentPassword: true }));
+                        setPasswordErrors((current) => ({
                           ...current,
-                          confirmNewPassword: validatePasswordField('confirmNewPassword', nextForm.confirmNewPassword, nextForm),
-                        }
-                        : current);
-                    }}
-                    onBlur={() => {
-                      setPasswordTouched((current) => ({ ...current, confirmNewPassword: true }));
-                      setPasswordErrors((current) => ({
-                        ...current,
-                        confirmNewPassword: validatePasswordField('confirmNewPassword', passwordForm.confirmNewPassword),
-                      }));
-                    }}
-                    required
-                    minLength={8}
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    className={passwordInputClass('confirmNewPassword')}
-                    aria-invalid={passwordTouched.confirmNewPassword && !!passwordErrors.confirmNewPassword}
-                  />
-                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a1a4a5] transition-colors hover:text-[#f0f0f0]">
-                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+                          currentPassword: validatePasswordField('currentPassword', passwordForm.currentPassword),
+                        }));
+                      }}
+                      required
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      className={passwordInputClass('currentPassword')}
+                      aria-invalid={passwordTouched.currentPassword && !!passwordErrors.currentPassword}
+                    />
+                    <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a1a4a5] transition-colors hover:text-[#f0f0f0]">
+                      {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  {passwordTouched.currentPassword && passwordErrors.currentPassword ? (
+                    <p className="text-[11px] font-medium text-[#f00000]">{passwordErrors.currentPassword}</p>
+                  ) : null}
                 </div>
-                {passwordTouched.confirmNewPassword && passwordErrors.confirmNewPassword ? (
-                  <p className="text-[11px] font-medium text-[#ff8d8d]">{passwordErrors.confirmNewPassword}</p>
-                ) : null}
-              </div>
 
-              <button type="submit" disabled={isChangingPassword} className="rounded-[14px] bg-[#ffffff] px-4 py-3 text-xs font-bold text-[#000000] transition-colors hover:bg-[#ececec] disabled:opacity-60">
-                {isChangingPassword ? 'Updating...' : t('profile.security.update_password')}
-              </button>
-            </form>
-          </ProfileSection>
-        </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.security.new_password')}</label>
+                  <div className="relative">
+                    <input
+                      value={passwordForm.newPassword}
+                      onChange={(e) => {
+                        const nextForm = { ...passwordForm, newPassword: e.target.value };
+                        setPasswordForm(nextForm);
+                        setPasswordErrors((current) => {
+                          const nextErrors = { ...current };
+                          if (passwordTouched.newPassword) {
+                            nextErrors.newPassword = validatePasswordField('newPassword', nextForm.newPassword, nextForm);
+                          }
+                          if (passwordTouched.confirmNewPassword) {
+                            nextErrors.confirmNewPassword = validatePasswordField('confirmNewPassword', nextForm.confirmNewPassword, nextForm);
+                          }
+                          return nextErrors;
+                        });
+                      }}
+                      onBlur={() => {
+                        setPasswordTouched((current) => ({ ...current, newPassword: true }));
+                        setPasswordErrors((current) => ({
+                          ...current,
+                          newPassword: validatePasswordField('newPassword', passwordForm.newPassword),
+                        }));
+                      }}
+                      required
+                      minLength={8}
+                      type={showNewPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      className={passwordInputClass('newPassword')}
+                      aria-invalid={passwordTouched.newPassword && !!passwordErrors.newPassword}
+                    />
+                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a1a4a5] transition-colors hover:text-[#f0f0f0]">
+                      {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  {passwordTouched.newPassword && passwordErrors.newPassword ? (
+                    <p className="text-[11px] font-medium text-[#f00000]">{passwordErrors.newPassword}</p>
+                  ) : null}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#f0f0f0]">{t('profile.security.confirm_password')}</label>
+                  <div className="relative">
+                    <input
+                      value={passwordForm.confirmNewPassword}
+                      onChange={(e) => {
+                        const nextForm = { ...passwordForm, confirmNewPassword: e.target.value };
+                        setPasswordForm(nextForm);
+                        setPasswordErrors((current) => passwordTouched.confirmNewPassword
+                          ? {
+                            ...current,
+                            confirmNewPassword: validatePasswordField('confirmNewPassword', nextForm.confirmNewPassword, nextForm),
+                          }
+                          : current);
+                      }}
+                      onBlur={() => {
+                        setPasswordTouched((current) => ({ ...current, confirmNewPassword: true }));
+                        setPasswordErrors((current) => ({
+                          ...current,
+                          confirmNewPassword: validatePasswordField('confirmNewPassword', passwordForm.confirmNewPassword),
+                        }));
+                      }}
+                      required
+                      minLength={8}
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      className={passwordInputClass('confirmNewPassword')}
+                      aria-invalid={passwordTouched.confirmNewPassword && !!passwordErrors.confirmNewPassword}
+                    />
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a1a4a5] transition-colors hover:text-[#f0f0f0]">
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  {passwordTouched.confirmNewPassword && passwordErrors.confirmNewPassword ? (
+                    <p className="text-[11px] font-medium text-[#f00000]">{passwordErrors.confirmNewPassword}</p>
+                  ) : null}
+                </div>
+
+                <button type="submit" disabled={isChangingPassword} className="rounded-[14px] bg-[#ffffff] px-4 py-3 text-xs font-bold text-[#000000] transition-colors hover:bg-[#ececec] disabled:opacity-60">
+                  {isChangingPassword ? 'Updating...' : t('profile.security.update_password')}
+                </button>
+              </form>
+            </div>
+          </div>
+        </section>
 
       </div>
     </div>

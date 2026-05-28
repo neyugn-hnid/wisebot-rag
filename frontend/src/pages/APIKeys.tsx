@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
+import { getStoredAccessToken } from '../lib/auth';
 import { 
-  Activity,
   AlertTriangle,
   Check,
+  ChevronDown,
   Code2,
   Plus, 
   Copy, 
@@ -14,8 +15,17 @@ import {
   Loader2,
   KeyRound,
   Terminal,
+  ExternalLink,
 } from 'lucide-react';
 import DeleteModal from '../components/DeleteModal';
+import {
+  listWidgets,
+  listApiKeys,
+  createApiKey,
+  createWidget,
+  type WidgetResponse,
+  type ApiKeyResponse,
+} from '../api/widget';
 
 interface APIKey {
   id: string;
@@ -26,12 +36,24 @@ interface APIKey {
   status: 'active' | 'idle' | 'never';
 }
 
-const initialApiKeys: APIKey[] = [];
+const API_DOCS = {
+  endpoint: 'POST /api/chat/public/api/v1/recommend',
+  curlExample: `curl -X POST \\
+  "https://your-domain.com/api/chat/public/api/v1/recommend" \\
+  -H "X-API-Key: <your-api-key>" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "question": "Có điện thoại nào dưới 10 triệu không?",
+    "pageContext": {"productCategory": "Điện thoại"}
+  }'`,
+};
 
 export default function APIKeys() {
   const { t, language } = useLanguage();
   const { showToast } = useToast();
-  const [keys, setKeys] = useState<APIKey[]>(initialApiKeys);
+  const [keys, setKeys] = useState<APIKey[]>([]);
+  const [widgets, setWidgets] = useState<WidgetResponse[]>([]);
+  const [selectedWidgetId, setSelectedWidgetId] = useState('');
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [isRevokeModalOpen, setIsRevokeModalOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
@@ -40,51 +62,96 @@ export default function APIKeys() {
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
-  const [apiAccessEnabled, setApiAccessEnabled] = useState(false);
+  const [isLoadingKeys, setIsLoadingKeys] = useState(false);
 
+  // Parse tenantId from JWT
+  const resolveTenantId = () => {
+    const token = getStoredAccessToken();
+    if (!token) return '';
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.tenantId || '';
+    } catch { return ''; }
+  };
+
+  // Load widgets (auto-create default if none exist)
   useEffect(() => {
-    let cancelled = false;
-    async function loadEntitlement() {
-      try {
-        if (!cancelled) {
-          setApiAccessEnabled(true);
+    const tenantId = resolveTenantId();
+    if (!tenantId) return;
+    listWidgets(tenantId)
+      .then(async (w) => {
+        if (w.length === 0) {
+          // Auto-create default widget
+          try {
+            const defaultWidget = await createWidget({
+              tenantId,
+              name: language === 'vi' ? 'Widget mặc định' : 'Default Widget',
+              code: 'wb_' + Math.random().toString(36).slice(2, 10),
+            });
+            setWidgets([defaultWidget]);
+            setSelectedWidgetId(defaultWidget.id);
+          } catch {
+            setWidgets([]);
+          }
+        } else {
+          setWidgets(w);
+          if (!selectedWidgetId) {
+            setSelectedWidgetId(w[0].id);
+          }
         }
-      } catch {
-        if (!cancelled) {
-          setApiAccessEnabled(true);
-        }
-      }
-    }
-    void loadEntitlement();
-    return () => {
-      cancelled = true;
-    };
+      })
+      .catch(() => {});
   }, []);
 
-  const handleGenerateKey = () => {
-    if (!newKeyName.trim()) return;
+  // Load API keys when widget changes
+  useEffect(() => {
+    if (!selectedWidgetId) { setKeys([]); return; }
+    setIsLoadingKeys(true);
+    listApiKeys(selectedWidgetId)
+      .then((apiKeys) => {
+        setKeys(apiKeys.map(k => ({
+          id: k.id,
+          name: k.name || k.keyPrefix,
+          key: `sk-••••••••${k.keyPrefix}`,
+          date: k.createdAt ? new Date(k.createdAt).toLocaleDateString(
+            language === 'vi' ? 'vi-VN' : 'en-US',
+            { month: 'short', day: 'numeric', year: 'numeric' }
+          ) : '-',
+          lastUsed: k.lastUsedAt
+            ? new Date(k.lastUsedAt).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')
+            : (language === 'vi' ? 'Chưa sử dụng' : 'Never used'),
+          status: k.status === 'ACTIVE' ? 'active' : 'never',
+        })));
+      })
+      .catch(() => setKeys([]))
+      .finally(() => setIsLoadingKeys(false));
+  }, [selectedWidgetId, language]);
+
+  const handleGenerateKey = async () => {
+    if (!newKeyName.trim() || !selectedWidgetId) return;
     
     setIsGenerating(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      const newId = Math.random().toString(36).substr(2, 9);
-      const randomKey = `sk-${Math.random().toString(36).substr(2, 12)}${Math.random().toString(36).substr(2, 4)}`;
+    try {
+      const result = await createApiKey(selectedWidgetId, { name: newKeyName.trim() });
+      const rawKey = result.keyHash; // Only returned on creation
       
       const newKey: APIKey = {
-        id: newId,
-        name: newKeyName,
-        key: `sk-••••••••${randomKey.slice(-4)}`,
+        id: result.id,
+        name: newKeyName.trim(),
+        key: rawKey ? `sk-••••••••${result.keyPrefix}` : `sk-••••••••${result.keyPrefix}`,
         date: new Date().toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        lastUsed: 'Never used',
+        lastUsed: language === 'vi' ? 'Chưa sử dụng' : 'Never used',
         status: 'never'
       };
       
-      setGeneratedKey(randomKey);
+      setGeneratedKey(rawKey);
       setKeys([newKey, ...keys]);
-      setIsGenerating(false);
       showToast(t('toast.api_generated'), 'success');
-    }, 1500);
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to create API key', 'error');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleCopy = (text: string, id: string) => {
@@ -114,51 +181,38 @@ export default function APIKeys() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
-      <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+      <div className="rounded-[24px] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9fa3a5]">
               <KeyRound size={13} />
               {t('nav.api_keys')}
             </div>
-            <h2 className="mt-4 text-[30px] font-display font-medium tracking-tight text-[#f0f0f0]">{t('api.title')}</h2>
-            <p className="mt-2 text-sm leading-6 text-[#8b8f91]">{t('api.subtitle')}</p>
           </div>
-          <button
-            onClick={() => setIsGenerateModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-[#ffffff] px-5 py-2.5 text-sm font-bold text-[#000000] shadow-[0_14px_30px_rgba(0,0,0,0.22)] transition-colors hover:bg-[#f0f0f0]"
-          >
-            <Plus size={18} />
-            {t('api.generate')}
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-[20px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-5 shadow-[0_14px_36px_rgba(0,0,0,0.18)]">
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-[14px] border border-[#3b9eff]/20 bg-[#3b9eff]/10 text-[#3b9eff]">
-            <KeyRound size={19} />
+          <div className="flex items-center gap-3">
+            {/* Widget Selector */}
+            <div className="relative">
+              <select
+                value={selectedWidgetId}
+                onChange={(e) => setSelectedWidgetId(e.target.value)}
+                className="appearance-none rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-4 py-2.5 pr-10 text-sm text-[#f0f0f0] outline-none transition-colors focus:border-[rgba(59,158,255,0.5)] cursor-pointer"
+              >
+                {widgets.length === 0 && <option value="">{language === 'vi' ? 'Tạo widget trước' : 'Create widget first'}</option>}
+                {widgets.map(w => (
+                  <option key={w.id} value={w.id} className="bg-[#1a1a1a]">{w.name}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b8f91] pointer-events-none" />
+            </div>
+            <button
+              onClick={() => setIsGenerateModalOpen(true)}
+              disabled={!selectedWidgetId}
+              className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-[#ffffff] px-5 py-2.5 text-sm font-bold text-[#000000] shadow-[0_14px_30px_rgba(0,0,0,0.22)] transition-colors hover:bg-[#f0f0f0] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus size={18} />
+              {t('api.generate')}
+            </button>
           </div>
-          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8b8f91]">{language === 'vi' ? 'Tổng khóa' : 'Total keys'}</p>
-          <p className="mt-2 text-[28px] font-display font-medium text-[#f0f0f0]">{keys.length}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsSecurityModalOpen(true)}
-          className="rounded-[20px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-5 text-left shadow-[0_14px_36px_rgba(0,0,0,0.18)] transition-colors hover:border-[#ff801f]/25 hover:bg-[#ff801f]/5"
-        >
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-[14px] border border-[#ff801f]/20 bg-[#ff801f]/10 text-[#ff801f]">
-            <ShieldCheck size={19} />
-          </div>
-          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8b8f91]">{t('api.security.title')}</p>
-          <p className="mt-2 text-sm leading-6 text-[#a1a4a5]">{t('api.security.guide')}</p>
-        </button>
-        <div className="rounded-[20px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-5 shadow-[0_14px_36px_rgba(0,0,0,0.18)]">
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-[14px] border border-[#11ff99]/20 bg-[#11ff99]/10 text-[#11ff99]">
-            <Activity size={19} />
-          </div>
-          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8b8f91]">{language === 'vi' ? 'Trạng thái API' : 'API status'}</p>
-          <p className="mt-2 text-sm font-semibold text-[#11ff99]">{apiAccessEnabled ? (language === 'vi' ? 'Đã bật' : 'Enabled') : (language === 'vi' ? 'Chưa bật' : 'Disabled')}</p>
         </div>
       </div>
 
@@ -249,6 +303,70 @@ export default function APIKeys() {
         </div>
       </div>
 
+      {/* ── API Documentation ─────────────────────────────────────────── */}
+      {selectedWidgetId && (
+        <div className="overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+          <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] p-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-[#3b9eff]/20 bg-[#3b9eff]/10 text-[#3b9eff]">
+                <Terminal size={18} />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-semibold text-[#f0f0f0]">API Recommend Endpoint</h3>
+                <p className="mt-0.5 text-[11px] text-[#8b8f91]">{language === 'vi' ? 'Gợi ý sản phẩm từ backend TMĐT' : 'Product recommendations from your e-commerce backend'}</p>
+              </div>
+            </div>
+            <code className="rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.3)] px-3 py-1.5 font-mono text-[11px] text-[#60a5fa]">
+              {API_DOCS.endpoint}
+            </code>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8b8f91]">{language === 'vi' ? 'Request Headers' : 'Request Headers'}</p>
+              <div className="rounded-[14px] border border-[rgba(255,255,255,0.08)] bg-[rgba(0,0,0,0.2)] p-3 font-mono text-[11px] text-[#a1a4a5] leading-relaxed">
+                <span className="text-[#60a5fa]">X-API-Key</span>: &lt;your-api-key&gt;<br/>
+                <span className="text-[#60a5fa]">Content-Type</span>: application/json
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8b8f91]">{language === 'vi' ? 'Request Body' : 'Request Body'}</p>
+              <pre className="rounded-[14px] border border-[rgba(255,255,255,0.08)] bg-[rgba(0,0,0,0.2)] p-4 font-mono text-[11px] text-[#a1a4a5] leading-relaxed overflow-x-auto">{`{
+  "question": "Có điện thoại nào dưới 10 triệu không?",
+  "pageContext": {
+    "productCategory": "Điện thoại"
+  },
+  "topK": 5,
+  "temperature": 0.2
+}`}</pre>
+            </div>
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8b8f91]">{language === 'vi' ? 'Response (JSON)' : 'Response (JSON)'}</p>
+              <pre className="rounded-[14px] border border-[rgba(255,255,255,0.08)] bg-[rgba(0,0,0,0.2)] p-4 font-mono text-[11px] text-[#a1a4a5] leading-relaxed overflow-x-auto">{`{
+  "message": "Dạ, đây là những sản phẩm phù hợp:",
+  "products": [
+    {
+      "id": 10,
+      "name": "Samsung Galaxy A55 5G",
+      "price": 9490000,
+      "imageUrl": "https://...",
+      "detailUrl": "/products/10",
+      "reason": "Pin 5000mAh, camera 50MP"
+    }
+  ]
+}`}</pre>
+            </div>
+            <div className="flex gap-3 rounded-[16px] border border-[#3b9eff]/20 bg-[#3b9eff]/10 p-4">
+              <ExternalLink className="text-[#3b9eff] shrink-0" size={16} />
+              <p className="text-[11px] text-[#a1a4a5] leading-relaxed">
+                {language === 'vi'
+                  ? 'Gọi API này từ backend của bạn. Không gọi trực tiếp từ frontend vì sẽ lộ API key.'
+                  : 'Call this API from your backend. Never call it from the frontend as it would expose your API key.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Generate Modal */}
       {isGenerateModalOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
@@ -291,7 +409,7 @@ export default function APIKeys() {
                           {generatedKey}
                         </code>
                         <button 
-                          onClick={() => handleCopy(generatedKey, 'generated')}
+                          onClick={() => generatedKey && handleCopy(generatedKey, 'generated')}
                           className="shrink-0 rounded-[14px] bg-[#ffffff] p-3 text-[#000000] shadow-md shadow-black/30 transition-colors hover:bg-[#f0f0f0]"
                         >
                           {copyStatus === 'generated' ? <Check size={20} /> : <Copy size={20} />}

@@ -33,7 +33,11 @@ import vandinh.wisebot.widgetservice.repository.WidgetSessionRepository;
 import vandinh.wisebot.widgetservice.service.WidgetService;
 import vandinh.wisebot.widgetservice.service.BillingEntitlementService;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
@@ -174,14 +178,53 @@ public class WidgetServiceImpl implements WidgetService {
             throw new InvalidDataException("Gói hiện tại chưa hỗ trợ truy cập API. Vui lòng nâng cấp lên gói Plus hoặc Pro.");
         }
         String raw = UUID.randomUUID().toString().replace("-", "");
+        String prefix = raw.substring(0, 8);
+        String hash = sha256(raw);
         WidgetApiKey key = WidgetApiKey.builder()
             .widget(widget)
-            .keyPrefix(raw.substring(0, 8))
-            .keyHash(raw)
+            .keyPrefix(prefix)
+            .keyHash(hash)
+            .name(request.getName() != null ? request.getName() : prefix)
             .status("ACTIVE")
             .expiresAt(request.getExpiresAt())
             .build();
-        return mapApiKey(apiKeyRepository.save(key));
+        apiKeyRepository.save(key);
+
+        // Return raw key only once (client must save it)
+        return ApiKeyResponse.builder()
+            .id(key.getId())
+            .widgetId(widgetId)
+            .keyPrefix(prefix)
+            .keyHash(raw)  // Return raw key so client can copy it
+            .name(key.getName())
+            .status(key.getStatus())
+            .expiresAt(key.getExpiresAt())
+            .createdAt(key.getCreatedAt())
+            .build();
+        }
+
+        @Override
+        @Transactional(readOnly = true)
+        public WidgetResponse validateApiKey(String rawApiKey) {
+        if (rawApiKey == null || rawApiKey.isBlank()) {
+            throw new InvalidDataException("API key is required");
+        }
+        String hash = sha256(rawApiKey.trim());
+        WidgetApiKey apiKey = apiKeyRepository.findByKeyHash(hash)
+            .orElseThrow(() -> new InvalidDataException("Invalid API key"));
+
+        if (!"ACTIVE".equals(apiKey.getStatus())) {
+            throw new InvalidDataException("API key is not active");
+        }
+        if (apiKey.getExpiresAt() != null && apiKey.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new InvalidDataException("API key has expired");
+        }
+
+        // Update last used
+        apiKey.setLastUsedAt(LocalDateTime.now());
+        apiKeyRepository.save(apiKey);
+
+        return mapWidget(apiKey.getWidget());
         }
 
         @Override
@@ -306,11 +349,23 @@ public class WidgetServiceImpl implements WidgetService {
                 .id(apiKey.getId())
                 .widgetId(apiKey.getWidget().getId())
                 .keyPrefix(apiKey.getKeyPrefix())
-                .keyHash(apiKey.getKeyHash())
+                .keyHash(null)  // Never expose hash
+                .name(apiKey.getName())
                 .status(apiKey.getStatus())
                 .expiresAt(apiKey.getExpiresAt())
+                .lastUsedAt(apiKey.getLastUsedAt())
                 .createdAt(apiKey.getCreatedAt())
                 .build();
+    }
+
+    private String sha256(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(input.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
+        }
     }
 
     private WidgetSessionResponse mapSession(WidgetSession session) {

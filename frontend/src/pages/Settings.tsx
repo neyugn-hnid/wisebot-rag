@@ -13,8 +13,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Cpu,
-  CreditCard,
-  Save,
 } from 'lucide-react';
 import { useRole } from '../contexts/RoleContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -35,13 +33,7 @@ import {
   type DocumentResponse,
   type KnowledgeBaseResponse,
 } from '../api/knowledge-base';
-import {
-  getVietQRConfig,
-  updateVietQRConfig,
-  getVietQRBanks,
-  type VietQRConfigResponse,
-  type VietQRBank,
-} from '../api/billing';
+
 
 interface RebuildStatusSummary {
   total: number;
@@ -50,7 +42,7 @@ interface RebuildStatusSummary {
   failed: number;
 }
 
-type SettingsTab = 'general' | 'ai' | 'embeddings' | 'maintenance' | 'payment';
+type SettingsTab = 'general' | 'ai' | 'embeddings' | 'maintenance';
 
 function SettingsSection({
   icon,
@@ -64,15 +56,14 @@ function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+    <section className="rounded-[24px] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] text-[#d7d9da]">
+        <div className="flex items-center gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] text-[#d7d9da]">
             {icon}
           </div>
           <div className="space-y-1">
             <h3 className="text-[16px] font-semibold tracking-tight text-[#f5f5f5]">{title}</h3>
-            {description ? <p className="max-w-2xl text-sm leading-6 text-[#8b8f91]">{description}</p> : null}
           </div>
         </div>
       </div>
@@ -148,15 +139,6 @@ export default function Settings() {
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
   const [isKnowledgeBaseDropdownOpen, setIsKnowledgeBaseDropdownOpen] = useState(false);
-
-  // ── VietQR payment config ──────────────────────────────────────────────
-  const [vietQRConfig, setVietQRConfigState] = useState<VietQRConfigResponse | null>(null);
-  const [isLoadingVietQRConfig, setIsLoadingVietQRConfig] = useState(false);
-  const [isSavingVietQRConfig, setIsSavingVietQRConfig] = useState(false);
-  const [vietQRForm, setVietQRForm] = useState({ bankCode: '', accountNo: '', accountName: '' });
-  const [banks, setBanks] = useState<VietQRBank[]>([]);
-  const [isBankDropdownOpen, setIsBankDropdownOpen] = useState(false);
-  const bankDropdownRef = useRef<HTMLDivElement>(null);
 
   const languageDropdownRef = useRef<HTMLDivElement>(null);
   const themeDropdownRef = useRef<HTMLDivElement>(null);
@@ -378,59 +360,21 @@ export default function Settings() {
     { id: 'ai', label: t('settings.tabs.ai'), icon: <Bot size={15} />, adminOnly: true },
     { id: 'embeddings', label: t('settings.tabs.embeddings'), icon: <Database size={15} />, adminOnly: true },
     { id: 'maintenance', label: t('settings.tabs.maintenance'), icon: <RefreshCw size={15} />, adminOnly: true },
-    { id: 'payment', label: 'Thanh toán', icon: <CreditCard size={15} />, adminOnly: true },
   ];
-
-  // ── Load VietQR config ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (activeTab !== 'payment' || role !== 'ADMIN') return;
-    let cancelled = false;
-    async function load() {
-      setIsLoadingVietQRConfig(true);
-      try {
-        const [config, banksData] = await Promise.all([
-          getVietQRConfig(),
-          getVietQRBanks().catch(() => ({ data: [] })),
-        ]);
-        if (!cancelled) {
-          setVietQRConfigState(config);
-          setVietQRForm({ bankCode: config.bankCode, accountNo: config.accountNo, accountName: config.accountName });
-          setBanks(banksData.data || []);
-        }
-      } catch { /* ignore */ }
-      finally { if (!cancelled) setIsLoadingVietQRConfig(false); }
-    }
-    void load();
-    return () => { cancelled = true; };
-  }, [activeTab, role]);
-
-  const handleSaveVietQRConfig = async () => {
-    setIsSavingVietQRConfig(true);
-    try {
-      const updated = await updateVietQRConfig(vietQRForm);
-      setVietQRConfigState(updated);
-      showToast('Đã lưu cấu hình VietQR', 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Lỗi lưu cấu hình', 'error');
-    } finally {
-      setIsSavingVietQRConfig(false);
-    }
-  };
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
-      <section className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+      <section className="rounded-[24px]  p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9fa3a5]">
             <Cpu size={13} />
             {t('settings.control_center')}
           </div>
-          <h2 className="mt-4 text-[30px] font-display font-medium tracking-tight text-[#f0f0f0]">{t('settings.title')}</h2>
-          <p className="mt-2 text-sm leading-6 text-[#8b8f91]">{t('settings.control_center.desc')}</p>
         </div>
+          
       </section>
 
-      <div className="rounded-[22px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-2 shadow-[0_14px_36px_rgba(0,0,0,0.18)]">
+      <div className="rounded-[22px] p-6 shadow-[0_14px_36px_rgba(0,0,0,0.18)]">
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         {tabs
           .filter((tab) => !tab.adminOnly || role === 'ADMIN')
@@ -796,90 +740,7 @@ export default function Settings() {
           </SettingsSection>
         )}
 
-        {role === 'ADMIN' && activeTab === 'payment' && (
-          <SettingsSection icon={<CreditCard size={20} />} title="Cấu hình thanh toán VietQR" description="Cài đặt tài khoản ngân hàng nhận thanh toán qua VietQR.">
-            {isLoadingVietQRConfig ? (
-              <div className="flex justify-center py-8"><RefreshCw size={24} className="animate-spin text-[#a1a4a5]" /></div>
-            ) : (
-              <div className="space-y-4 max-w-lg">
-                <div>
-                  <label className="block text-xs font-bold text-[#8b8f91] mb-1">Ngân hàng</label>
-                  <div className="relative" ref={bankDropdownRef}>
-                    <button
-                      type="button"
-                      onClick={() => setIsBankDropdownOpen(!isBankDropdownOpen)}
-                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2.5 text-sm text-[#f0f0f0]"
-                    >
-                      {vietQRForm.bankCode ? (
-                        <span className="flex items-center gap-2">
-                          {banks.find(b => b.bin === vietQRForm.bankCode)?.logo && (
-                            <img src={banks.find(b => b.bin === vietQRForm.bankCode)!.logo} alt="" className="w-5 h-5 rounded" />
-                          )}
-                          {banks.find(b => b.bin === vietQRForm.bankCode)?.shortName || vietQRForm.bankCode}
-                        </span>
-                      ) : 'Chọn ngân hàng'}
-                      <ChevronDown size={16} className={cn("shrink-0 text-[#8d9295]", isBankDropdownOpen && "rotate-180")} />
-                    </button>
-                    {isBankDropdownOpen && (
-                      <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 max-h-64 overflow-y-auto rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#0b0b0c] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.42)]">
-                        {banks.map((bank) => (
-                          <button
-                            key={bank.bin}
-                            type="button"
-                            onClick={() => {
-                              setVietQRForm(f => ({ ...f, bankCode: bank.bin }));
-                              setIsBankDropdownOpen(false);
-                            }}
-                            className={cn(
-                              "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors",
-                              vietQRForm.bankCode === bank.bin ? "bg-[rgba(59,158,255,0.10)] text-[#f0f0f0]" : "text-[#c9cdcf] hover:bg-[rgba(255,255,255,0.05)]"
-                            )}
-                          >
-                            {bank.logo && <img src={bank.logo} alt="" className="w-6 h-6 rounded" />}
-                            <div className="text-left">
-                              <span className="text-[#f0f0f0]">{bank.shortName}</span>
-                              <span className="text-[10px] text-[#6b6f71] ml-1">({bank.bin})</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#8b8f91] mb-1">Số tài khoản</label>
-                  <input
-                    type="text"
-                    value={vietQRForm.accountNo}
-                    onChange={e => setVietQRForm(f => ({ ...f, accountNo: e.target.value }))}
-                    placeholder="0912345678"
-                    className="w-full rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2.5 text-sm text-[#f0f0f0] placeholder-[#6b6f71] focus:border-[#3b9eff] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#8b8f91] mb-1">Tên chủ tài khoản</label>
-                  <input
-                    type="text"
-                    value={vietQRForm.accountName}
-                    onChange={e => setVietQRForm(f => ({ ...f, accountName: e.target.value }))}
-                    placeholder="CONG TY TNHH WISEBOT"
-                    className="w-full rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2.5 text-sm text-[#f0f0f0] placeholder-[#6b6f71] focus:border-[#3b9eff] focus:outline-none"
-                  />
-                </div>
-                <button
-                  onClick={handleSaveVietQRConfig}
-                  disabled={isSavingVietQRConfig}
-                  className="inline-flex items-center gap-2 rounded-[14px] bg-[#ffffff] px-5 py-2.5 text-sm font-bold text-[#000000] transition-colors hover:bg-[#f0f0f0] disabled:opacity-50"
-                >
-                  {isSavingVietQRConfig ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
-                  Lưu cấu hình
-                </button>
-              </div>
-            )}
-          </SettingsSection>
-        )}
-
-        <div className="border-t border-[rgba(255,255,255,0.08)] pt-8">
+        <div className="border-t border-[rgba(255,255,255,0.08)] pt-8 pl-6">
           <button
             onClick={handleSignOut}
             className="inline-flex items-center gap-2 rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-5 py-2.5 text-sm font-bold text-[#f0f0f0] transition-all hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff]"

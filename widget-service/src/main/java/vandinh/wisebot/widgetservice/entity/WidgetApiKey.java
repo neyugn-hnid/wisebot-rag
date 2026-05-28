@@ -41,6 +41,9 @@ public class WidgetApiKey {
     @Column(name = "key_hash", nullable = false, length = 255)
     private String keyHash;
 
+    @Column(length = 100)
+    private String name;
+
     @Column(nullable = false, length = 20)
     private String status;
 

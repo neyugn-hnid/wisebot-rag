@@ -53,6 +53,9 @@ services:
       JWT_REFRESH_KEY: ${JWT_REFRESH_KEY:-UYDDaHfHJxiTtOfyGkRbae6KlWwufFFvxA04gh/9uZI=}
       SENDGRID_VERIFICATION_LINK: ${SENDGRID_VERIFICATION_LINK:-http://localhost:3000/verify-email?token={token}}
       SENDGRID_RESET_PASSWORD_LINK: ${SENDGRID_RESET_PASSWORD_LINK:-http://localhost:3000/reset-password?token={token}}
+      AVATAR_UPLOAD_DIR: /app/data/avatars
+    volumes:
+      - avatar_data:/app/data/avatars
     depends_on:
       - postgres
     ports:
@@ -260,3 +263,4 @@ volumes:
   qdrant_data:
   ollama_data:
   uploads_data:
+  avatar_data:

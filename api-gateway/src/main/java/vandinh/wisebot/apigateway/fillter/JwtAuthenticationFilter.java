@@ -42,7 +42,9 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
             "/v3/**",
             "/webjars/**",
             "/favicon.ico",
-            "/actuator/**"
+            "/actuator/**",
+            "/api/user/avatars/**",
+            "/user/avatars/**"
     };
 
     public JwtAuthenticationFilter() {

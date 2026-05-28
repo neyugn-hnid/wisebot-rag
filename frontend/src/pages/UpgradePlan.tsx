@@ -92,7 +92,6 @@ export default function UpgradePlan() {
     const monthlyPrice = priceInfo ? priceInfo.amountCents : planPrice;
     setSelectedPlan({ id: planId, name: planName, price: monthlyPrice });
     if (monthlyPrice === 0) {
-      // Free plan – subscribe directly without payment
       handleFreeSubscribe(planId, planName);
     } else {
       setUpgradeStep('checkout');
@@ -137,12 +136,7 @@ export default function UpgradePlan() {
   const planPrice = billingCycle === 'yearly'
     ? Math.floor((selectedPlan?.price ?? 0) * 0.8)
     : (selectedPlan?.price ?? 0);
-  const fallbackPlans: BillingPlanResponse[] = [
-    { id: 'free', code: 'free', name: 'Miễn phí', description: 'Lên đến 1.000 tin nhắn\n1 Cơ sở tri thức\nTối đa 10 tài liệu tải lên\nDung lượng lưu trữ 100 MB\nHỗ trợ tiêu chuẩn', active: true },
-    { id: 'plus', code: 'plus', name: 'Plus', description: 'Lên đến 10.000 tin nhắn\n5 Cơ sở tri thức\nTối đa 200 tài liệu tải lên\nDung lượng lưu trữ 5 GB\nHỗ trợ ưu tiên\nTruy cập API', active: true },
-    { id: 'pro', code: 'pro', name: 'Pro', description: 'Không giới hạn tin nhắn\nKhông giới hạn Cơ sở tri thức\nKhông giới hạn tài liệu tải lên\nDung lượng lưu trữ 50 GB\nHỗ trợ tận tâm\nTích hợp tùy chỉnh\nPhân tích nâng cao', active: true },
-  ];
-  const availablePlans = backendPlans.length > 0 ? backendPlans : fallbackPlans;
+  const availablePlans = backendPlans;
   const selectedPlanDetails = availablePlans.find((plan) => plan.id === selectedPlan?.id);
   const selectedPlanFeatures = selectedPlanDetails?.description.split('\n').filter(Boolean) ?? [];
   const discountAmount = billingCycle === 'yearly'
@@ -153,11 +147,10 @@ export default function UpgradePlan() {
     if (loadingPlans) {
       return <div className="col-span-full flex justify-center py-12"><Loader2 size={32} className="animate-spin text-[#a1a4a5]" /></div>;
     }
-    const defaultPrices: Record<string, number> = { Free: 0, Plus: 501581, Pro: 1293551 };
 
     return availablePlans.map((plan) => {
       const price = backendPlanPrices.find(p => p.planId === plan.id);
-      const monthlyPrice = price ? price.amountCents : (defaultPrices[plan.name] || 0);
+      const monthlyPrice = price ? price.amountCents : 0;
       const yearlyPrice = Math.floor(monthlyPrice * 0.8);
       const displayPrice = billingCycle === 'yearly' ? yearlyPrice : monthlyPrice;
       const isActive = plan.name === currentPlan;

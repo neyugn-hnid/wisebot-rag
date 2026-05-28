@@ -5,10 +5,17 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import vandinh.wisebot.userservice.common.response.ApiResponse;
 import vandinh.wisebot.userservice.dto.request.ChangePasswordRequest;
 import vandinh.wisebot.userservice.dto.request.ChangeStatusRequest;
@@ -18,6 +25,8 @@ import vandinh.wisebot.userservice.dto.request.UserUpdateRequest;
 import vandinh.wisebot.userservice.entity.UserEntity;
 import vandinh.wisebot.userservice.service.UserService;
 
+import jakarta.annotation.PostConstruct;
+import java.nio.file.Path;
 import java.util.UUID;
 
 @RestController
@@ -27,6 +36,21 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+
+    @Value("${app.upload.avatar-dir:data/avatars}")
+    private String avatarDir;
+
+    private Path resolvedAvatarDir;
+
+    @PostConstruct
+    void initAvatarDir() {
+        Path path = Path.of(avatarDir);
+        if (!path.isAbsolute()) {
+            path = Path.of(System.getProperty("user.home")).resolve(path);
+        }
+        this.resolvedAvatarDir = path.normalize().toAbsolutePath();
+        log.info("Avatar serve directory resolved to: {}", resolvedAvatarDir);
+    }
 
     @Operation(summary = "Get all user", description = "API truy xuất danh sách người dùng với phân trang và bộ lọc.")
     @GetMapping("/list")
@@ -144,6 +168,42 @@ public class UserController {
                 .status(HttpStatus.NO_CONTENT.value())
                 .message("Người dùng đã được xóa thành công")
                 .build();
+    }
+
+    @Operation(summary = "Upload avatar", description = "API tải lên ảnh đại diện")
+    @PostMapping("/upload-avatar")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse uploadAvatar(@RequestParam("file") MultipartFile file, Authentication authentication) {
+        UserEntity user = (UserEntity) authentication.getPrincipal();
+        String avatarUrl = userService.updateAvatar(user.getId(), file);
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Ảnh đại diện đã được cập nhật")
+                .data(avatarUrl)
+                .build();
+    }
+
+    @Operation(summary = "Serve avatar", description = "API phục vụ file ảnh đại diện")
+    @GetMapping("/avatars/{filename}")
+    public ResponseEntity<Resource> serveAvatar(@PathVariable String filename) {
+        try {
+            java.nio.file.Path filePath = resolvedAvatarDir.resolve(filename).normalize();
+            if (!filePath.startsWith(resolvedAvatarDir)) {
+                return ResponseEntity.badRequest().build();
+            }
+            Resource resource = new UrlResource(filePath.toUri());
+            if (!resource.exists() || !resource.isReadable()) {
+                return ResponseEntity.notFound().build();
+            }
+            String contentType = java.nio.file.Files.probeContentType(filePath);
+            if (contentType == null) contentType = "image/jpeg";
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
 }

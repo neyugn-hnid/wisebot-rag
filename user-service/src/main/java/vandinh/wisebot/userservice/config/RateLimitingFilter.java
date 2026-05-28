@@ -36,7 +36,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             "/v3/**",
             "/webjars/**",
             "/favicon.ico",
-            "/actuator/**"
+            "/actuator/**",
+            "/user/avatars/**"
     };
 
     @Override

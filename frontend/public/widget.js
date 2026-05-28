@@ -10,6 +10,24 @@
     return;
   }
 
+  // ── Page context (tự động detect hoặc từ data-page-context) ────────
+  var pageContext = {};
+  var contextRaw = currentScript.getAttribute('data-page-context');
+  if (contextRaw) {
+    try { pageContext = JSON.parse(contextRaw); } catch(e) { pageContext = {}; }
+  }
+  // Auto-detect từ meta tags nếu chưa có
+  if (!pageContext.productName) {
+    var metaTitle = document.querySelector('meta[property="og:title"]');
+    if (metaTitle) pageContext.productName = metaTitle.getAttribute('content');
+  }
+  if (!pageContext.productCategory) {
+    var metaCategory = document.querySelector('meta[property="product:category"]');
+      if (metaCategory) pageContext.productCategory = metaCategory.getAttribute('content');
+    }
+    pageContext.pageUrl = window.location.href;
+    pageContext.pageTitle = document.title;
+
   var scriptUrl = new URL(currentScript.src, window.location.href);
   var apiBase = currentScript.getAttribute('data-api-base') || scriptUrl.origin;
   var apiUrl = apiBase.replace(/\/$/, '') + '/api/widget/public/widgets/code/' + encodeURIComponent(widgetCode);
@@ -68,6 +86,14 @@
     '.wisebot-send{border:none;background:transparent;cursor:pointer;font-size:18px;padding:7px;border-radius:999px;line-height:1;transition:opacity .15s ease,transform .15s ease;}',
     '.wisebot-send:hover{opacity:.82;transform:translateX(1px);}',
     '.wisebot-powered{margin-top:9px;text-align:center;font-size:10px;color:#64748b;letter-spacing:.01em;}',
+    '.wisebot-product-card{display:flex;gap:10px;padding:10px;background:#fff;border-radius:14px;border:1px solid #e2e8f0;cursor:pointer;transition:box-shadow .15s ease,transform .15s ease;text-decoration:none;color:inherit;}',
+    '.wisebot-product-card:hover{box-shadow:0 4px 16px rgba(15,23,42,.1);transform:translateY(-1px);}',
+    '.wisebot-product-img{width:64px;height:64px;border-radius:10px;object-fit:cover;flex:none;background:#f1f5f9;}',
+    '.wisebot-product-info{flex:1;min-width:0;}',
+    '.wisebot-product-name{font-size:13px;font-weight:700;color:#0f172a;line-height:1.3;margin-bottom:4px;}',
+    '.wisebot-product-price{font-size:14px;font-weight:800;color:#2563eb;margin-bottom:3px;}',
+    '.wisebot-product-reason{font-size:11px;color:#64748b;line-height:1.4;}',
+    '.wisebot-product-list{display:flex;flex-direction:column;gap:8px;margin-top:8px;}',
     '@media (max-width:640px){.wisebot-widget-root{bottom:16px}.wisebot-widget-root[data-position="left"]{left:16px}.wisebot-widget-root[data-position="right"]{right:16px}.wisebot-panel{width:calc(100vw - 32px);height:min(72vh,620px);max-height:calc(100dvh - 96px);border-radius:22px;}.wisebot-bubble{width:60px;height:60px;border-radius:18px;}}'
   ].join('');
   document.head.appendChild(style);
@@ -147,6 +173,20 @@
     });
   }
 
+  // ── Parse JSON products from AI response ─────────────────────────────
+  function parseProducts(content) {
+    var jsonMatch = content.match(/__JSON_PRODUCTS__\s*([\s\S]*?)\s*__END_JSON__/);
+    if (!jsonMatch) return { text: content, products: null };
+    try {
+      var products = JSON.parse(jsonMatch[1]);
+      if (!Array.isArray(products) || products.length === 0) return { text: content, products: null };
+      var text = content.replace(/__JSON_PRODUCTS__[\s\S]*?__END_JSON__/g, '').trim();
+      return { text: text, products: products };
+    } catch(e) {
+      return { text: content, products: null };
+    }
+  }
+
   function askAssistant(widget, question) {
     state.isReplying = true;
     render();
@@ -162,10 +202,12 @@
         knowledgeBaseId: widget.appearanceConfig && widget.appearanceConfig.knowledgeBaseId ? widget.appearanceConfig.knowledgeBaseId : null,
         topK: widget.appearanceConfig && widget.appearanceConfig.topK ? widget.appearanceConfig.topK : 5,
         temperature: widget.appearanceConfig && widget.appearanceConfig.temperature != null ? widget.appearanceConfig.temperature : 0.2,
+        pageContext: pageContext,
       });
     }).then(function (payload) {
       var answer = payload && payload.data && payload.data.answer ? payload.data.answer : 'I could not generate a response.';
-      state.messages.push({ role: 'bot', content: answer });
+      var parsed = parseProducts(answer);
+      state.messages.push({ role: 'bot', content: parsed.text, products: parsed.products });
       state.isReplying = false;
       render();
       trackEvent(widget, 'ANSWER_RECEIVED', { sourceUrl: window.location.href });
@@ -281,14 +323,65 @@
     var body = createEl('div', 'wisebot-body', null);
     body.appendChild(createEl('div', 'wisebot-day', 'WiseBot'));
     if (!state.messages.length) {
-      state.messages.push({ role: 'bot', content: widget.welcomeMessage || 'Hello! How can I help you today?' });
+      var welcomeText = widget.welcomeMessage || 'Hello! How can I help you today?';
+      state.messages.push({ role: 'bot', content: welcomeText });
     }
     state.messages.forEach(function (message) {
-      var msg = createEl('div', 'wisebot-msg ' + message.role, message.content);
-      if (message.role === 'user') {
-        msg.style.background = config.primaryColor;
+      // Bot message container
+      var msgWrap = createEl('div', '', null);
+      if (message.role === 'bot') {
+        msgWrap.style.maxWidth = '92%';
+        msgWrap.style.alignSelf = 'flex-start';
+      } else {
+        msgWrap.style.alignSelf = 'flex-end';
+        msgWrap.style.maxWidth = '85%';
       }
-      body.appendChild(msg);
+
+      // Text message
+      if (message.content) {
+        var msg = createEl('div', 'wisebot-msg ' + message.role, message.content);
+        if (message.role === 'user') {
+          msg.style.background = config.primaryColor;
+        }
+        msgWrap.appendChild(msg);
+      }
+
+      // Product cards
+      if (message.products && message.products.length > 0) {
+        var cardList = createEl('div', 'wisebot-product-list', null);
+        message.products.forEach(function (product) {
+          var card = createEl('a', 'wisebot-product-card', null);
+          card.href = product.detailUrl || '#';
+          if (product.detailUrl) {
+            card.target = '_blank';
+            card.rel = 'noopener';
+          }
+
+          var img = createEl('img', 'wisebot-product-img', null);
+          img.src = product.imageUrl || '';
+          img.alt = product.name || '';
+          img.loading = 'lazy';
+          img.onerror = function () { this.style.display = 'none'; };
+
+          var info = createEl('div', 'wisebot-product-info', null);
+          var name = createEl('div', 'wisebot-product-name', product.name || '');
+          var price = createEl('div', 'wisebot-product-price', null);
+          if (product.price) {
+            price.textContent = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price);
+          }
+          var reason = createEl('div', 'wisebot-product-reason', product.reason || '');
+
+          info.appendChild(name);
+          info.appendChild(price);
+          info.appendChild(reason);
+          card.appendChild(img);
+          card.appendChild(info);
+          cardList.appendChild(card);
+        });
+        msgWrap.appendChild(cardList);
+      }
+
+      body.appendChild(msgWrap);
     });
     if (state.isReplying) {
       var thinking = createEl('div', 'wisebot-msg bot', null);

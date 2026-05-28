@@ -11,6 +11,10 @@ spring:
   jpa:
     show-sql: false
 
+app:
+  upload:
+    avatar-dir: ${AVATAR_UPLOAD_DIR:wisebot-data/avatars}
+
 logging:
   level:
     root: INFO

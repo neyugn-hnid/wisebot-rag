@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -13,6 +14,10 @@ class AskRequest(BaseModel):
     knowledge_base_id: UUID | None = None
     session_id: UUID | None = None
     message_id: UUID | None = None
+
+    # Page context: thông tin trang hiện tại (tên sản phẩm, danh mục...)
+    # AI sẽ tự động nhận biết câu hỏi để trả lời phù hợp (gợi ý SP / FAQ)
+    page_context: dict[str, Any] | None = None
 
 
 class Citation(BaseModel):

@@ -186,29 +186,87 @@ async def _judge_and_persist(
         logger.warning("Background judge failed for request %s", request_id, exc_info=True)
 
 
-def _build_prompts(question: str, retrieved_chunks: list[dict]) -> tuple[str, str]:
+def _build_prompts(question: str, retrieved_chunks: list[dict], page_context: dict | None = None) -> tuple[str, str]:
+    """Unified prompt: AI tự phân tích, trả JSON sản phẩm nếu hỏi mua sắm, text nếu hỏi FAQ."""
     context_lines: list[str] = []
     for chunk in retrieved_chunks:
         context_lines.append(chunk["chunk_text"])
 
     context_text = "\n\n---\n\n".join(context_lines) if context_lines else "No relevant context found."
 
+    # Build page context info
+    page_info = ""
+    if page_context:
+        product_name = page_context.get("productName") or page_context.get("product_name", "")
+        product_category = page_context.get("productCategory") or page_context.get("product_category", "")
+        page_title = page_context.get("pageTitle") or page_context.get("page_title", "")
+        if product_name:
+            page_info += f"- Đang xem: {product_name}\n"
+        if product_category:
+            page_info += f"- Danh mục: {product_category}\n"
+        if page_title and not product_name:
+            page_info += f"- Trang: {page_title}\n"
+
     system_prompt = (
-        "You are WISEBOT AI assistant. "
-        "STRICT RULES:\n"
-        " - ONLY answer in VIETNAMESE. Never use English.\n"
-        " - ONLY answer using the provided CONTEXT. DO NOT use outside knowledge.\n"
-        " - DO NOT hallucinate or make up information.\n"
-        " - Answer DIRECTLY. No greetings, no apologies, no \"xin chào\", no \"xin lỗi\".\n"
-        " - Be CONCISE. Go straight to the point.\n"
-        " - Do NOT use citation markers like [1], [2].\n"
-        " - Do NOT mention sources, scores, or document names unless asked.\n"
-        " - CHITCHAT: If the user only says hi/hello/chào, reply briefly: \"Chào bạn, tôi có thể giúp gì?\"\n"
-        " - NO MATCH: If the context doesn't answer the question, say ONLY:\n"
-        '   "Không tìm thấy thông tin trong tài liệu."'
+        "Bạn là trợ lý AI WISEBOT, có thể vừa tư vấn sản phẩm vừa trả lời câu hỏi thông thường.\n"
+        "PHÂN TÍCH CÂU HỎI để chọn cách trả lời:\n"
+        "\n"
+        "🔹 Nếu hỏi VỀ SẢN PHẨM (tìm mua, so sánh, giá, gợi ý, tư vấn chọn...):\n"
+        "Trả lời theo format SAU (bắt buộc):\n"
+        "  1. Viết 1-2 câu giới thiệu ngắn gọn.\n"
+        "  2. Sau đó là dòng: __JSON_PRODUCTS__\n"
+        "  3. Tiếp theo là JSON array chứa tối đa 3 sản phẩm phù hợp nhất từ context.\n"
+        "  4. Sau đó là dòng: __END_JSON__\n"
+        "  5. Cuối cùng viết 1 câu kết, gợi ý thêm.\n"
+        "\n"
+        "Cấu trúc mỗi object trong JSON array:\n"
+        "{\n"
+        '  "id": <số, id sản phẩm từ CSV>,\n'
+        '  "name": "<tên sản phẩm>",\n'
+        '  "price": <số, giá VND, không có dấu phẩy>,\n'
+        '  "imageUrl": "<url ảnh từ CSV, nếu không có thì để chuỗi rỗng>",\n'
+        '  "detailUrl": "<url chi tiết từ CSV, nếu không có thì để chuỗi rỗng>",\n'
+        '  "reason": "<1 câu ngắn giải thích tại sao sản phẩm này phù hợp>"\n'
+        "}\n"
+        "\n"
+        "VÍ DỤ output đúng:\n"
+        "Dạ, đây là những điện thoại phù hợp với ngân sách của bạn:\n"
+        "__JSON_PRODUCTS__\n"
+        '[{"id":10,"name":"Samsung Galaxy A55 5G","price":9490000,"imageUrl":"https://example.com/a55.jpg","detailUrl":"/products/10","reason":"Pin 5000mAh, camera 50MP, màn hình AMOLED 120Hz"}]\n'
+        "__END_JSON__\n"
+        "Bạn cần thêm thông tin gì về sản phẩm này không ạ?\n"
+        "\n"
+        "⚠ QUAN TRỌNG:\n"
+        " - CHỈ lấy sản phẩm từ context. KHÔNG bịa đặt.\n"
+        " - JSON phải hợp lệ, không có trailing comma.\n"
+        " - price là số nguyên, KHÔNG có dấu phẩy hay ký tự đặc biệt.\n"
+        " - Nếu imageUrl/detailUrl không có trong context → để chuỗi rỗng "".\n"
+        " - Nếu KHÔNG có sản phẩm phù hợp → trả lời text bình thường, KHÔNG dùng format JSON.\n"
+        "\n"
+        "🔹 Nếu hỏi THÔNG TIN CHUNG (chính sách, FAQ, hướng dẫn, điều khoản...):\n"
+        " - Trả lời thẳng, súc tích.\n"
+        " - KHÔNG dùng format __JSON_PRODUCTS__.\n"
+        "\n"
+        "LUẬT CHUNG:\n"
+        " - CHỈ trả lời bằng TIẾNG VIỆT.\n"
+        " - CHỈ dùng thông tin trong CONTEXT.\n"
+        " - KHÔNG dùng citation markers.\n"
+        " - CHITCHAT: trả lời ngắn gọn, thân thiện.\n"
+        ' - NO MATCH: "Xin lỗi, tôi không tìm thấy thông tin phù hợp."'
     )
 
-    user_prompt = f"Question:\n{question}\n\nContext:\n{context_text}\n\nTrả lời thẳng vào câu hỏi, không chào hỏi, không xin lỗi. Chỉ dùng context đã cho."
+    user_prompt = f"Câu hỏi:\n{question}\n"
+    if page_info:
+        user_prompt += f"\nNgữ cảnh trang:\n{page_info}\n"
+    user_prompt += f"\nDữ liệu tham khảo:\n{context_text}\n\nTrả lời:"
+    return system_prompt, user_prompt
+        " - NO MATCH: \"Xin lỗi, tôi không tìm thấy thông tin phù hợp.\""
+    )
+
+    user_prompt = f"Câu hỏi:\n{question}\n"
+    if page_info:
+        user_prompt += f"\nNgữ cảnh trang:\n{page_info}\n"
+    user_prompt += f"\nDữ liệu tham khảo:\n{context_text}\n\nTrả lời:"
     return system_prompt, user_prompt
 
 
@@ -419,7 +477,8 @@ async def rag_ask(
                 citations=[],
             )
 
-        system_prompt, user_prompt = _build_prompts(payload.question, retrieved)
+        # ── Unified prompt (AI tự phân biệt hỏi sản phẩm / hỏi FAQ) ──────
+        system_prompt, user_prompt = _build_prompts(payload.question, retrieved, payload.page_context)
         try:
             llm_result = await llm_client.chat(
                 system_prompt=system_prompt,
@@ -641,7 +700,7 @@ async def rag_ask_stream(
                 yield f"data: {json.dumps(done_event, ensure_ascii=True)}\\n\\n"
                 return
 
-            system_prompt, user_prompt = _build_prompts(payload.question, retrieved)
+            system_prompt, user_prompt = _build_prompts(payload.question, retrieved, payload.page_context)
 
             try:
                 async for item in llm_client.chat_stream(

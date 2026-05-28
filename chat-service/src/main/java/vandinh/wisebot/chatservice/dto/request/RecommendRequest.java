@@ -6,13 +6,17 @@ import lombok.Data;
 import java.util.Map;
 
 @Data
-public class AskRequest {
+public class RecommendRequest {
+
     @NotBlank
     private String question;
-    private int topK = 5;
-    private double temperature = 0.2;
-    private java.util.UUID knowledgeBaseId;
 
-    // Page context: thông tin trang hiện tại
+    // Optional: page context (product name, category...)
     private Map<String, Object> pageContext;
+
+    // Optional: override topK
+    private int topK = 5;
+
+    // Optional: override temperature
+    private double temperature = 0.2;
 }

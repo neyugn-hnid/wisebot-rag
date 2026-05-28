@@ -5,7 +5,51 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9395e225-b2fc-43f8-8b76-11165b432eb5" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/WidgetProperties.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/PublicApiController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/request/RecommendRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/response/ProductItem.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/response/RecommendResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/controller/InternalApiController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/widget-service/src/main/resources/db/migration/V2__add_api_key_name.sql" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-service/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/ai-service/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-service/app/schemas.py" beforeDir="false" afterPath="$PROJECT_DIR$/ai-service/app/schemas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/java/vandinh/wisebot/apigateway/fillter/JwtAuthenticationFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/java/vandinh/wisebot/apigateway/fillter/JwtAuthenticationFilter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/src/main/resources/application-dev.yml" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/src/main/resources/application-dev.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/AppConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/AppConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/PublicChatController.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/PublicChatController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/request/AskRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/request/AskRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/request/PublicWidgetAskRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/request/PublicWidgetAskRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/impl/ChatServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/impl/ChatServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/public/widget.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/public/widget.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/api/users.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/users.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/api/widget.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/widget.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/contexts/LanguageContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/contexts/LanguageContext.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/APIKeys.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/APIKeys.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Billing.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Billing.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Profile.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Profile.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Settings.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Settings.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/UpgradePlan.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/UpgradePlan.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/WidgetCustomization.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/WidgetCustomization.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/JWTAuthenticationFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/JWTAuthenticationFilter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/RateLimitingFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/RateLimitingFilter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/config/SecurityConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/controller/UserController.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/controller/UserController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/UserService.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/UserService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/impl/UserServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/java/vandinh/wisebot/userservice/service/impl/UserServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/resources/application-dev.yml" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/resources/application-dev.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/config/SecurityConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/dto/request/CreateApiKeyRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/dto/request/CreateApiKeyRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/dto/response/ApiKeyResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/dto/response/ApiKeyResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/entity/WidgetApiKey.java" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/entity/WidgetApiKey.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/repository/WidgetApiKeyRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/repository/WidgetApiKeyRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/service/WidgetService.java" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/service/WidgetService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/service/impl/WidgetServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/service/impl/WidgetServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/resources/application-dev.yml" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/resources/application-dev.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -219,6 +263,7 @@
       <workItem from="1778809252186" duration="2760000" />
       <workItem from="1778927721268" duration="682000" />
       <workItem from="1778996359934" duration="8574000" />
+      <workItem from="1779940607160" duration="2529000" />
     </task>
     <servers />
   </component>
