@@ -71,7 +71,7 @@
     '.wisebot-close:hover{background:rgba(255,255,255,.12);}',
     '.wisebot-body{flex:1;padding:16px;background:#f6f7f9;overflow:auto;display:flex;flex-direction:column;gap:12px;}',
     '.wisebot-day{align-self:center;border-radius:999px;background:#fff;color:#94a3b8;font-size:10px;font-weight:700;padding:4px 12px;border:1px solid rgba(226,232,240,.85);box-shadow:0 1px 2px rgba(15,23,42,.04);}',
-    '.wisebot-msg{max-width:85%;padding:12px 14px;border-radius:16px;font-size:14px;line-height:1.45;white-space:pre-wrap;box-shadow:0 1px 2px rgba(15,23,42,.05);}',
+    '.wisebot-msg{max-width:85%;padding:12px 14px;border-radius:16px;font-size:14px;line-height:1.45;white-space:pre-wrap;overflow-wrap:break-word;word-break:normal;box-sizing:border-box;box-shadow:0 1px 2px rgba(15,23,42,.05);}',
     '.wisebot-msg.bot{background:#fff;color:#0f172a;border-top-left-radius:5px;border:1px solid rgba(226,232,240,.9);}',
     '.wisebot-msg.user{color:#fff;border-top-right-radius:5px;align-self:flex-end;}',
     '.wisebot-typing{display:inline-flex;gap:4px;align-items:center;}',
@@ -329,13 +329,9 @@
     state.messages.forEach(function (message) {
       // Bot message container
       var msgWrap = createEl('div', '', null);
-      if (message.role === 'bot') {
-        msgWrap.style.maxWidth = '92%';
-        msgWrap.style.alignSelf = 'flex-start';
-      } else {
-        msgWrap.style.alignSelf = 'flex-end';
-        msgWrap.style.maxWidth = '85%';
-      }
+      msgWrap.style.width = '100%';
+      msgWrap.style.display = 'flex';
+      msgWrap.style.justifyContent = message.role === 'bot' ? 'flex-start' : 'flex-end';
 
       // Text message
       if (message.content) {
