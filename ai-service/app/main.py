@@ -260,14 +260,6 @@ def _build_prompts(question: str, retrieved_chunks: list[dict], page_context: di
         user_prompt += f"\nNgữ cảnh trang:\n{page_info}\n"
     user_prompt += f"\nDữ liệu tham khảo:\n{context_text}\n\nTrả lời:"
     return system_prompt, user_prompt
-        " - NO MATCH: \"Xin lỗi, tôi không tìm thấy thông tin phù hợp.\""
-    )
-
-    user_prompt = f"Câu hỏi:\n{question}\n"
-    if page_info:
-        user_prompt += f"\nNgữ cảnh trang:\n{page_info}\n"
-    user_prompt += f"\nDữ liệu tham khảo:\n{context_text}\n\nTrả lời:"
-    return system_prompt, user_prompt
 
 
 def _generate_service_token() -> str:
