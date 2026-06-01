@@ -22,7 +22,8 @@ class Settings(BaseSettings):
     third_party_api_key: str = ""
     third_party_llm_model: str = "gpt-4o-mini"
     third_party_embedding_model: str = "text-embedding-3-small"
-    embedding_dimension: int = 1536
+    # Must match embedding-service dimension (nomic-embed-text = 768, OpenAI text-embedding-3-small = 1536)
+    embedding_dimension: int = 768
     default_top_k: int = 5
     default_temperature: float = 0.2
     min_similarity_score: float = 0.35
