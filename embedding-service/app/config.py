@@ -17,7 +17,9 @@ class Settings(BaseSettings):
     third_party_base_url: str = "https://api.openai.com/v1"
     third_party_api_key: str = ""
     third_party_embedding_model: str = "text-embedding-3-small"
-    embedding_dimension: int = 1536
+    # Ollama dimension (nomic-embed-text = 768, llama3 embeddings vary)
+    # OpenAI text-embedding-3-small = 1536
+    embedding_dimension: int = 768
     default_chunk_size: int = 1200
     default_chunk_overlap: int = 200
     default_collection_name: str = "default"

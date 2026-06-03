@@ -7,6 +7,8 @@ import vandinh.wisebot.billingservice.dto.request.CreateUsageEventRequest;
 import vandinh.wisebot.billingservice.dto.request.CreateInvoiceItemRequest;
 import vandinh.wisebot.billingservice.dto.request.CreatePaymentRequest;
 import vandinh.wisebot.billingservice.dto.request.SubscribeRequest;
+import vandinh.wisebot.billingservice.dto.request.UpdatePlanRequest;
+import vandinh.wisebot.billingservice.dto.request.UpdatePlanPriceRequest;
 import vandinh.wisebot.billingservice.dto.response.BillingPlanPriceResponse;
 import vandinh.wisebot.billingservice.dto.response.BillingInvoiceResponse;
 import vandinh.wisebot.billingservice.dto.response.BillingPlanResponse;
@@ -23,9 +25,17 @@ import java.util.UUID;
 public interface BillingService {
     BillingPlanResponse createPlan(CreatePlanRequest request);
 
+    BillingPlanResponse updatePlan(UUID planId, UpdatePlanRequest request);
+
+    void deletePlan(UUID planId);
+
     List<BillingPlanResponse> listPlans();
 
     BillingPlanPriceResponse createPlanPrice(CreatePlanPriceRequest request);
+
+    BillingPlanPriceResponse updatePlanPrice(UUID priceId, UpdatePlanPriceRequest request);
+
+    void deletePlanPrice(UUID priceId);
 
     List<BillingPlanPriceResponse> listPlanPrices(UUID planId);
 
@@ -52,4 +62,8 @@ public interface BillingService {
     List<PaymentResponse> listPayments(UUID invoiceId);
 
     InternalPlanLimitResponse getKnowledgeBaseLimit(UUID tenantId);
+
+    SubscriptionResponse cancelSubscription(UUID tenantId);
+
+    SubscriptionResponse downgradeSubscription(UUID tenantId, UUID newPlanId);
 }

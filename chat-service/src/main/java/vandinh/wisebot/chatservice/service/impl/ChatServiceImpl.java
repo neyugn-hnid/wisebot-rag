@@ -132,6 +132,7 @@ public class ChatServiceImpl implements ChatService {
         aiPayload.put("top_k", request.getTopK());
         aiPayload.put("temperature", request.getTemperature());
         aiPayload.put("knowledge_base_id", knowledgeBaseId);
+        aiPayload.put("page_context", request.getPageContext());
         Map<String, Object> aiResult = aiClient.ask(aiPayload);
 
         String answer = (String) aiResult.getOrDefault("answer", "");
@@ -213,6 +214,7 @@ public class ChatServiceImpl implements ChatService {
         aiPayload.put("top_k", request.getTopK());
         aiPayload.put("temperature", request.getTemperature());
         aiPayload.put("knowledge_base_id", knowledgeBaseId);
+        aiPayload.put("page_context", request.getPageContext());
 
         StringBuilder streamedAnswer = new StringBuilder();
         Map<String, Object> donePayload = new HashMap<>();

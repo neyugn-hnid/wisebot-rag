@@ -4,6 +4,11 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
+def to_camel(value: str) -> str:
+    parts = value.split("_")
+    return parts[0] + "".join(part.capitalize() for part in parts[1:])
+
+
 class CreateCollectionRequest(BaseModel):
     tenant_id: UUID
     knowledge_base_id: UUID
@@ -66,20 +71,20 @@ class EmbedChunkRequest(BaseModel):
 
 
 class EmbedRequest(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
-    tenant_id: UUID = Field(alias="tenantId")
-    knowledge_base_id: UUID = Field(alias="knowledgeBaseId")
-    document_id: UUID = Field(alias="documentId")
-    document_name: str | None = Field(default=None, alias="documentName")
+    tenant_id: UUID
+    knowledge_base_id: UUID
+    document_id: UUID
+    document_name: str | None = None
     chunks: list[EmbedChunkRequest] = Field(min_length=1)
 
 
 class EmbedResultResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
     index: int
-    embedding_id: str = Field(alias="embeddingId")
+    embedding_id: str
 
 
 class EmbedResponse(BaseModel):

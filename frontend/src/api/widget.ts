@@ -39,6 +39,23 @@ export interface UpdateWidgetRequest {
   appearanceConfig?: WidgetAppearanceConfig;
 }
 
+export interface CreateApiKeyRequest {
+  name: string;
+  expiresAt?: string | null;
+}
+
+export interface ApiKeyResponse {
+  id: string;
+  widgetId: string;
+  keyPrefix: string;
+  keyHash: string | null;
+  name?: string;
+  status: string;
+  expiresAt?: string | null;
+  lastUsedAt?: string | null;
+  createdAt?: string;
+}
+
 // --- Helper ---
 
 const WIDGET_BASE = '/api/widget';
@@ -78,4 +95,20 @@ export async function updateWidget(id: string, request: UpdateWidgetRequest): Pr
     body: JSON.stringify(request),
   });
   return handleResponse<WidgetResponse>(res);
+}
+
+// --- API Key functions ---
+
+export async function listApiKeys(widgetId: string): Promise<ApiKeyResponse[]> {
+  const res = await fetchWithAuth(`${WIDGET_BASE}/widgets/${widgetId}/api-keys`);
+  return handleResponse<ApiKeyResponse[]>(res);
+}
+
+export async function createApiKey(widgetId: string, request: CreateApiKeyRequest): Promise<ApiKeyResponse> {
+  const res = await fetchWithAuth(`${WIDGET_BASE}/widgets/${widgetId}/api-keys`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<ApiKeyResponse>(res);
 }

@@ -57,10 +57,10 @@ export default function Login() {
   };
 
   const inputClass = (field: string) =>
-    `w-full rounded-[14px] border bg-[rgba(255,255,255,0.04)] pl-11 pr-4 py-3 text-[14px] text-[#ffffff] outline-none transition-all placeholder:text-[rgba(255,255,255,0.38)] ${
+    `w-full rounded-[14px] border bg-[#f8fafc] pl-11 pr-4 py-3 text-[14px] text-[#111111] outline-none transition-all placeholder:text-[#9ca3af] ${
       touched[field] && errors[field]
         ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff0000]/20'
-        : 'border-[rgba(255,255,255,0.12)] focus:border-[rgba(59,158,255,0.35)] focus:ring-2 focus:ring-[rgba(59,158,255,0.16)]'
+        : 'border-[#e5e7eb] focus:border-[#00D4A4] focus:bg-white focus:ring-2 focus:ring-[#00D4A4]/20'
     }`;
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -106,25 +106,28 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(59,158,255,0.08),transparent_28%),#050505] px-6 py-10 selection:bg-[#ff801f] selection:text-[#ffffff]">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#e7f8ff_0%,#f8fbf8_48%,#ffffff_100%)] px-6 py-10 text-[#111111] selection:bg-[#00D4A4] selection:text-[#111111]">
+      <div className="pointer-events-none fixed inset-x-0 top-12 mx-auto h-[320px] max-w-[900px] rounded-full bg-white/50 blur-3xl" />
+      <div className="pointer-events-none fixed left-[8%] top-24 h-24 w-48 rounded-full bg-[#00D4A4]/10 blur-2xl" />
+      <div className="pointer-events-none fixed right-[10%] top-36 h-20 w-56 rounded-full bg-[#60a5fa]/15 blur-2xl" />
       <div className="mx-auto flex min-h-[calc(100vh-80px)] max-w-6xl items-center justify-center">
-        <section className="w-full max-w-md">
-          <div className="rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.32)] sm:p-8">
+        <section className="relative w-full max-w-md">
+          <div className="rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:p-8">
             <div className="mb-8 space-y-4 text-center">
               <div className="flex justify-center">
-                <Logo theme="dark" customSize={132} />
+                <Logo customSize={132} />
               </div>
               <div className="space-y-2">
-                <h1 className="text-[30px] font-display font-medium tracking-tight text-[#f5f5f5]">{t('auth.welcome')}</h1>
-                <p className="text-sm leading-6 text-[#8b8f91]">{t('auth.welcome_desc')}</p>
+                <h1 className="text-[30px] font-display font-medium tracking-tight text-[#111111]">{t('auth.welcome')}</h1>
+                <p className="text-sm leading-6 text-[#4b5563]">{t('auth.welcome_desc')}</p>
               </div>
             </div>
 
             <form className="space-y-5" onSubmit={handleLogin} noValidate>
               <div className="space-y-1.5">
-                <label className="text-[12px] font-medium tracking-[0.5px] text-[#a1a4a5]">{t('auth.email')}</label>
+                <label className="text-[12px] font-medium tracking-[0.5px] text-[#64748b]">{t('auth.email')}</label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748b]" size={16} />
                   <input
                     type="email"
                     placeholder="name@company.com"
@@ -143,13 +146,13 @@ export default function Login() {
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-[12px] font-medium tracking-[0.5px] text-[#a1a4a5]">{t('auth.password')}</label>
-                  <Link to="/reset-password" title="Reset your password" className="text-[12px] font-medium text-[#9ed1ff] hover:text-[#cbe7ff]">
+                  <label className="text-[12px] font-medium tracking-[0.5px] text-[#64748b]">{t('auth.password')}</label>
+                  <Link to="/reset-password" title="Reset your password" className="text-[12px] font-medium text-[#047857] hover:text-[#065f46]">
                     {t('auth.forgot_password')}
                   </Link>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a1a4a5]" size={16} />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748b]" size={16} />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
@@ -163,7 +166,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a1a4a5] transition-colors hover:text-[#f0f0f0]"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#64748b] transition-colors hover:text-[#111111]"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -179,9 +182,9 @@ export default function Login() {
                   id="remember"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded-[4px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] text-[#f0f0f0] focus:ring-2 focus:ring-white/30"
+                  className="rounded-[4px] border border-[#cbd5e1] bg-white text-[#00D4A4] focus:ring-2 focus:ring-[#00D4A4]/30"
                 />
-                <label htmlFor="remember" className="cursor-pointer text-[14px] font-medium text-[#a1a4a5]">
+                <label htmlFor="remember" className="cursor-pointer text-[14px] font-medium text-[#64748b]">
                   {t('auth.remember_me')}
                 </label>
               </div>
@@ -189,7 +192,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#ffffff] py-3 text-[14px] font-semibold text-[#000000] transition-all hover:bg-[#ececec] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#111111] py-3 text-[14px] font-semibold text-white transition-all hover:bg-[#2b2b2b] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? t('auth.login.submitting') : t('auth.sign_in')}
               </button>
@@ -203,27 +206,27 @@ export default function Login() {
 
             <div className="relative py-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[rgba(255,255,255,0.08)]"></div>
+                <div className="w-full border-t border-[#e5e7eb]"></div>
               </div>
               <div className="relative flex justify-center text-[12px]">
-                <span className="bg-[#090909] px-4 font-semibold tracking-[0.5px] text-[rgba(255,255,255,0.5)]">
+                <span className="bg-white px-4 font-semibold tracking-[0.5px] text-[#94a3b8]">
                   {t('auth.or_continue')}
                 </span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <button className="flex items-center justify-center gap-2 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] py-3 text-[14px] font-semibold text-[#f0f0f0] transition-all hover:bg-[rgba(255,255,255,0.08)]">
+              <button className="flex items-center justify-center gap-2 rounded-[16px] border border-[#e5e7eb] bg-white py-3 text-[14px] font-semibold text-[#111111] transition-all hover:bg-[#f8fafc]">
                 <GoogleIcon size={16} /> Google
               </button>
-              <button className="flex items-center justify-center gap-2 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] py-3 text-[14px] font-semibold text-[#f0f0f0] transition-all hover:bg-[rgba(255,255,255,0.08)]">
-                <GithubIcon size={16} className="text-[#f0f0f0]" /> GitHub
+              <button className="flex items-center justify-center gap-2 rounded-[16px] border border-[#e5e7eb] bg-white py-3 text-[14px] font-semibold text-[#111111] transition-all hover:bg-[#f8fafc]">
+                <GithubIcon size={16} className="text-[#111111]" /> GitHub
               </button>
             </div>
 
-            <p className="mt-8 text-center text-[14px] text-[#a1a4a5]">
+            <p className="mt-8 text-center text-[14px] text-[#64748b]">
               {t('auth.no_account')}{' '}
-              <Link to="/register" className="font-semibold text-[#f0f0f0] hover:text-[#ffffff]">
+              <Link to="/register" className="font-semibold text-[#047857] hover:text-[#065f46]">
                 {t('auth.create_account')}
               </Link>
             </p>

@@ -41,7 +41,8 @@ public class SecurityConfig {
             "/v3/**",
             "/webjars/**",
             "/favicon.ico",
-            "/actuator/**"
+            "/actuator/**",
+            "/user/avatars/**"
     };
 
     @Bean

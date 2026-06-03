@@ -98,19 +98,19 @@ export default function ChatWidget({
           {t('widget.product_name')}
         </div>
         <div className="flex items-start">
-          <div className="bg-white px-3.5 py-3 rounded-[16px] rounded-tl-[5px] border border-slate-200/80 text-slate-800 shadow-sm leading-relaxed font-messenger text-[14px]">
+          <div className="max-w-[85%] break-words whitespace-pre-wrap bg-white px-3.5 py-3 rounded-[16px] rounded-tl-[5px] border border-slate-200/80 text-slate-800 shadow-sm leading-relaxed font-messenger text-[14px]">
             {welcomeMsg}
           </div>
         </div>
         
         <div className="flex items-start justify-end">
-          <div className="px-3.5 py-3 rounded-[16px] rounded-tr-[5px] text-white shadow-sm leading-relaxed font-messenger text-[14px]" style={{ backgroundColor: primaryColor }}>
+          <div className="max-w-[85%] break-words whitespace-pre-wrap px-3.5 py-3 rounded-[16px] rounded-tr-[5px] text-white shadow-sm leading-relaxed font-messenger text-[14px]" style={{ backgroundColor: primaryColor }}>
             {t('widget.sample_user_question')}
           </div>
         </div>
 
         <div className="flex items-start">
-          <div className="bg-white px-3.5 py-3 rounded-[16px] rounded-tl-[5px] border border-slate-200/80 text-slate-800 shadow-sm leading-relaxed font-messenger text-[14px]">
+          <div className="max-w-[85%] break-words whitespace-pre-wrap bg-white px-3.5 py-3 rounded-[16px] rounded-tl-[5px] border border-slate-200/80 text-slate-800 shadow-sm leading-relaxed font-messenger text-[14px]">
             {t('widget.sample_bot_answer')}
           </div>
         </div>

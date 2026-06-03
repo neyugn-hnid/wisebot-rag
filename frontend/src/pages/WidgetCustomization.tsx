@@ -7,10 +7,8 @@ import ChatWidget from '../components/ChatWidget';
 import { 
   Bot, 
   Palette, 
-  Layout, 
   MessageSquare, 
   Code,
-  Send, 
   Paperclip, 
   Smile,
   Check,
@@ -779,6 +777,7 @@ export default function WidgetCustomization() {
                   <Code size={14} /> {t('widget.embed_title')}
                 </div>
                 <p className="text-sm leading-6 text-[#8b8f91]">{t('widget.embed_status_desc')}</p>
+
                 <div className="relative group">
                   <pre className="bg-[#0b0b0c] text-[rgba(255,255,255,0.55)] p-4 rounded-[16px] text-[10px] font-mono overflow-x-auto border border-[rgba(255,255,255,0.08)] leading-relaxed">
                     {widgetScript}

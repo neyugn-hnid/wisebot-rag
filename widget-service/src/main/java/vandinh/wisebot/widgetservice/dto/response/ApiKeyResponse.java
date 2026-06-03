@@ -13,7 +13,9 @@ public class ApiKeyResponse {
     private UUID widgetId;
     private String keyPrefix;
     private String keyHash;
+    private String name;
     private String status;
     private LocalDateTime expiresAt;
+    private LocalDateTime lastUsedAt;
     private LocalDateTime createdAt;
 }

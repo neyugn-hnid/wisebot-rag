@@ -26,3 +26,10 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+
+vnpay:
+  tmn-code: ${VNPAY_TMN_CODE:ULOKUI1Z}
+  hash-secret: ${VNPAY_HASH_SECRET:CF4HDXVL71PEXISXW2Z5HPW1BI9RT1O5}
+  pay-url: ${VNPAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+  return-url: ${VNPAY_RETURN_URL:http://localhost:3000/billing?vnpay_return=true}
+

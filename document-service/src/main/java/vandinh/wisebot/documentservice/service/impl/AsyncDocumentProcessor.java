@@ -16,7 +16,6 @@ import vandinh.wisebot.documentservice.service.embedding.EmbeddingClient;
 import vandinh.wisebot.documentservice.service.text.TextChunker;
 import vandinh.wisebot.documentservice.service.text.TextExtractor;
 
-import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -48,8 +47,14 @@ public class AsyncDocumentProcessor {
             document.setStatus(DocumentStatus.PROCESSING);
             documentRepository.save(document);
 
-            String text = textExtractor.extract(new ByteArrayInputStream(fileContent));
-            List<String> chunks = textChunker.chunk(text);
+            // extract(byte[], filename) for MinerU-aware extraction, fallback to InputStream
+            String text = textExtractor.extract(fileContent, document.getFilename());
+
+            // Detect MinerU output (Markdown with headings) → section-aware chunking
+            boolean isMarkdown = text.contains("# ") || text.contains("## ") || text.contains("### ");
+            List<String> chunks = isMarkdown
+                ? textChunker.chunkMarkdown(text)
+                : textChunker.chunk(text);
             
             if (chunks.isEmpty()) {
                 log.warn("No text extracted for document: {}", documentId);

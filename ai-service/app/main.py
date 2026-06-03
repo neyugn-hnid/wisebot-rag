@@ -1,3 +1,4 @@
+import asyncio
 import time
 import uuid
 import json
@@ -9,6 +10,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
+import asyncpg
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 import httpx
@@ -18,12 +20,22 @@ from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 from app.config import settings
 from app.db import close_db_pool, get_pool, init_db_pool, init_qdrant, close_qdrant, get_qdrant
 from app.llm_client import RuntimeLlmManager, build_llm_client_for_mode
+from app.query_rewriter import QueryRewriter
+from app.hybrid_search import HybridSearcher
+from app.reranker import Reranker
+from app.judge import LlmJudge
 from app.schemas import AskRequest, AskResponse, Citation, ProviderConfigResponse, ProviderModeUpdateRequest, RagRequestDetail
 from app.security import require_service_auth
 
 
 llm_manager = RuntimeLlmManager(settings)
 logger = logging.getLogger(__name__)
+
+# ── Khởi tạo các service nâng cao RAG ─────────────────────────────────────
+query_rewriter = QueryRewriter(llm_manager.client)  # sẽ được refresh khi switch mode
+hybrid_searcher = HybridSearcher()
+reranker = Reranker(llm_manager.client)
+judge = LlmJudge(shared_llm=llm_manager.client)  # Judge: dedicated DeepSeek hoặc shared LLM
 
 
 @asynccontextmanager
@@ -34,10 +46,16 @@ async def lifespan(_: FastAPI):
     if persisted_mode and persisted_mode != llm_manager.mode:
         try:
             await llm_manager.switch_mode(persisted_mode)
+            # Refresh RAG advanced services với LLM client sau khi switch
+            global query_rewriter, reranker, judge
+            query_rewriter = QueryRewriter(llm_manager.client)
+            reranker = Reranker(llm_manager.client)
+            judge.set_shared_llm(llm_manager.client)
         except Exception:
             logger.exception("Failed to restore persisted AI mode '%s'", persisted_mode)
     yield
     await llm_manager.close()
+    await judge.close()
     await close_qdrant()
     await close_db_pool()
 
@@ -66,22 +84,29 @@ async def provider_info(_: dict[str, Any] = Depends(require_service_auth)) -> di
 
 async def _load_persisted_provider_mode() -> str | None:
     headers = {"X-Internal-Api-Key": settings.internal_config_api_key}
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(
-                f"{settings.user_service_base_url}{settings.system_setting_mode_path}",
-                headers=headers,
-            )
-        if response.status_code == 404:
-            return None
-        response.raise_for_status()
-        payload = response.json()
-        data = payload.get("data") if isinstance(payload, dict) else None
-        value = data.get("value") if isinstance(data, dict) else None
-        return str(value).strip().lower() if value else None
-    except Exception:
-        logger.exception("Failed to load persisted AI provider mode")
-        return None
+    last_error: Exception | None = None
+
+    for attempt in range(1, 6):
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(
+                    f"{settings.user_service_base_url}{settings.system_setting_mode_path}",
+                    headers=headers,
+                )
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            payload = response.json()
+            data = payload.get("data") if isinstance(payload, dict) else None
+            value = data.get("value") if isinstance(data, dict) else None
+            return str(value).strip().lower() if value else None
+        except Exception as exc:
+            last_error = exc
+            if attempt < 5:
+                await asyncio.sleep(2)
+
+    logger.warning("Failed to load persisted AI provider mode after retries: %s", last_error)
+    return None
 
 
 async def _persist_provider_mode(mode: str) -> None:
@@ -112,6 +137,13 @@ async def update_provider_mode(
     await preview_client.close()
     await _persist_provider_mode(next_mode)
     client = await llm_manager.switch_mode(payload.mode)
+
+    # Refresh các RAG advanced service với LLM client mới
+    global query_rewriter, reranker, judge
+    query_rewriter = QueryRewriter(client)
+    reranker = Reranker(client)
+    judge.set_shared_llm(client)
+
     return ProviderConfigResponse(
         mode=llm_manager.mode,
         provider=client.provider_key,
@@ -120,26 +152,113 @@ async def update_provider_mode(
     )
 
 
-def _build_prompts(question: str, retrieved_chunks: list[dict]) -> tuple[str, str]:
-    context_lines: list[str] = []
-    for idx, chunk in enumerate(retrieved_chunks, start=1):
-        context_lines.append(f"[{idx}] (score={chunk['score']:.4f}) {chunk['chunk_text']}")
+async def _judge_and_persist(
+    judge_instance: LlmJudge,
+    pool: asyncpg.Pool,
+    request_id: uuid.UUID,
+    question: str,
+    answer: str,
+    retrieved_chunks: list[dict],
+) -> None:
+    """Chạy judge ngầm, ghi kết quả vào DB khi xong."""
+    try:
+        scores = await judge_instance.evaluate(
+            question=question,
+            answer=answer,
+            retrieved_chunks=retrieved_chunks,
+        )
+        if any(scores.get(k, 0) > 0 for k in ("faithfulness", "answer_relevance", "context_relevance")):
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    UPDATE ai_service.ai_rag_requests
+                    SET judge_faithfulness=$2, judge_answer_relevance=$3,
+                        judge_context_relevance=$4, judge_brief=$5
+                    WHERE id=$1
+                    """,
+                    request_id,
+                    scores.get("faithfulness", 0),
+                    scores.get("answer_relevance", 0),
+                    scores.get("context_relevance", 0),
+                    scores.get("brief", ""),
+                )
+    except Exception:
+        logger.warning("Background judge failed for request %s", request_id, exc_info=True)
 
-    context_text = "\n\n".join(context_lines) if context_lines else "No relevant context found."
+
+def _build_prompts(question: str, retrieved_chunks: list[dict], page_context: dict | None = None) -> tuple[str, str]:
+    """Unified prompt: AI tự phân tích, trả JSON sản phẩm nếu hỏi mua sắm, text nếu hỏi FAQ."""
+    context_lines: list[str] = []
+    for chunk in retrieved_chunks:
+        context_lines.append(chunk["chunk_text"])
+
+    context_text = "\n\n---\n\n".join(context_lines) if context_lines else "No relevant context found."
+
+    # Build page context info
+    page_info = ""
+    if page_context:
+        product_name = page_context.get("productName") or page_context.get("product_name", "")
+        product_category = page_context.get("productCategory") or page_context.get("product_category", "")
+        page_title = page_context.get("pageTitle") or page_context.get("page_title", "")
+        if product_name:
+            page_info += f"- Đang xem: {product_name}\n"
+        if product_category:
+            page_info += f"- Danh mục: {product_category}\n"
+        if page_title and not product_name:
+            page_info += f"- Trang: {page_title}\n"
 
     system_prompt = (
-        "You are WISEBOT AI assistant. "
-        "STRICT RULES:"
-        " - ONLY answer using the provided CONTEXT."
-        " - DO NOT use outside knowledge."
-        " - If the answer is not in the context, say:"
-        "   \"Không tìm thấy thông tin trong tài liệu.\""
-        " - DO NOT hallucinate."
-        "Answer in Vietnamese."
-        "Always cite sources like [1], [2]."
+        "Bạn là trợ lý AI WISEBOT, có thể vừa tư vấn sản phẩm vừa trả lời câu hỏi thông thường.\n"
+        "PHÂN TÍCH CÂU HỎI để chọn cách trả lời:\n"
+        "\n"
+        "🔹 Nếu hỏi VỀ SẢN PHẨM (tìm mua, so sánh, giá, gợi ý, tư vấn chọn...):\n"
+        "Trả lời theo format SAU (bắt buộc):\n"
+        "  1. Viết 1-2 câu giới thiệu ngắn gọn.\n"
+        "  2. Sau đó là dòng: __JSON_PRODUCTS__\n"
+        "  3. Tiếp theo là JSON array chứa tối đa 3 sản phẩm phù hợp nhất từ context.\n"
+        "  4. Sau đó là dòng: __END_JSON__\n"
+        "  5. Cuối cùng viết 1 câu kết, gợi ý thêm.\n"
+        "\n"
+        "Cấu trúc mỗi object trong JSON array:\n"
+        "{\n"
+        '  "id": <số, id sản phẩm từ CSV>,\n'
+        '  "name": "<tên sản phẩm>",\n'
+        '  "price": <số, giá VND, không có dấu phẩy>,\n'
+        '  "imageUrl": "<url ảnh từ CSV, nếu không có thì để chuỗi rỗng>",\n'
+        '  "detailUrl": "<url chi tiết từ CSV, nếu không có thì để chuỗi rỗng>",\n'
+        '  "reason": "<1 câu ngắn giải thích tại sao sản phẩm này phù hợp>"\n'
+        "}\n"
+        "\n"
+        "VÍ DỤ output đúng:\n"
+        "Dạ, đây là những điện thoại phù hợp với ngân sách của bạn:\n"
+        "__JSON_PRODUCTS__\n"
+        '[{"id":10,"name":"Samsung Galaxy A55 5G","price":9490000,"imageUrl":"https://example.com/a55.jpg","detailUrl":"/products/10","reason":"Pin 5000mAh, camera 50MP, màn hình AMOLED 120Hz"}]\n'
+        "__END_JSON__\n"
+        "Bạn cần thêm thông tin gì về sản phẩm này không ạ?\n"
+        "\n"
+        "⚠ QUAN TRỌNG:\n"
+        " - CHỈ lấy sản phẩm từ context. KHÔNG bịa đặt.\n"
+        " - JSON phải hợp lệ, không có trailing comma.\n"
+        " - price là số nguyên, KHÔNG có dấu phẩy hay ký tự đặc biệt.\n"
+        " - Nếu imageUrl/detailUrl không có trong context → để chuỗi rỗng "".\n"
+        " - Nếu KHÔNG có sản phẩm phù hợp → trả lời text bình thường, KHÔNG dùng format JSON.\n"
+        "\n"
+        "🔹 Nếu hỏi THÔNG TIN CHUNG (chính sách, FAQ, hướng dẫn, điều khoản...):\n"
+        " - Trả lời thẳng, súc tích.\n"
+        " - KHÔNG dùng format __JSON_PRODUCTS__.\n"
+        "\n"
+        "LUẬT CHUNG:\n"
+        " - CHỈ trả lời bằng TIẾNG VIỆT.\n"
+        " - CHỈ dùng thông tin trong CONTEXT.\n"
+        " - KHÔNG dùng citation markers.\n"
+        " - CHITCHAT: trả lời ngắn gọn, thân thiện.\n"
+        ' - NO MATCH: "Xin lỗi, tôi không tìm thấy thông tin phù hợp."'
     )
 
-    user_prompt = f"Question:\n{question}\n\nContext:\n{context_text}\n\nAnswer in Vietnamese with citations."
+    user_prompt = f"Câu hỏi:\n{question}\n"
+    if page_info:
+        user_prompt += f"\nNgữ cảnh trang:\n{page_info}\n"
+    user_prompt += f"\nDữ liệu tham khảo:\n{context_text}\n\nTrả lời:"
     return system_prompt, user_prompt
 
 
@@ -167,6 +286,25 @@ def _generate_service_token() -> str:
     return f"{message}.{signature_b64}"
 
 
+def _raise_llm_http_exception(exc: httpx.HTTPError) -> None:
+    if isinstance(exc, httpx.HTTPStatusError):
+        status_code = exc.response.status_code
+        detail = exc.response.text
+        raise HTTPException(
+            status_code=status_code,
+            detail=f"LLM request failed ({status_code}): {detail}",
+        ) from exc
+
+    raise HTTPException(
+        status_code=502,
+        detail=f"LLM service unreachable: {exc}",
+    ) from exc
+
+
+def _to_jsonb_param(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, default=str)
+
+
 async def _retrieve_context(
     tenant_id: uuid.UUID,
     question: str,
@@ -192,14 +330,27 @@ async def _retrieve_context(
         "Content-Type": "application/json",
     }
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            f"{settings.embedding_base_url}{settings.embedding_search_path}",
-            json=payload,
-            headers=headers,
-        )
-        response.raise_for_status()
-        body = response.json()
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{settings.embedding_base_url}{settings.embedding_search_path}",
+                json=payload,
+                headers=headers,
+            )
+            response.raise_for_status()
+            body = response.json()
+    except httpx.HTTPStatusError as exc:
+        status_code = exc.response.status_code
+        detail = exc.response.text
+        raise HTTPException(
+            status_code=status_code,
+            detail=f"Embedding search failed ({status_code}): {detail}",
+        ) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Embedding service unreachable: {exc}",
+        ) from exc
 
     items = body.get("items")
     if not isinstance(items, list):
@@ -255,13 +406,48 @@ async def rag_ask(
 
     llm_start = time.perf_counter()
     try:
+        # ── Bước 1: Query Rewriting ────────────────────────────────────────
+        rewritten_question = await query_rewriter.rewrite(payload.question)
+
+        # ── Bước 2: Vector Search (giữ nguyên pipeline hiện tại) ───────────
+        # Lấy nhiều hơn top_k để có dư địa cho hybrid search + rerank
+        retrieval_top_k = payload.top_k * settings.rerank_top_k_multiplier
         retrieved = await _retrieve_context(
             tenant_id=payload.tenant_id,
-            question=payload.question,
-            top_k=payload.top_k,
+            question=rewritten_question,  # dùng câu đã rewrite
+            top_k=retrieval_top_k,
             collection_id=payload.collection_id,
             knowledge_base_id=payload.knowledge_base_id,
         )
+
+        # ── Bước 3: Hybrid Search (fusion vector + keyword) ────────────────
+        if hybrid_searcher.enabled and retrieved:
+            qdrant = await get_qdrant()
+            retrieved = await hybrid_searcher.search(
+                qdrant_client=qdrant,
+                vector_results=retrieved,
+                tenant_id=payload.tenant_id,
+                query_text=rewritten_question,
+                top_k=retrieval_top_k,
+                collection_id=payload.collection_id,
+            )
+
+        # ── Bước 4: Re-ranking ─────────────────────────────────────────────
+        if reranker.enabled and len(retrieved) > payload.top_k:
+            retrieved = await reranker.rerank(
+                question=payload.question,  # câu gốc để rerank chính xác hơn
+                chunks=retrieved,
+                final_top_k=payload.top_k,
+            )
+
+        # ── Lọc chunk có score quá thấp (không liên quan) ──────────────────
+        if retrieved:
+            avg_score = sum(c["score"] for c in retrieved) / len(retrieved)
+            best_score = retrieved[0]["score"]
+            # Nếu chunk tốt nhất < 0.5 hoặc trung bình < 0.4 → coi như không liên quan
+            if best_score < 0.5 or avg_score < 0.4:
+                logger.info("Low relevance chunks (best=%.3f avg=%.3f), returning not-found", best_score, avg_score)
+                retrieved = []
 
         if not retrieved:
             answer_text = "Không tìm thấy thông tin trong tài liệu."
@@ -283,12 +469,16 @@ async def rag_ask(
                 citations=[],
             )
 
-        system_prompt, user_prompt = _build_prompts(payload.question, retrieved)
-        llm_result = await llm_client.chat(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            temperature=payload.temperature,
-        )
+        # ── Unified prompt (AI tự phân biệt hỏi sản phẩm / hỏi FAQ) ──────
+        system_prompt, user_prompt = _build_prompts(payload.question, retrieved, payload.page_context)
+        try:
+            llm_result = await llm_client.chat(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=payload.temperature,
+            )
+        except httpx.HTTPError as exc:
+            _raise_llm_http_exception(exc)
         latency_ms = int((time.perf_counter() - llm_start) * 1000)
 
         answer_text = (
@@ -338,8 +528,8 @@ async def rag_ask(
                     total_tokens,
                     latency_ms,
                     llm_result.get("done_reason", "stop"),
-                    {"system": system_prompt, "user": user_prompt},
-                    llm_result.get("raw", llm_result),
+                    _to_jsonb_param({"system": system_prompt, "user": user_prompt}),
+                    _to_jsonb_param(llm_result.get("raw", llm_result)),
                 )
 
                 await conn.execute(
@@ -350,6 +540,13 @@ async def rag_ask(
                     """,
                     request_id,
                 )
+
+        # ── Bước 5: LLM-as-a-Judge (chạy ngầm, không block response) ───────
+        asyncio.create_task(
+            _judge_and_persist(
+                judge, pool, request_id, payload.question, answer_text, retrieved
+            )
+        )
 
         citations = [
             Citation(
@@ -369,7 +566,21 @@ async def rag_ask(
             model_name=str(llm_result.get("model") or llm_client.model_name),
             citations=citations,
         )
+    except HTTPException as exc:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE ai_service.ai_rag_requests
+                SET status='FAILED', error_message=$2, finished_at=CURRENT_TIMESTAMP
+                WHERE id=$1
+                """,
+                request_id,
+                str(exc.detail),
+            )
+        raise
+
     except Exception as exc:
+        logger.exception("RAG ask failed for request %s", request_id)
         async with pool.acquire() as conn:
             await conn.execute(
                 """
@@ -418,14 +629,46 @@ async def rag_ask_stream(
         final_llm: dict[str, Any] = {}
 
         try:
+            # ── Bước 1: Query Rewriting ────────────────────────────────────
+            rewritten_question = await query_rewriter.rewrite(payload.question)
+
+            # ── Bước 2: Vector Search ───────────────────────────────────────
+            retrieval_top_k = payload.top_k * settings.rerank_top_k_multiplier
             nonlocal_retrieved = await _retrieve_context(
                 tenant_id=payload.tenant_id,
-                question=payload.question,
-                top_k=payload.top_k,
+                question=rewritten_question,
+                top_k=retrieval_top_k,
                 collection_id=payload.collection_id,
                 knowledge_base_id=payload.knowledge_base_id,
             )
             retrieved.extend(nonlocal_retrieved)
+
+            # ── Bước 3: Hybrid Search ───────────────────────────────────────
+            if hybrid_searcher.enabled and retrieved:
+                qdrant = await get_qdrant()
+                retrieved = await hybrid_searcher.search(
+                    qdrant_client=qdrant,
+                    vector_results=retrieved,
+                    tenant_id=payload.tenant_id,
+                    query_text=rewritten_question,
+                    top_k=retrieval_top_k,
+                    collection_id=payload.collection_id,
+                )
+
+            # ── Bước 4: Re-ranking ─────────────────────────────────────────
+            if reranker.enabled and len(retrieved) > payload.top_k:
+                retrieved = await reranker.rerank(
+                    question=payload.question,
+                    chunks=retrieved,
+                    final_top_k=payload.top_k,
+                )
+
+            # ── Lọc chunk score thấp ───────────────────────────────────────
+            if retrieved:
+                avg_score = sum(c["score"] for c in retrieved) / len(retrieved)
+                if retrieved[0]["score"] < 0.5 or avg_score < 0.4:
+                    logger.info("Stream: low relevance, returning not-found")
+                    retrieved = []
 
             if not retrieved:
                 async with pool.acquire() as conn:
@@ -449,24 +692,27 @@ async def rag_ask_stream(
                 yield f"data: {json.dumps(done_event, ensure_ascii=True)}\\n\\n"
                 return
 
-            system_prompt, user_prompt = _build_prompts(payload.question, retrieved)
+            system_prompt, user_prompt = _build_prompts(payload.question, retrieved, payload.page_context)
 
-            async for item in llm_client.chat_stream(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                temperature=payload.temperature,
-            ):
-                message = item.get("message") if isinstance(item, dict) else None
-                token = ""
-                if isinstance(message, dict):
-                    token = str(message.get("content") or "")
+            try:
+                async for item in llm_client.chat_stream(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=payload.temperature,
+                ):
+                    message = item.get("message") if isinstance(item, dict) else None
+                    token = ""
+                    if isinstance(message, dict):
+                        token = str(message.get("content") or "")
 
-                if token:
-                    answer_parts.append(token)
-                    yield f"data: {json.dumps({'type': 'TOKEN', 'token': token}, ensure_ascii=True)}\n\n"
+                    if token:
+                        answer_parts.append(token)
+                        yield f"data: {json.dumps({'type': 'TOKEN', 'token': token}, ensure_ascii=True)}\n\n"
 
-                if item.get("done") is True:
-                    final_llm = item
+                    if item.get("done") is True:
+                        final_llm = item
+            except httpx.HTTPError as exc:
+                _raise_llm_http_exception(exc)
 
             latency_ms = int((time.perf_counter() - llm_start) * 1000)
             answer_text = "".join(answer_parts).strip()
@@ -511,8 +757,11 @@ async def rag_ask_stream(
                         total_tokens,
                         latency_ms,
                         final_llm.get("done_reason", "stop") if isinstance(final_llm, dict) else "stop",
-                        {"system": system_prompt, "user": user_prompt},
-                        (final_llm.get("raw") if isinstance(final_llm, dict) else None) or (final_llm if isinstance(final_llm, dict) else {}),
+                        _to_jsonb_param({"system": system_prompt, "user": user_prompt}),
+                        _to_jsonb_param(
+                            (final_llm.get("raw") if isinstance(final_llm, dict) else None)
+                            or (final_llm if isinstance(final_llm, dict) else {})
+                        ),
                     )
 
                     await conn.execute(
@@ -523,6 +772,13 @@ async def rag_ask_stream(
                         """,
                         request_id,
                     )
+
+            # ── Bước 5: LLM-as-a-Judge (chạy ngầm) ─────────────────────────
+            asyncio.create_task(
+                _judge_and_persist(
+                    judge, pool, request_id, payload.question, answer_text, retrieved
+                )
+            )
 
             citations_payload = [
                 {
@@ -544,6 +800,7 @@ async def rag_ask_stream(
             }
             yield f"data: {json.dumps(done_event, ensure_ascii=True)}\n\n"
         except Exception as exc:
+            logger.exception("RAG stream failed for request %s", request_id)
             async with pool.acquire() as conn:
                 await conn.execute(
                     """

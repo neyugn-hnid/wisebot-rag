@@ -1,6 +1,7 @@
 package vandinh.wisebot.billingservice.exception;
 
 import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -12,6 +13,7 @@ import vandinh.wisebot.billingservice.common.response.ErrorResponse;
 import java.util.Date;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandling {
 
     @ExceptionHandler({ConstraintViolationException.class,
@@ -32,6 +34,7 @@ public class GlobalExceptionHandling {
 
     @ExceptionHandler(Exception.class)
     public ErrorResponse handleException(Exception e, WebRequest request) {
+        log.error("Unexpected error at {}: {}", request.getDescription(false), e.getMessage(), e);
         return buildErrorResponse(request, HttpStatus.INTERNAL_SERVER_ERROR,
                 HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(), "Unexpected error");
     }

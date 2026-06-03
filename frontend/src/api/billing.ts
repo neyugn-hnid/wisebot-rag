@@ -104,9 +104,89 @@ export async function listPlans(): Promise<BillingPlanResponse[]> {
   return handleResponse<BillingPlanResponse[]>(res);
 }
 
+export interface CreatePlanRequest {
+  code: string;
+  name: string;
+  description?: string;
+}
+
+export interface UpdatePlanRequest {
+  code?: string;
+  name?: string;
+  description?: string;
+  active?: boolean;
+}
+
+export async function createPlan(request: CreatePlanRequest): Promise<BillingPlanResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/plans`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<BillingPlanResponse>(res);
+}
+
+export async function updatePlan(planId: string, request: UpdatePlanRequest): Promise<BillingPlanResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/plans/${planId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<BillingPlanResponse>(res);
+}
+
+export async function deletePlan(planId: string): Promise<void> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/plans/${planId}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { message?: string }).message || `Request failed: ${res.status}`);
+  }
+}
+
 export async function listPlanPrices(planId: string): Promise<BillingPlanPriceResponse[]> {
   const res = await fetchWithAuth(`${BILLING_BASE}/plan-prices?planId=${planId}`);
   return handleResponse<BillingPlanPriceResponse[]>(res);
+}
+
+export interface CreatePlanPriceRequest {
+  planId: string;
+  billingCycle: string;
+  currency?: string;
+  amountCents: number;
+  trialDays?: number;
+}
+
+export interface UpdatePlanPriceRequest {
+  billingCycle?: string;
+  currency?: string;
+  amountCents?: number;
+  trialDays?: number;
+}
+
+export async function createPlanPrice(request: CreatePlanPriceRequest): Promise<BillingPlanPriceResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/plan-prices`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<BillingPlanPriceResponse>(res);
+}
+
+export async function updatePlanPrice(priceId: string, request: UpdatePlanPriceRequest): Promise<BillingPlanPriceResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/plan-prices/${priceId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<BillingPlanPriceResponse>(res);
+}
+
+export async function deletePlanPrice(priceId: string): Promise<void> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/plan-prices/${priceId}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { message?: string }).message || `Request failed: ${res.status}`);
+  }
 }
 
 export async function getSubscription(tenantId: string): Promise<SubscriptionResponse | null> {
@@ -134,6 +214,16 @@ export async function mySubscribe(planId: string, seats = 1): Promise<Subscripti
   const tenantId = resolveTenantIdFromToken();
   if (!tenantId) throw new Error('No tenant ID found');
   return subscribe({ tenantId, planId, seats });
+}
+
+export async function cancelMySubscription(): Promise<SubscriptionResponse> {
+  const tenantId = resolveTenantIdFromToken();
+  if (!tenantId) throw new Error('No tenant ID found');
+  const res = await fetchWithAuth(`${BILLING_BASE}/subscriptions/me/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId },
+  });
+  return handleResponse<SubscriptionResponse>(res);
 }
 
 export async function listInvoices(tenantId: string): Promise<BillingInvoiceResponse[]> {
@@ -211,4 +301,79 @@ export async function verifyVNPayReturn(search: string | URLSearchParams): Promi
     : search.toString();
   const res = await fetchWithAuth(`${BILLING_BASE}/payments/vnpay-return?${query}`);
   return handleResponse<VNPayReturnResponse>(res);
+}
+
+// --- VietQR ---
+
+export interface CreateVietQRCheckoutRequest {
+  planId: string;
+  billingCycle?: 'MONTHLY' | 'YEARLY';
+  seats?: number;
+}
+
+export interface VietQRCheckoutResponse {
+  orderId: string;
+  invoiceId: string;
+  amount: number;
+  currency: string;
+  description: string;
+  qrImageUrl: string;
+  deepLink: string;
+  bankAccount: string;
+  bankName: string;
+  accountName: string;
+  expiresAt: string;
+}
+
+export async function createVietQRCheckout(request: CreateVietQRCheckoutRequest): Promise<VietQRCheckoutResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/vietqr/checkout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<VietQRCheckoutResponse>(res);
+}
+
+// --- System Config ---
+
+export interface VietQRConfigResponse {
+  bankCode: string;
+  accountNo: string;
+  accountName: string;
+  template: string;
+}
+
+export interface VietQRConfigRequest {
+  bankCode?: string;
+  accountNo?: string;
+  accountName?: string;
+}
+
+export async function getVietQRConfig(): Promise<VietQRConfigResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/system-config/vietqr`);
+  return handleResponse<VietQRConfigResponse>(res);
+}
+
+export async function updateVietQRConfig(request: VietQRConfigRequest): Promise<VietQRConfigResponse> {
+  const res = await fetchWithAuth(`${BILLING_BASE}/system-config/vietqr`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<VietQRConfigResponse>(res);
+}
+
+export interface VietQRBank {
+  id: number;
+  code: string;
+  bin: string;
+  name: string;
+  shortName: string;
+  logo: string;
+}
+
+export async function getVietQRBanks(): Promise<{ data: VietQRBank[] }> {
+  const res = await fetch('https://api.vietqr.io/v2/banks');
+  if (!res.ok) throw new Error('Cannot fetch banks');
+  return res.json();
 }

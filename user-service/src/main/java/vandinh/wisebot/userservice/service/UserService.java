@@ -1,5 +1,6 @@
 package vandinh.wisebot.userservice.service;
 
+import org.springframework.web.multipart.MultipartFile;
 import vandinh.wisebot.userservice.dto.request.ChangePasswordRequest;
 import vandinh.wisebot.userservice.dto.request.ChangeStatusRequest;
 import vandinh.wisebot.userservice.dto.request.EmailUpdateRequest;
@@ -20,5 +21,6 @@ public interface UserService {
     void changeStatus(ChangeStatusRequest request, UUID id, UUID actorId);
     void changePassword(ChangePasswordRequest request, UUID id);
     void deleteUser(UUID id, UUID actorId);
+    String updateAvatar(UUID userId, MultipartFile file);
 
 }

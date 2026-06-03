@@ -8,6 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Setter
 @ConfigurationProperties(prefix = "embedding")
 public class EmbeddingProperties {
-    private String baseUrl = "http://localhost:8083";
+    private String baseUrl = "http://localhost:8001";
     private String path = "/embed";
 }

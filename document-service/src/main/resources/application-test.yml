@@ -40,5 +40,13 @@ chunking:
   overlap: 120
 
 embedding:
-  base-url: ${EMBEDDING_BASE_URL:http://localhost:8083}
+  base-url: ${EMBEDDING_BASE_URL:http://localhost:8001}
   path: /embed
+
+mineru:
+  enabled: ${MINERU_ENABLED:false}
+  base-url: ${MINERU_BASE_URL:http://localhost:8000}
+  upload-path: /mineru/v1/upload
+  task-path: /mineru/v1/tasks
+  poll-interval-ms: 2000
+  max-poll-time-ms: 120000

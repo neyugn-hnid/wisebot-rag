@@ -1,4 +1,5 @@
 import httpx
+from httpx import HTTPStatusError
 
 
 class OllamaClient:
@@ -45,17 +46,27 @@ class OllamaClient:
         return result
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        res = await self._post_with_retry(
-            f"{self._base_url}/api/embed",
-            {"model": self._model, "input": texts},
-        )
-        payload = res.json()
+        try:
+            res = await self._post_with_retry(
+                f"{self._base_url}/api/embed",
+                {"model": self._model, "input": texts},
+            )
+            payload = res.json()
 
-        vectors = payload.get("embeddings")
-        if not isinstance(vectors, list):
-            raise ValueError("Invalid embedding response")
+            vectors = payload.get("embeddings")
+            if not isinstance(vectors, list):
+                raise ValueError("Invalid embedding response")
 
-        return [[float(v) for v in vec] for vec in vectors]
+            return [[float(v) for v in vec] for vec in vectors]
+        except HTTPStatusError as exc:
+            if exc.response.status_code != 404:
+                raise
+
+            # Backward-compatible fallback for Ollama versions without /api/embed.
+            results = []
+            for text in texts:
+                results.append(await self.embed(text))
+            return results
 
 
 def ensure_dimension(vector: list[float], target_dim: int) -> list[float]:

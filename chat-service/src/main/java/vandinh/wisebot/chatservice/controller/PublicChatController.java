@@ -56,6 +56,7 @@ public class PublicChatController {
             askRequest.setTopK(request.getTopK());
             askRequest.setTemperature(request.getTemperature());
             askRequest.setKnowledgeBaseId(request.getKnowledgeBaseId());
+            askRequest.setPageContext(request.getPageContext());
 
             return ApiResponse.builder()
                     .status(HttpStatus.OK.value())

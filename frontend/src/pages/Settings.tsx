@@ -34,6 +34,7 @@ import {
   type KnowledgeBaseResponse,
 } from '../api/knowledge-base';
 
+
 interface RebuildStatusSummary {
   total: number;
   uploaded: number;
@@ -55,15 +56,14 @@ function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+    <section className="rounded-[24px] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] text-[#d7d9da]">
+        <div className="flex items-center gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] text-[#d7d9da]">
             {icon}
           </div>
           <div className="space-y-1">
             <h3 className="text-[16px] font-semibold tracking-tight text-[#f5f5f5]">{title}</h3>
-            {description ? <p className="max-w-2xl text-sm leading-6 text-[#8b8f91]">{description}</p> : null}
           </div>
         </div>
       </div>
@@ -364,18 +364,17 @@ export default function Settings() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
-      <section className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+      <section className="rounded-[24px]  p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9fa3a5]">
             <Cpu size={13} />
             {t('settings.control_center')}
           </div>
-          <h2 className="mt-4 text-[30px] font-display font-medium tracking-tight text-[#f0f0f0]">{t('settings.title')}</h2>
-          <p className="mt-2 text-sm leading-6 text-[#8b8f91]">{t('settings.control_center.desc')}</p>
         </div>
+          
       </section>
 
-      <div className="rounded-[22px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-2 shadow-[0_14px_36px_rgba(0,0,0,0.18)]">
+      <div className="rounded-[22px] p-6 shadow-[0_14px_36px_rgba(0,0,0,0.18)]">
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         {tabs
           .filter((tab) => !tab.adminOnly || role === 'ADMIN')
@@ -741,7 +740,7 @@ export default function Settings() {
           </SettingsSection>
         )}
 
-        <div className="border-t border-[rgba(255,255,255,0.08)] pt-8">
+        <div className="border-t border-[rgba(255,255,255,0.08)] pt-8 pl-6">
           <button
             onClick={handleSignOut}
             className="inline-flex items-center gap-2 rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-5 py-2.5 text-sm font-bold text-[#f0f0f0] transition-all hover:bg-[rgba(255,255,255,0.12)] hover:text-[#ffffff]"

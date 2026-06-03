@@ -16,4 +16,6 @@ public class SubscriptionResponse {
     private int seats;
     private LocalDateTime currentPeriodStart;
     private LocalDateTime currentPeriodEnd;
+    private boolean cancelAtPeriodEnd;
+    private LocalDateTime canceledAt;
 }

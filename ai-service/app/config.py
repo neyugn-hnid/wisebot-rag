@@ -22,11 +22,31 @@ class Settings(BaseSettings):
     third_party_api_key: str = ""
     third_party_llm_model: str = "gpt-4o-mini"
     third_party_embedding_model: str = "text-embedding-3-small"
-    embedding_dimension: int = 1536
+    # Must match embedding-service dimension (nomic-embed-text = 768, OpenAI text-embedding-3-small = 1536)
+    embedding_dimension: int = 768
     default_top_k: int = 5
     default_temperature: float = 0.2
     min_similarity_score: float = 0.35
     max_tokens: int = 1024
+
+    # ── Query Rewriting ───────────────────────────────────────────────────
+    query_rewriting_enabled: bool = True
+
+    # ── Hybrid Search ──────────────────────────────────────────────────────
+    hybrid_search_enabled: bool = True
+    hybrid_keyword_weight: float = 0.3  # trọng số keyword search trong RRF (0-1)
+
+    # ── Re-ranking ─────────────────────────────────────────────────────────
+    reranking_enabled: bool = True
+    rerank_top_k_multiplier: int = 3  # lấy top_k * multiplier chunk trước khi rerank
+
+    # ── LLM-as-a-Judge ────────────────────────────────────────────────────
+    judge_enabled: bool = True
+    judge_use_shared_llm: bool = False  # True = dùng chung llm_manager.client, False = dùng DeepSeek riêng
+    judge_llm_base_url: str = "https://api.deepseek.com/v1"
+    judge_llm_api_key: str = ""
+    judge_llm_model: str = "deepseek-chat"
+    judge_timeout_seconds: float = 60.0
 
     auth_enabled: bool = True
     service_jwt_secret: str = "change-me"

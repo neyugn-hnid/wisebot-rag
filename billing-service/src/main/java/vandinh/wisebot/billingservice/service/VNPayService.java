@@ -171,9 +171,27 @@ public class VNPayService {
         BillingPayment payment = paymentRepository.findFirstByProviderAndProviderPaymentId(PROVIDER, orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found for order: " + orderId));
 
+        // Idempotency: if already processed successfully, return cached result
+        if ("SUCCESS".equals(payment.getStatus())) {
+            return VNPayReturnResponse.builder()
+                    .valid(true)
+                    .status("SUCCESS")
+                    .responseCode(params.get("vnp_ResponseCode"))
+                    .transactionId(params.get("vnp_TransactionNo"))
+                    .orderId(orderId)
+                    .amount(params.get("vnp_Amount"))
+                    .invoiceId(payment.getInvoice().getId())
+                    .paymentId(payment.getId())
+                    .subscriptionId(payment.getInvoice().getSubscription().getId())
+                    .build();
+        }
+
+        // Read checkout metadata BEFORE any rawPayload overwrite
+        Map<String, Object> checkoutMetadata = readMetadata(payment.getRawPayload());
+
         boolean valid = verifyReturn(new HashMap<>(params));
         if (!valid) {
-            payment.setRawPayload(toJson(params));
+            // Do NOT overwrite rawPayload – it contains checkout metadata needed for retries
             paymentRepository.save(payment);
             return VNPayReturnResponse.builder()
                     .valid(false)
@@ -190,7 +208,6 @@ public class VNPayService {
 
         BillingInvoice invoice = payment.getInvoice();
         BillingSubscription subscription = invoice.getSubscription();
-        Map<String, Object> checkoutMetadata = readMetadata(payment.getRawPayload());
         boolean success = "00".equals(params.get("vnp_ResponseCode"))
                 && (!params.containsKey("vnp_TransactionStatus") || "00".equals(params.get("vnp_TransactionStatus")));
 
@@ -242,7 +259,14 @@ public class VNPayService {
     public boolean verifyReturn(Map<String, String> params) {
         String vnpSecureHash = params.remove("vnp_SecureHash");
         params.remove("vnp_SecureHashType");
-        String calculatedHash = hmacSHA512(vnPayConfig.getHashSecret(), buildHashData(params));
+        // Only include vnp_ prefixed params in hash computation (VNPay's spec)
+        Map<String, String> vnpOnly = new HashMap<>();
+        for (var entry : params.entrySet()) {
+            if (entry.getKey().startsWith("vnp_") && StringUtils.hasText(entry.getValue())) {
+                vnpOnly.put(entry.getKey(), entry.getValue());
+            }
+        }
+        String calculatedHash = hmacSHA512(vnPayConfig.getHashSecret(), buildHashData(vnpOnly));
         return calculatedHash.equalsIgnoreCase(vnpSecureHash);
     }
 

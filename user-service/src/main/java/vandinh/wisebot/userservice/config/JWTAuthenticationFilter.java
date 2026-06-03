@@ -48,6 +48,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
             "/v3/**",
             "/webjars/**",
             "/favicon.ico",
+            "/user/avatars/**",
             "/actuator/**"
     };
 

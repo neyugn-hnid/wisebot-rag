@@ -23,10 +23,16 @@ spring:
     schemas: billing_service
 
 vnpay:
-  tmn-code: ${VNPAY_TMN_CODE:YOUR_TMN_CODE}
-  hash-secret: ${VNPAY_HASH_SECRET:YOUR_HASH_SECRET}
-  pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-  return-url: ${VNPAY_RETURN_URL:http://localhost:5173/billing?vnpay_return=true}
+  tmn-code: ${VNPAY_TMN_CODE:ULOKUI1Z}
+  hash-secret: ${VNPAY_HASH_SECRET:CF4HDXVL71PEXISXW2Z5HPW1BI9RT1O5}
+  pay-url: ${VNPAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+  return-url: ${VNPAY_RETURN_URL:http://localhost:3000/billing?vnpay_return=true}
 
 internal:
   api-key: ${INTERNAL_API_KEY:wisebot-internal-key}
+
+vietqr:
+  bank-code: ${VIETQR_BANK_CODE:970422}
+  account-no: ${VIETQR_ACCOUNT_NO:}
+  account-name: ${VIETQR_ACCOUNT_NAME:}
+  template: qr_only

@@ -46,3 +46,11 @@ embedding:
 billing:
   base-url: ${BILLING_BASE_URL:http://localhost:8085}
   internal-api-key: ${INTERNAL_API_KEY:wisebot-internal-key}
+
+mineru:
+  enabled: ${MINERU_ENABLED:false}
+  base-url: ${MINERU_BASE_URL:http://localhost:8000}
+  upload-path: /mineru/v1/upload
+  task-path: /mineru/v1/tasks
+  poll-interval-ms: 2000
+  max-poll-time-ms: 120000

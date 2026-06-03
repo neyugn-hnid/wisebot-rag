@@ -43,6 +43,9 @@ integration:
     base-url: ${DOCUMENT_BASE_URL:http://localhost:8081}
     knowledge-bases-path: /knowledge-bases
 
+widget:
+  base-url: ${WIDGET_BASE_URL:http://localhost:8084}
+
 realtime:
   websocket-endpoint: /ws/chat
   app-prefix: /app

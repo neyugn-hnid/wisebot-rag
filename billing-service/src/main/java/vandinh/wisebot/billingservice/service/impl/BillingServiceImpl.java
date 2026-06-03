@@ -6,6 +6,8 @@ import org.springframework.transaction.annotation.Transactional;
 import vandinh.wisebot.billingservice.dto.request.CreateInvoiceItemRequest;
 import vandinh.wisebot.billingservice.dto.request.CreatePlanRequest;
 import vandinh.wisebot.billingservice.dto.request.CreatePlanPriceRequest;
+import vandinh.wisebot.billingservice.dto.request.UpdatePlanRequest;
+import vandinh.wisebot.billingservice.dto.request.UpdatePlanPriceRequest;
 import vandinh.wisebot.billingservice.dto.request.CreatePaymentRequest;
 import vandinh.wisebot.billingservice.dto.request.CreateUsageEventRequest;
 import vandinh.wisebot.billingservice.dto.request.CreateUsageMeterRequest;
@@ -27,6 +29,7 @@ import vandinh.wisebot.billingservice.entity.BillingPlanPrice;
 import vandinh.wisebot.billingservice.entity.BillingSubscription;
 import vandinh.wisebot.billingservice.entity.BillingUsageEvent;
 import vandinh.wisebot.billingservice.entity.BillingUsageMeter;
+import vandinh.wisebot.billingservice.exception.InvalidDataException;
 import vandinh.wisebot.billingservice.exception.ResourceNotFoundException;
 import vandinh.wisebot.billingservice.repository.BillingInvoiceRepository;
 import vandinh.wisebot.billingservice.repository.BillingInvoiceItemRepository;
@@ -68,6 +71,36 @@ public class BillingServiceImpl implements BillingService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public BillingPlanResponse updatePlan(UUID planId, UpdatePlanRequest request) {
+        BillingPlan plan = planRepository.findById(planId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan not found: " + planId));
+        if (request.getCode() != null && !request.getCode().isBlank()) {
+            plan.setCode(request.getCode());
+        }
+        if (request.getName() != null && !request.getName().isBlank()) {
+            plan.setName(request.getName());
+        }
+        if (request.getDescription() != null) {
+            plan.setDescription(request.getDescription());
+        }
+        if (request.getActive() != null) {
+            plan.setActive(request.getActive());
+        }
+        return mapPlan(planRepository.save(plan));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePlan(UUID planId) {
+        BillingPlan plan = planRepository.findById(planId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan not found: " + planId));
+        // Deactivate instead of hard-delete to preserve referential integrity
+        plan.setActive(false);
+        planRepository.save(plan);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<BillingPlanResponse> listPlans() {
         return planRepository.findAll().stream().map(this::mapPlan).toList();
@@ -86,6 +119,35 @@ public class BillingServiceImpl implements BillingService {
                 .trialDays(request.getTrialDays())
                 .build();
         return mapPlanPrice(planPriceRepository.save(price));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public BillingPlanPriceResponse updatePlanPrice(UUID priceId, UpdatePlanPriceRequest request) {
+        BillingPlanPrice price = planPriceRepository.findById(priceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan price not found: " + priceId));
+        if (request.getBillingCycle() != null && !request.getBillingCycle().isBlank()) {
+            price.setBillingCycle(request.getBillingCycle());
+        }
+        if (request.getCurrency() != null && !request.getCurrency().isBlank()) {
+            price.setCurrency(request.getCurrency());
+        }
+        if (request.getAmountCents() != null && request.getAmountCents() >= 0) {
+            price.setAmountCents(request.getAmountCents());
+        }
+        if (request.getTrialDays() != null && request.getTrialDays() >= 0) {
+            price.setTrialDays(request.getTrialDays());
+        }
+        return mapPlanPrice(planPriceRepository.save(price));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePlanPrice(UUID priceId) {
+        if (!planPriceRepository.existsById(priceId)) {
+            throw new ResourceNotFoundException("Plan price not found: " + priceId);
+        }
+        planPriceRepository.deleteById(priceId);
     }
 
     @Override
@@ -277,6 +339,73 @@ public class BillingServiceImpl implements BillingService {
                 .build();
         }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SubscriptionResponse cancelSubscription(UUID tenantId) {
+        BillingSubscription subscription = subscriptionRepository.findByTenantId(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found for tenant: " + tenantId));
+
+        if ("CANCELLED".equals(subscription.getStatus())) {
+            throw new InvalidDataException("Subscription is already cancelled");
+        }
+
+        // Đánh dấu hủy vào cuối kỳ (giữ quyền lợi đến hết chu kỳ)
+        subscription.setCancelAtPeriodEnd(true);
+        subscription.setCanceledAt(LocalDateTime.now());
+
+        return mapSubscription(subscriptionRepository.save(subscription));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SubscriptionResponse downgradeSubscription(UUID tenantId, UUID newPlanId) {
+        BillingSubscription subscription = subscriptionRepository.findByTenantId(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found for tenant: " + tenantId));
+
+        if (!"ACTIVE".equals(subscription.getStatus())) {
+            throw new InvalidDataException("Only active subscriptions can be downgraded. Current status: " + subscription.getStatus());
+        }
+
+        BillingPlan currentPlan = subscription.getPlan();
+        if (currentPlan == null) {
+            throw new InvalidDataException("Subscription has no plan assigned");
+        }
+
+        BillingPlan newPlan = planRepository.findById(newPlanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan not found: " + newPlanId));
+
+        // Kiểm tra thực sự là downgrade (plan mới phải thấp hơn plan hiện tại)
+        String currentCode = currentPlan.getCode().toLowerCase();
+        String newCode = newPlan.getCode().toLowerCase();
+
+        int currentTier = planTier(currentCode);
+        int newTier = planTier(newCode);
+
+        if (newTier >= currentTier) {
+            throw new InvalidDataException(
+                "New plan '" + newCode + "' is not lower than current plan '" + currentCode + "'. Use subscribe for upgrades."
+            );
+        }
+
+        // Đổi plan, reset period về đầu chu kỳ mới
+        subscription.setPlan(newPlan);
+        subscription.setCurrentPeriodStart(LocalDateTime.now());
+        subscription.setCurrentPeriodEnd(LocalDateTime.now().plusMonths(1));
+        subscription.setCancelAtPeriodEnd(false);
+        subscription.setCanceledAt(null);
+
+        return mapSubscription(subscriptionRepository.save(subscription));
+    }
+
+    /** Xếp hạng plan: free=0, plus=1, pro=2 */
+    private int planTier(String code) {
+        return switch (code) {
+            case "pro" -> 2;
+            case "plus" -> 1;
+            default -> 0;
+        };
+    }
+
     private BillingPlanResponse mapPlan(BillingPlan plan) {
         return BillingPlanResponse.builder()
                 .id(plan.getId())
@@ -296,6 +425,8 @@ public class BillingServiceImpl implements BillingService {
                 .seats(sub.getSeats())
                 .currentPeriodStart(sub.getCurrentPeriodStart())
                 .currentPeriodEnd(sub.getCurrentPeriodEnd())
+                .cancelAtPeriodEnd(sub.isCancelAtPeriodEnd())
+                .canceledAt(sub.getCanceledAt())
                 .build();
     }
 
