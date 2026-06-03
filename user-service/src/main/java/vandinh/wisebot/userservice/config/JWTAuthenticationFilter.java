@@ -1,4 +1,5 @@
 package vandinh.wisebot.userservice.config;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,7 +21,7 @@ import vandinh.wisebot.userservice.common.enums.TokenType;
 import vandinh.wisebot.userservice.common.response.ErrorResponse;
 import vandinh.wisebot.userservice.service.JwtService;
 import vandinh.wisebot.userservice.service.UserServiceDetail;
-import vandinh.wisebot.userservice.service.redis.JwtBlacklistService;
+import vandinh.wisebot.userservice.service.security.JwtBlacklistService;
 
 import java.io.IOException;
 import java.util.Date;
@@ -47,13 +48,14 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
             "/v3/**",
             "/webjars/**",
             "/favicon.ico",
+            "/user/avatars/**",
             "/actuator/**"
     };
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+            HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
 
         String path = request.getServletPath();
         for (String pattern : AUTH_WHITELIST) {
@@ -73,7 +75,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
         try {
             if (jwtBlacklistService.isBlacklisted(token)) {
-                writeErrorResponse(response, request.getRequestURI(), "Token has been revoked");
+                writeErrorResponse(response, request.getRequestURI(), "Token đã bị thu hồi");
                 return;
             }
 
@@ -81,9 +83,14 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails user = serviceDetail.loadUserById(userId);
 
+                if (!user.isEnabled()) {
+                    writeErrorResponse(response, request.getRequestURI(), "Tài khoản đã bị khóa");
+                    return;
+                }
+
                 if (jwtService.isTokenValid(token, user)) {
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(user, null,
+                            user.getAuthorities());
 
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
@@ -106,7 +113,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
         error.setTimestamp(new Date());
         error.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         error.setPath(path);
-        error.setError("Unauthorized");
+        error.setError("Truy cập không hợp lệ");
         error.setMessage(message);
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

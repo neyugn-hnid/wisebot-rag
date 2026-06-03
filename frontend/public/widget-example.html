@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WiseBot Widget Example</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: linear-gradient(135deg, #020617, #111827);
+        color: #f8fafc;
+      }
+      main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 80px 24px;
+      }
+      h1 {
+        font-size: clamp(2rem, 6vw, 4rem);
+        margin-bottom: 16px;
+      }
+      p {
+        max-width: 680px;
+        line-height: 1.7;
+        color: #cbd5e1;
+      }
+      .card {
+        margin-top: 32px;
+        padding: 24px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(12px);
+      }
+      code {
+        color: #7dd3fc;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>WiseBot Widget Embed Test</h1>
+      <p>
+        Replace <code>wb_replace_me</code> below with the code copied from the Widget Customization page,
+        then open this file from the same deployed frontend host to verify the public embed flow.
+      </p>
+      <div class="card">
+        Public widget script is expected to create a floating chat bubble at the bottom corner.
+      </div>
+    </main>
+
+    <script src="/widget.js" data-id="wb_replace_me" data-api-base="" async></script>
+  </body>
+</html>

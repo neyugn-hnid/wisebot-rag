@@ -1,6 +1,9 @@
 CREATE SCHEMA IF NOT EXISTS widget_service;
 SET search_path TO widget_service, public;
 
+-- ===============================
+-- WIDGETS
+-- ===============================
 CREATE TABLE IF NOT EXISTS widgets
 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -17,6 +20,9 @@ CREATE TABLE IF NOT EXISTS widgets
     UNIQUE (tenant_id, code)
 );
 
+-- ===============================
+-- ALLOWED DOMAINS
+-- ===============================
 CREATE TABLE IF NOT EXISTS widget_allowed_domains
 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -28,6 +34,9 @@ CREATE TABLE IF NOT EXISTS widget_allowed_domains
     UNIQUE (widget_id, domain)
 );
 
+-- ===============================
+-- API KEYS
+-- ===============================
 CREATE TABLE IF NOT EXISTS widget_api_keys
 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -40,6 +49,9 @@ CREATE TABLE IF NOT EXISTS widget_api_keys
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ===============================
+-- SESSIONS
+-- ===============================
 CREATE TABLE IF NOT EXISTS widget_sessions
 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -55,6 +67,9 @@ CREATE TABLE IF NOT EXISTS widget_sessions
     ended_at TIMESTAMP
 );
 
+-- ===============================
+-- EVENTS
+-- ===============================
 CREATE TABLE IF NOT EXISTS widget_events
 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -66,6 +81,9 @@ CREATE TABLE IF NOT EXISTS widget_events
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ===============================
+-- INDEXES
+-- ===============================
 CREATE INDEX IF NOT EXISTS idx_widgets_tenant_status ON widgets (tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_widget_domains_widget ON widget_allowed_domains (widget_id);
 CREATE INDEX IF NOT EXISTS idx_widget_sessions_widget_started ON widget_sessions (widget_id, started_at);

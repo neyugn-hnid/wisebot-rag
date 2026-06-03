@@ -3,6 +3,7 @@ package vandinh.wisebot.chatservice.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import vandinh.wisebot.chatservice.common.response.ApiResponse;
 import vandinh.wisebot.chatservice.dto.request.AskRequest;
 import vandinh.wisebot.chatservice.dto.request.CreateSessionRequest;
@@ -19,7 +21,9 @@ import vandinh.wisebot.chatservice.dto.request.MessageFeedbackRequest;
 import vandinh.wisebot.chatservice.dto.request.SendMessageRequest;
 import vandinh.wisebot.chatservice.service.ChatService;
 
+import java.io.IOException;
 import java.util.UUID;
+import java.util.Map;
 
 @RestController
 @RequestMapping
@@ -66,6 +70,33 @@ public class ChatController {
                 .message("Answered")
                 .data(chatService.ask(sessionId, request))
                 .build();
+    }
+
+    @PostMapping(value = "/sessions/{sessionId}/ask-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER','AGENT')")
+    public SseEmitter askStream(@PathVariable UUID sessionId, @Valid @RequestBody AskRequest request) {
+        SseEmitter emitter = new SseEmitter(300_000L);
+
+        chatService.askStreaming(sessionId, request, token -> {
+            try {
+                emitter.send(SseEmitter.event()
+                        .name("token")
+                        .data(Map.of("token", token)));
+            } catch (IOException e) {
+                throw new RuntimeException("SSE send failed", e);
+            }
+        });
+
+        try {
+            emitter.send(SseEmitter.event()
+                    .name("done")
+                    .data(Map.of("status", "completed")));
+            emitter.complete();
+        } catch (IOException e) {
+            emitter.completeWithError(e);
+        }
+
+        return emitter;
     }
 
     @GetMapping("/sessions/{sessionId}/messages")
@@ -115,6 +146,46 @@ public class ChatController {
         return ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.value())
                 .message("Session closed")
+                .build();
+    }
+
+    @GetMapping("/provider")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER','AGENT')")
+    public ApiResponse providerInfo() {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Provider info")
+                .data(chatService.getProviderInfo())
+                .build();
+    }
+
+    @PostMapping("/provider/mode")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ApiResponse updateProviderMode(@RequestBody Map<String, String> request) {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Provider mode updated")
+                .data(chatService.updateProviderMode(request.getOrDefault("mode", "")))
+                .build();
+    }
+
+    @GetMapping("/embedding-provider")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER','AGENT')")
+    public ApiResponse embeddingProviderInfo() {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Embedding provider info")
+                .data(chatService.getEmbeddingProviderInfo())
+                .build();
+    }
+
+    @PostMapping("/embedding-provider/mode")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ApiResponse updateEmbeddingProviderMode(@RequestBody Map<String, String> request) {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Embedding provider mode updated")
+                .data(chatService.updateEmbeddingProviderMode(request.getOrDefault("mode", "")))
                 .build();
     }
 }

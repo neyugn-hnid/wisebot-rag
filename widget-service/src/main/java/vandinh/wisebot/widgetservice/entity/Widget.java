@@ -12,7 +12,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -42,9 +44,11 @@ public class Widget {
     @Column(nullable = false, length = 20)
     private String status;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "public_config", columnDefinition = "jsonb")
     private String publicConfig;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "private_config", columnDefinition = "jsonb")
     private String privateConfig;
 

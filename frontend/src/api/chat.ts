@@ -1,0 +1,178 @@
+import { fetchWithAuth } from '../lib/auth';
+
+// --- Types matching backend DTOs ---
+
+export interface CreateSessionRequest {
+  tenantId: string;
+  userId?: string | null;
+  channel?: string;
+  title?: string;
+}
+
+export interface ChatSessionResponse {
+  id?: string;
+  title?: string;
+  lastMessageAt?: string;
+  startedAt?: string;
+}
+
+export interface ChatMessageResponse {
+  id?: string;
+  role?: string;
+  content?: string;
+}
+
+export interface AskRequest {
+  question: string;
+  topK?: number;
+  temperature?: number;
+  knowledgeBaseId?: string;
+}
+
+export interface AskResponse {
+  sessionId?: unknown;
+  userMessageId?: unknown;
+  assistantMessageId?: unknown;
+  answer?: unknown;
+  citations?: unknown;
+}
+
+export interface CitationItem {
+  sourceDocumentId?: unknown;
+  source_document_id?: unknown;
+  snippet?: unknown;
+}
+
+export interface CitationResponse {
+  name: string;
+  snippet: string;
+}
+
+export interface ChatProviderInfo {
+  mode?: string;
+  provider?: string;
+  provider_name?: string;
+  model_name?: string;
+}
+
+export interface UpdateProviderModeRequest {
+  mode: 'ollama' | 'openai-compatible';
+}
+
+// --- Helper ---
+
+const CHAT_BASE = '/api/chat';
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const message = (body as { message?: string; error?: string })?.message
+      || (body as { error?: string })?.error
+      || `Request failed: ${response.status}`;
+    throw new Error(message);
+  }
+  const body = await response.json() as { data?: T; message?: string };
+  return (body.data ?? body) as T;
+}
+
+// --- Session APIs ---
+
+export async function createSession(request: CreateSessionRequest): Promise<ChatSessionResponse> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/sessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<ChatSessionResponse>(res);
+}
+
+export async function listSessions(tenantId: string): Promise<ChatSessionResponse[]> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/sessions?tenantId=${encodeURIComponent(tenantId)}`);
+  return handleResponse<ChatSessionResponse[]>(res);
+}
+
+export async function listMessages(sessionId: string): Promise<ChatMessageResponse[]> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/sessions/${sessionId}/messages`);
+  return handleResponse<ChatMessageResponse[]>(res);
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/sessions/${sessionId}`, {
+    method: 'DELETE',
+  });
+  await handleResponse<unknown>(res);
+}
+
+// --- Message APIs ---
+
+export async function ask(sessionId: string, request: AskRequest): Promise<AskResponse> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/sessions/${sessionId}/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<AskResponse>(res);
+}
+
+export async function getCitations(messageId: string): Promise<CitationItem[]> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/messages/${messageId}/citations`);
+  return handleResponse<CitationItem[]>(res);
+}
+
+export async function getProviderInfo(): Promise<ChatProviderInfo> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/provider`);
+  return handleResponse<ChatProviderInfo>(res);
+}
+
+export async function updateProviderMode(request: UpdateProviderModeRequest): Promise<ChatProviderInfo> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/provider/mode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<ChatProviderInfo>(res);
+}
+
+export async function getEmbeddingProviderInfo(): Promise<ChatProviderInfo> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/embedding-provider`);
+  return handleResponse<ChatProviderInfo>(res);
+}
+
+export async function updateEmbeddingProviderMode(request: UpdateProviderModeRequest): Promise<ChatProviderInfo> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/embedding-provider/mode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<ChatProviderInfo>(res);
+}
+
+export interface UserPreferenceRequest {
+  tenantId: string;
+  knowledgeBaseId?: string | null;
+  topK?: number;
+  temperature?: number;
+}
+
+export interface UserPreferenceResponse {
+  tenantId?: string;
+  userId?: string;
+  knowledgeBaseId?: string | null;
+  topK?: number;
+  temperature?: number;
+  updatedAt?: string;
+}
+
+export async function getUserPreference(tenantId: string): Promise<UserPreferenceResponse | null> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/users/me/preferences?tenantId=${encodeURIComponent(tenantId)}`);
+  return handleResponse<UserPreferenceResponse | null>(res);
+}
+
+export async function saveUserPreference(request: UserPreferenceRequest): Promise<UserPreferenceResponse> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/users/me/preferences`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<UserPreferenceResponse>(res);
+}

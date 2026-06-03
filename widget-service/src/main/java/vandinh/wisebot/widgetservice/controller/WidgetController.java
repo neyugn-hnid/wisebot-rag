@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,6 +19,7 @@ import vandinh.wisebot.widgetservice.dto.request.CreateApiKeyRequest;
 import vandinh.wisebot.widgetservice.dto.request.CreateWidgetSessionRequest;
 import vandinh.wisebot.widgetservice.dto.request.CreateWidgetRequest;
 import vandinh.wisebot.widgetservice.dto.request.TrackEventRequest;
+import vandinh.wisebot.widgetservice.dto.request.UpdateWidgetRequest;
 import vandinh.wisebot.widgetservice.service.WidgetService;
 
 import java.util.UUID;
@@ -30,12 +32,22 @@ public class WidgetController {
     private final WidgetService widgetService;
 
     @PostMapping("/widgets")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER')")
     public ApiResponse createWidget(@Valid @RequestBody CreateWidgetRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
                 .message("Widget created")
                 .data(widgetService.createWidget(request))
+                .build();
+    }
+
+    @PutMapping("/widgets/{widgetId}")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER')")
+    public ApiResponse updateWidget(@PathVariable UUID widgetId, @Valid @RequestBody UpdateWidgetRequest request) {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Widget updated")
+                .data(widgetService.updateWidget(widgetId, request))
                 .build();
     }
 

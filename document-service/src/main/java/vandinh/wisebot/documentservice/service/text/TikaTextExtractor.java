@@ -7,6 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 import vandinh.wisebot.documentservice.exception.InvalidDataException;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 @Service
 public class TikaTextExtractor implements TextExtractor {
@@ -16,7 +17,16 @@ public class TikaTextExtractor implements TextExtractor {
     @Override
     public String extract(MultipartFile file) {
         try {
-            return tika.parseToString(file.getInputStream());
+            return extract(file.getInputStream());
+        } catch (IOException e) {
+            throw new InvalidDataException("Failed to read file: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public String extract(InputStream inputStream) {
+        try {
+            return tika.parseToString(inputStream);
         } catch (IOException | TikaException e) {
             throw new InvalidDataException("Failed to extract text: " + e.getMessage());
         }

@@ -21,8 +21,11 @@ import vandinh.wisebot.chatservice.repository.ChatMessageCitationRepository;
 import vandinh.wisebot.chatservice.repository.ChatMessageFeedbackRepository;
 import vandinh.wisebot.chatservice.repository.ChatMessageRepository;
 import vandinh.wisebot.chatservice.repository.ChatSessionRepository;
+import vandinh.wisebot.chatservice.exception.InvalidDataException;
+import vandinh.wisebot.chatservice.service.BillingEntitlementService;
 import vandinh.wisebot.chatservice.service.ChatService;
 import vandinh.wisebot.chatservice.service.client.AiClient;
+import vandinh.wisebot.chatservice.service.client.DocumentKnowledgeBaseClient;
 import vandinh.wisebot.chatservice.service.client.EmbeddingSearchClient;
 
 import java.time.LocalDateTime;
@@ -43,6 +46,8 @@ public class ChatServiceImpl implements ChatService {
     private final ChatMessageFeedbackRepository feedbackRepository;
     private final EmbeddingSearchClient embeddingSearchClient;
     private final AiClient aiClient;
+    private final DocumentKnowledgeBaseClient documentKnowledgeBaseClient;
+    private final BillingEntitlementService billingEntitlementService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -54,7 +59,6 @@ public class ChatServiceImpl implements ChatService {
                 .channel(request.getChannel() == null ? "WEB" : request.getChannel())
                 .title(request.getTitle())
                 .status("OPEN")
-                .metadata("{}")
                 .build();
         return mapSession(sessionRepository.save(entity));
     }
@@ -73,6 +77,9 @@ public class ChatServiceImpl implements ChatService {
     public ChatMessageResponse sendMessage(UUID sessionId, SendMessageRequest request) {
         ChatSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found: " + sessionId));
+        if ("USER".equalsIgnoreCase(request.getSenderType() == null ? "USER" : request.getSenderType())) {
+            enforceMessageQuota(session.getTenantId());
+        }
 
         ChatMessage message = ChatMessage.builder()
                 .session(session)
@@ -96,6 +103,7 @@ public class ChatServiceImpl implements ChatService {
         public AskResponse ask(UUID sessionId, AskRequest request) {
         ChatSession session = sessionRepository.findById(sessionId)
             .orElseThrow(() -> new ResourceNotFoundException("Session not found: " + sessionId));
+        enforceMessageQuota(session.getTenantId());
 
         ChatMessage userMessage = ChatMessage.builder()
             .session(session)
@@ -107,10 +115,13 @@ public class ChatServiceImpl implements ChatService {
             .build();
         userMessage = messageRepository.save(userMessage);
 
+        UUID knowledgeBaseId = resolveKnowledgeBaseId(session, request.getKnowledgeBaseId());
+
         Map<String, Object> searchPayload = new HashMap<>();
         searchPayload.put("tenant_id", session.getTenantId());
         searchPayload.put("query", request.getQuestion());
         searchPayload.put("top_k", request.getTopK());
+        searchPayload.put("knowledge_base_id", knowledgeBaseId);
         Map<String, Object> searchResult = embeddingSearchClient.search(searchPayload);
 
         Map<String, Object> aiPayload = new HashMap<>();
@@ -120,6 +131,8 @@ public class ChatServiceImpl implements ChatService {
         aiPayload.put("question", request.getQuestion());
         aiPayload.put("top_k", request.getTopK());
         aiPayload.put("temperature", request.getTemperature());
+        aiPayload.put("knowledge_base_id", knowledgeBaseId);
+        aiPayload.put("page_context", request.getPageContext());
         Map<String, Object> aiResult = aiClient.ask(aiPayload);
 
         String answer = (String) aiResult.getOrDefault("answer", "");
@@ -179,6 +192,7 @@ public class ChatServiceImpl implements ChatService {
     public AskResponse askStreaming(UUID sessionId, AskRequest request, Consumer<String> tokenConsumer) {
         ChatSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found: " + sessionId));
+        enforceMessageQuota(session.getTenantId());
 
         ChatMessage userMessage = ChatMessage.builder()
                 .session(session)
@@ -190,6 +204,8 @@ public class ChatServiceImpl implements ChatService {
                 .build();
         userMessage = messageRepository.save(userMessage);
 
+        UUID knowledgeBaseId = resolveKnowledgeBaseId(session, request.getKnowledgeBaseId());
+
         Map<String, Object> aiPayload = new HashMap<>();
         aiPayload.put("tenant_id", session.getTenantId());
         aiPayload.put("session_id", sessionId);
@@ -197,6 +213,8 @@ public class ChatServiceImpl implements ChatService {
         aiPayload.put("question", request.getQuestion());
         aiPayload.put("top_k", request.getTopK());
         aiPayload.put("temperature", request.getTemperature());
+        aiPayload.put("knowledge_base_id", knowledgeBaseId);
+        aiPayload.put("page_context", request.getPageContext());
 
         StringBuilder streamedAnswer = new StringBuilder();
         Map<String, Object> donePayload = new HashMap<>();
@@ -321,9 +339,31 @@ public class ChatServiceImpl implements ChatService {
     public void closeSession(UUID sessionId) {
         ChatSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found: " + sessionId));
-        session.setStatus("CLOSED");
-        session.setClosedAt(LocalDateTime.now());
-        sessionRepository.save(session);
+        sessionRepository.delete(session);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getProviderInfo() {
+        return aiClient.getProviderInfo();
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> updateProviderMode(String mode) {
+        return aiClient.updateProviderMode(mode);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getEmbeddingProviderInfo() {
+        return embeddingSearchClient.getProviderInfo();
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> updateEmbeddingProviderMode(String mode) {
+        return embeddingSearchClient.updateProviderMode(mode);
     }
 
     private ChatSessionResponse mapSession(ChatSession entity) {
@@ -384,5 +424,41 @@ public class ChatServiceImpl implements ChatService {
             return null;
         }
         return UUID.fromString(raw.toString());
+    }
+
+    private UUID resolveKnowledgeBaseId(ChatSession session, UUID requestedKnowledgeBaseId) {
+        if (requestedKnowledgeBaseId != null) {
+            return requestedKnowledgeBaseId;
+        }
+
+        List<DocumentKnowledgeBaseClient.KnowledgeBaseItem> knowledgeBases = documentKnowledgeBaseClient.listKnowledgeBases()
+                .stream()
+                .filter(item -> session.getTenantId().equals(item.tenantId()))
+                .toList();
+
+        if (knowledgeBases.isEmpty()) {
+            throw new IllegalArgumentException("No knowledge base found for tenant " + session.getTenantId());
+        }
+        if (knowledgeBases.size() > 1) {
+            throw new IllegalArgumentException("Multiple knowledge bases found for tenant " + session.getTenantId() + "; knowledgeBaseId is required");
+        }
+
+        return knowledgeBases.get(0).id();
+    }
+
+    private void enforceMessageQuota(UUID tenantId) {
+        var entitlement = billingEntitlementService.getEntitlements(tenantId);
+        if (entitlement.isUnlimited() || entitlement.getMonthlyMessageLimit() < 0) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfMonth = now.withDayOfMonth(1).toLocalDate().atStartOfDay();
+        LocalDateTime startOfNextMonth = startOfMonth.plusMonths(1);
+        long usedMessages = messageRepository.countByTenantIdAndSenderTypeBetween(tenantId, "USER", startOfMonth, startOfNextMonth);
+        if (usedMessages >= entitlement.getMonthlyMessageLimit()) {
+            throw new InvalidDataException("Bạn đã dùng hết " + entitlement.getMonthlyMessageLimit()
+                    + " tin nhắn trong tháng của gói hiện tại. Vui lòng nâng cấp gói để tiếp tục.");
+        }
     }
 }

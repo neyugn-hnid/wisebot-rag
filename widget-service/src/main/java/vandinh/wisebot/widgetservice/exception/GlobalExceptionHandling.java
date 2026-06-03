@@ -2,6 +2,8 @@ package vandinh.wisebot.widgetservice.exception;
 
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -28,6 +30,11 @@ public class GlobalExceptionHandling {
     @ExceptionHandler(InvalidDataException.class)
     public ErrorResponse handleInvalidDataException(InvalidDataException e, WebRequest request) {
         return buildErrorResponse(request, HttpStatus.BAD_REQUEST, HttpStatus.BAD_REQUEST.getReasonPhrase(), e.getMessage());
+    }
+
+    @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
+    public ErrorResponse handleAccessDeniedException(Exception e, WebRequest request) {
+        return buildErrorResponse(request, HttpStatus.FORBIDDEN, HttpStatus.FORBIDDEN.getReasonPhrase(), "Access denied");
     }
 
     @ExceptionHandler(Exception.class)

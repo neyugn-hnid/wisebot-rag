@@ -11,5 +11,6 @@ public class AiClientProperties {
     private String baseUrl;
     private String askPath;
     private String streamPath;
+    private String providerPath;
     private String serviceToken;
 }

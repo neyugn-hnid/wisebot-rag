@@ -44,19 +44,25 @@ public class JwtServiceImpl implements JwtService {
     private String refreshKey;
 
     @Override
-    public String generateAccessToken(UUID userId, String email, List<String> authorities) {
+    public String generateAccessToken(UUID userId, UUID tenantId, String email, List<String> authorities) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", authorities);
         claims.put("userId", userId.toString());
+        if (tenantId != null) {
+            claims.put("tenantId", tenantId.toString());
+        }
         claims.put("email", email);
         return createAccessToken(claims, userId);
     }
 
     @Override
-    public String generateRefreshToken(UUID userId, String email, List<String> authorities) {
+    public String generateRefreshToken(UUID userId, UUID tenantId, String email, List<String> authorities) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", authorities);
         claims.put("userId", userId.toString());
+        if (tenantId != null) {
+            claims.put("tenantId", tenantId.toString());
+        }
         claims.put("email", email);
         return createRefreshToken(claims, userId);
     }
@@ -131,7 +137,7 @@ public class JwtServiceImpl implements JwtService {
             case REFRESH_TOKEN -> {
                 return Keys.hmacShaKeyFor(Decoders.BASE64.decode(refreshKey));
             }
-            default -> throw new InvalidDataException("Invalid token type");
+            default -> throw new InvalidDataException("Loại Token không hợp lệ");
         }
     }
 
@@ -144,7 +150,7 @@ public class JwtServiceImpl implements JwtService {
         try {
             return Jwts.parserBuilder().setSigningKey(getKey(type)).build().parseClaimsJws(token).getBody();
         } catch (SignatureException | ExpiredJwtException e) {
-            throw new AccessDeniedException("Access denied: " + e.getMessage());
+            throw new AccessDeniedException("Truy cập bị từ chối: " + e.getMessage());
         }
     }
 

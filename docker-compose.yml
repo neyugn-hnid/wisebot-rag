@@ -1,0 +1,282 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wisebot-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh:ro
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.6
+    container_name: wisebot-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: wisebot-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: ../docker/java-service.Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: wisebot_user_database
+      DATABASE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER required}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      BACKEND_HOST: http://user-service:8080
+      INTERNAL_CONFIG_API_KEY: ${INTERNAL_CONFIG_API_KEY:?INTERNAL_CONFIG_API_KEY required}
+      JWT_ACCESS_KEY: ${JWT_ACCESS_KEY:?JWT_ACCESS_KEY required}
+      JWT_REFRESH_KEY: ${JWT_REFRESH_KEY:?JWT_REFRESH_KEY required}
+      SENDGRID_VERIFICATION_LINK: ${SENDGRID_VERIFICATION_LINK:-http://localhost:3000/verify-email?token={token}}
+      SENDGRID_RESET_PASSWORD_LINK: ${SENDGRID_RESET_PASSWORD_LINK:-http://localhost:3000/reset-password?token={token}}
+      AVATAR_UPLOAD_DIR: /app/data/avatars
+    volumes:
+      - avatar_data:/app/data/avatars
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+
+  document-service:
+    build:
+      context: ./document-service
+      dockerfile: ../docker/java-service.Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER required}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET required}
+      SERVICE_JWT_AUDIENCE: ${SERVICE_JWT_AUDIENCE:-}
+      STORAGE_BASE_PATH: /app/data/uploads
+      EMBEDDING_BASE_URL: http://embedding-service:8001
+      BILLING_BASE_URL: http://billing-service:8085
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY required}
+      MINERU_ENABLED: ${MINERU_ENABLED:-false}
+      MINERU_BASE_URL: ${MINERU_BASE_URL:-http://mineru:8000}
+    depends_on:
+      - postgres
+      - embedding-service
+      - billing-service
+    ports:
+      - "8081:8081"
+    volumes:
+      - uploads_data:/app/data/uploads
+
+  chat-service:
+    build:
+      context: ./chat-service
+      dockerfile: ../docker/java-service.Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER required}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET required}
+      SERVICE_JWT_AUDIENCE: ${SERVICE_JWT_AUDIENCE:-}
+      BILLING_BASE_URL: http://billing-service:8085
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY required}
+      EMBEDDING_BASE_URL: http://embedding-service:8001
+      AI_BASE_URL: http://ai-service:8002
+      DOCUMENT_BASE_URL: http://document-service:8081
+    depends_on:
+      - postgres
+      - billing-service
+      - embedding-service
+      - ai-service
+      - document-service
+    ports:
+      - "8082:8082"
+
+  widget-service:
+    build:
+      context: ./widget-service
+      dockerfile: ../docker/java-service.Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER required}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      BILLING_BASE_URL: http://billing-service:8085
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY required}
+    depends_on:
+      - postgres
+      - billing-service
+    ports:
+      - "8084:8084"
+
+  billing-service:
+    build:
+      context: ./billing-service
+      dockerfile: ../docker/java-service.Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER required}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY required}
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:?VNPAY_TMN_CODE required}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:?VNPAY_HASH_SECRET required}
+      VNPAY_URL: ${VNPAY_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:3000/billing?vnpay_return=true}
+      VIETQR_BANK_CODE: ${VIETQR_BANK_CODE:?VIETQR_BANK_CODE required}
+      VIETQR_ACCOUNT_NO: ${VIETQR_ACCOUNT_NO:?VIETQR_ACCOUNT_NO required}
+      VIETQR_ACCOUNT_NAME: ${VIETQR_ACCOUNT_NAME:?VIETQR_ACCOUNT_NAME required}
+    depends_on:
+      - postgres
+    ports:
+      - "8085:8085"
+
+  embedding-service:
+    build:
+      context: ./embedding-service
+      dockerfile: ../docker/python-service.Dockerfile
+    environment:
+      APP_PORT: 8001
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/wisebot_embedding_database
+      USER_SERVICE_BASE_URL: http://user-service:8080
+      SYSTEM_SETTING_MODE_PATH: /internal/system-settings/embedding.provider_mode
+      INTERNAL_CONFIG_API_KEY: ${INTERNAL_CONFIG_API_KEY:?INTERNAL_CONFIG_API_KEY required}
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      AUTH_ENABLED: "true"
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET required}
+      SERVICE_JWT_ALGORITHM: HS256
+      SERVICE_JWT_ISSUER: wisebot
+      ALLOWED_SERVICE_SUBJECTS: api-gateway,document-service,chat-service,ai-service
+    depends_on:
+      - postgres
+      - qdrant
+      - ollama
+      - user-service
+    ports:
+      - "8001:8001"
+
+  mineru:
+    image: opendatalab/mineru-api:latest
+    container_name: wisebot-mineru
+    ports:
+      - "8000:8000"
+    volumes:
+      - mineru_data:/app/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - advanced
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: ../docker/python-service.Dockerfile
+    environment:
+      APP_PORT: 8002
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/wisebot_ai_database
+      EMBEDDING_BASE_URL: http://embedding-service:8001
+      EMBEDDING_SEARCH_PATH: /v1/search
+      USER_SERVICE_BASE_URL: http://user-service:8080
+      SYSTEM_SETTING_MODE_PATH: /internal/system-settings/ai.provider_mode
+      INTERNAL_CONFIG_API_KEY: ${INTERNAL_CONFIG_API_KEY:?INTERNAL_CONFIG_API_KEY required}
+      QDRANT_URL: http://qdrant:6333
+      AI_PROVIDER_MODE: ${AI_PROVIDER_MODE:-ollama}
+      AI_PROVIDER_NAME: ${AI_PROVIDER_NAME:-Ollama Local}
+      OLLAMA_PROVIDER_NAME: ${OLLAMA_PROVIDER_NAME:-Ollama Local}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_LLM_MODEL: ${OLLAMA_LLM_MODEL:-llama3:latest}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+      THIRD_PARTY_API_KEY: ${THIRD_PARTY_API_KEY:-}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      DEFAULT_TOP_K: 5
+      DEFAULT_TEMPERATURE: 0.2
+      MIN_SIMILARITY_SCORE: 0.35
+      MAX_TOKENS: 1024
+      AUTH_ENABLED: "true"
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET required}
+      SERVICE_JWT_ALGORITHM: HS256
+      SERVICE_JWT_ISSUER: wisebot
+      ALLOWED_SERVICE_SUBJECTS: api-gateway,chat-service
+    depends_on:
+      - postgres
+      - qdrant
+      - embedding-service
+      - user-service
+      - ollama
+    ports:
+      - "8002:8002"
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: ../docker/java-service.Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      USER_SERVICE_URL: http://user-service:8080
+      DOCUMENT_SERVICE_URL: http://document-service:8081
+      CHAT_SERVICE_URL: http://chat-service:8082
+      CHAT_WS_URL: ws://chat-service:8082
+      WIDGET_SERVICE_URL: http://widget-service:8084
+      BILLING_SERVICE_URL: http://billing-service:8085
+      JWT_SECRET: ${JWT_ACCESS_KEY:?JWT_ACCESS_KEY required}
+    depends_on:
+      - user-service
+      - document-service
+      - chat-service
+      - widget-service
+      - billing-service
+    ports:
+      - "9000:9000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://api-gateway:9000
+    environment:
+      VITE_API_BASE_URL: http://api-gateway:9000
+    depends_on:
+      - api-gateway
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  ollama_data:
+  mineru_data:
+  uploads_data:
+  avatar_data:

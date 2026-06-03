@@ -23,10 +23,10 @@ public class UserServiceDetail implements UserDetailsService {
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Optional<UserEntity> user = userRepository.findByUsernameWithRoles(username);
+        Optional<UserEntity> user = userRepository.findByUsernameOrEmailWithRoles(username);
 
         if (user.isEmpty()) {
-            user = userRepository.findByUsername(username);
+            user = userRepository.findByUsernameOrEmail(username);
         }
 
         UserEntity userEntity = user.orElseThrow(() -> {

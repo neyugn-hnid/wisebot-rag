@@ -1,40 +1,80 @@
 import httpx
+from httpx import HTTPStatusError
 
 
 class OllamaClient:
     def __init__(self, base_url: str, model: str, timeout_seconds: float = 120.0):
         self._base_url = base_url.rstrip("/")
         self._model = model
-        self._timeout = timeout_seconds
+        self._client = httpx.AsyncClient(timeout=timeout_seconds)
+        self._cache: dict[str, list[float]] = {}
+
+    async def close(self):
+        await self._client.aclose()
+
+    async def _post_with_retry(self, url, json, retries=3):
+        import asyncio
+        for i in range(retries):
+            try:
+                res = await self._client.post(url, json=json)
+                res.raise_for_status()
+                return res
+            except Exception:
+                if i == retries - 1:
+                    raise
+                await asyncio.sleep(0.3 * (i + 1))
 
     async def embed(self, text: str) -> list[float]:
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            response = await client.post(
-                f"{self._base_url}/api/embeddings",
-                json={"model": self._model, "prompt": text},
-            )
-            response.raise_for_status()
-            payload = response.json()
+        if text in self._cache:
+            return self._cache[text]
 
-        vector = payload.get("embedding")
-        if vector is None and isinstance(payload.get("embeddings"), list):
-            embeddings = payload["embeddings"]
-            vector = embeddings[0] if embeddings else None
+        res = await self._post_with_retry(
+            f"{self._base_url}/api/embeddings",
+            {"model": self._model, "prompt": text},
+        )
+        payload = res.json()
+
+        vector = payload.get("embedding") or (
+            payload.get("embeddings", [None])[0]
+        )
 
         if not isinstance(vector, list):
-            raise ValueError("Invalid embedding response from Ollama")
+            raise ValueError("Invalid embedding response")
 
-        return [float(v) for v in vector]
+        result = [float(v) for v in vector]
+        self._cache[text] = result
+        return result
+
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        try:
+            res = await self._post_with_retry(
+                f"{self._base_url}/api/embed",
+                {"model": self._model, "input": texts},
+            )
+            payload = res.json()
+
+            vectors = payload.get("embeddings")
+            if not isinstance(vectors, list):
+                raise ValueError("Invalid embedding response")
+
+            return [[float(v) for v in vec] for vec in vectors]
+        except HTTPStatusError as exc:
+            if exc.response.status_code != 404:
+                raise
+
+            # Backward-compatible fallback for Ollama versions without /api/embed.
+            results = []
+            for text in texts:
+                results.append(await self.embed(text))
+            return results
 
 
 def ensure_dimension(vector: list[float], target_dim: int) -> list[float]:
     current_dim = len(vector)
     if current_dim == target_dim:
         return vector
-
     if current_dim > target_dim:
         return vector[:target_dim]
-
     return vector + [0.0] * (target_dim - current_dim)
 
 

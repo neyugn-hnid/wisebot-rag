@@ -4,6 +4,8 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import vandinh.wisebot.documentservice.config.EmbeddingProperties;
 import vandinh.wisebot.documentservice.dto.request.EmbeddingRequest;
@@ -31,7 +33,13 @@ public class EmbeddingClient {
                     EmbeddingResponse.class
             );
             return response.getBody();
-        } catch (Exception e) {
+        } catch (HttpStatusCodeException e) {
+            String responseBody = e.getResponseBodyAsString();
+            String detail = (responseBody == null || responseBody.isBlank()) ? e.getStatusText() : responseBody;
+            throw new InvalidDataException(
+                    "Embedding request failed: " + e.getStatusCode().value() + " " + e.getStatusText() + " - " + detail
+            );
+        } catch (RestClientException e) {
             throw new InvalidDataException("Embedding request failed: " + e.getMessage());
         }
     }

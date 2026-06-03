@@ -15,9 +15,9 @@ import java.time.LocalDateTime;
 @ToString
 public class LoginRequest implements Serializable {
     @JsonAlias({"username", "email"})
-    @NotBlank(message = "username or email must be not blank")
+    @NotBlank(message = "Tên đăng nhập không được để trống.")
     private String username;
-    @NotBlank(message = "password must be not blank")
+    @NotBlank(message = "Mật khẩu không được để trống.")
     private String password;
     private String platForm;
     private String deviceToken;

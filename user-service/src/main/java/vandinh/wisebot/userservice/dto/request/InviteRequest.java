@@ -6,7 +6,7 @@ import lombok.Data;
 
 @Data
 public class InviteRequest {
-    @NotBlank(message = "email must be not blank")
-    @Email(message = "email must be a valid email address")
+    @NotBlank(message = "Email không được để trống.")
+    @Email(message = "Email không đúng định dạng.")
     private String email;
 }
