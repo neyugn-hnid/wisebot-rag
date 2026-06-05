@@ -866,7 +866,7 @@ export default function KnowledgeBase() {
 
           {/* Upload Area */}
           <section>
-            <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[radial-gradient(circle_at_top,rgba(59,158,255,0.08),transparent_28%),#050505] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
+            <div className="rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[radial-gradient(circle_at_top,rgba(59,158,255,0.08),transparent_28%),#050505] p-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
                 <div>
                   <h3 className="text-base font-bold text-[#f0f0f0]">{t('kb.upload.title')}</h3>
@@ -1104,7 +1104,7 @@ export default function KnowledgeBase() {
                 </div>
               ))}
             </div>
-            <div className="bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[16px] overflow-hidden shadow-md shadow-black/40">
+            <div className="bg-[#151517] border border-[rgba(255,255,255,0.3)] rounded-[16px] overflow-hidden shadow-md shadow-black/40">
               <div className="hidden overflow-x-auto max-h-[500px] overflow-y-auto lg:block">
                 <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead className="bg-[rgba(255,255,255,0.02)]">
@@ -1217,7 +1217,7 @@ export default function KnowledgeBase() {
       {/* Create / Edit Knowledge Base Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[#000000] shadow-[0_18px_48px_rgba(0,0,0,0.32)] animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[#1515177] shadow-[0_18px_48px_rgba(0,0,0,0.32)] animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] p-6">
               <h3 className="text-[24px] font-display font-medium tracking-tight text-[#f5f5f5]">
                 {formMode === 'create' ? t('kb.modal.create') : t('kb.modal.edit')}
@@ -1457,7 +1457,7 @@ export default function KnowledgeBase() {
       {/* Confirmation Modal */}
       {confirmModal.isOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[#000000] shadow-[0_18px_48px_rgba(0,0,0,0.32)] animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[#151517] shadow-[0_18px_48px_rgba(0,0,0,0.32)] animate-in zoom-in-95 duration-200">
             <button
               onClick={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
               className="absolute right-5 top-5 rounded-md p-1 text-[rgba(255,255,255,0.7)] transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-[#ffffff]"

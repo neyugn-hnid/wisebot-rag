@@ -56,7 +56,7 @@ function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[24px] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+    <section className="rounded-[24px] p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] text-[#d7d9da]">
@@ -364,7 +364,7 @@ export default function Settings() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
-      <section className="rounded-[24px]  p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+      <section className="rounded-[24px]  p-6">
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9fa3a5]">
             <Cpu size={13} />
@@ -374,7 +374,7 @@ export default function Settings() {
           
       </section>
 
-      <div className="rounded-[22px] p-6 shadow-[0_14px_36px_rgba(0,0,0,0.18)]">
+      <div className="rounded-[22px] p-6">
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         {tabs
           .filter((tab) => !tab.adminOnly || role === 'ADMIN')

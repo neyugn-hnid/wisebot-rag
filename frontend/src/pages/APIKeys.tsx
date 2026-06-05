@@ -181,7 +181,7 @@ export default function APIKeys() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
-      <div className="rounded-[24px] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+      <div className="rounded-[24px] p-6">
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9fa3a5]">

@@ -57,10 +57,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const filteredItems = sidebarItems.filter(item => item.roles.includes(role));
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#000000] selection:bg-[#ff801f] selection:text-[#ffffff]">
+    <div className="flex h-screen overflow-hidden bg-[#151517] selection:bg-[#ff801f] selection:text-[#ffffff]">
       {/* Desktop Sidebar */}
       <aside className={cn(
-        "hidden lg:flex border-r border-[rgba(255,255,255,0.3)] bg-[#2c2c2e] flex-col shrink-0 overflow-y-auto transition-all duration-300",
+        "hidden lg:flex border-r border-[rgba(255,255,255,0.3)] bg-[#1b1b1c] flex-col shrink-0 overflow-y-auto transition-all duration-300",
         isDesktopSidebarCollapsed ? "w-20" : "w-64"
       )}>
         <SidebarContent 
@@ -89,7 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-72 bg-[#2c2c2e] z-[70] lg:hidden flex flex-col shadow-[rgba(176,199,217,0.145)_1px_0px_0px_0px]"
+              className="fixed inset-y-0 left-0 w-72 bg-[#1b1b1c] z-[70] lg:hidden flex flex-col shadow-[rgba(176,199,217,0.145)_1px_0px_0px_0px]"
             >
               <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.3)]">
                 <div className="max-w-[160px] w-full">
@@ -114,14 +114,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <button
           onClick={() => setIsMobileSidebarOpen(true)}
-          className="fixed top-4 left-4 z-40 lg:hidden p-2 text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.05)] rounded-lg transition-colors bg-[#000000]/80 backdrop-blur-sm"
+          className="fixed top-4 left-4 z-40 lg:hidden p-2 text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.05)] rounded-lg transition-colors bg-[#151517]/80 backdrop-blur-sm"
           aria-label="Open navigation menu"
         >
           <Menu size={20} />
         </button>
 
         {/* Page Body */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8 pt-16 lg:pt-8 scrollbar-hide bg-[#000000]">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 pt-16 lg:pt-8 scrollbar-hide bg-[#151517]">
           {children}
         </main>
       </div>

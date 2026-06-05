@@ -147,9 +147,6 @@ services:
       VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:?VNPAY_HASH_SECRET required}
       VNPAY_URL: ${VNPAY_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
       VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:3000/billing?vnpay_return=true}
-      VIETQR_BANK_CODE: ${VIETQR_BANK_CODE:?VIETQR_BANK_CODE required}
-      VIETQR_ACCOUNT_NO: ${VIETQR_ACCOUNT_NO:?VIETQR_ACCOUNT_NO required}
-      VIETQR_ACCOUNT_NAME: ${VIETQR_ACCOUNT_NAME:?VIETQR_ACCOUNT_NAME required}
     depends_on:
       - postgres
     ports:

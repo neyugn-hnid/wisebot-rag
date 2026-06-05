@@ -744,7 +744,7 @@ export default function ChatbotPlayground() {
           </div>
 
           {/* Input Area */}
-          <div className="bg-[#000000]/70 p-4 backdrop-blur-xl sm:p-6">
+          <div className="bg-[#151517]/70 p-4 backdrop-blur-xl sm:p-6">
             <div className="max-w-3xl mx-auto relative group">
               <div className="relative flex items-end gap-2 rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] p-1.5 transition-all duration-300 shadow-md shadow-black/40 focus-within:bg-[rgba(255,255,255,0.06)]">
                 <textarea 

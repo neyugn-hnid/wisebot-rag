@@ -443,7 +443,7 @@ export default function Billing() {
                             </button>
                             <button
                               onClick={() => handleDeletePlan(plan)}
-                              className="rounded-[10px] p-2 text-[#ff4d4f] hover:bg-[rgba(255,77,79,0.1)] transition-colors"
+                              className="rounded-[10px] p-2 text-[#ff0000] hover:bg-[rgba(255,77,79,0.1)] transition-colors"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -707,7 +707,7 @@ function BillingHero({
   onAction: () => void;
 }) {
   return (
-    <section className="rounded-[24px] pt-6 pb-6 shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+    <section className="rounded-[24px] pt-6 pb-6">
       <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9fa3a5]">

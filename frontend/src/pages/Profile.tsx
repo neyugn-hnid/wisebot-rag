@@ -266,7 +266,7 @@ export default function Profile() {
   return (
     <div className="mx-auto max-w-7xl space-y-8 pb-20 animate-in fade-in duration-500">
       <div className="space-y-8">
-        <section className="rounded-[24px] shadow-[0_18px_48px_rgba(0,0,0,0.22)]">
+        <section className="rounded-[24px]">
           <div className="flex flex-col items-center gap-4 px-6 py-5 sm:flex-row sm:items-start lg:px-8">
             <div
               onClick={() => fileInputRef.current?.click()}
