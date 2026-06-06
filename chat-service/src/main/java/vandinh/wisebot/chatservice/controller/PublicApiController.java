@@ -81,7 +81,12 @@ public class PublicApiController {
         if (knowledgeBaseIdStr != null) {
             aiPayload.put("knowledge_base_id", UUID.fromString(knowledgeBaseIdStr));
         }
-        aiPayload.put("page_context", request.getPageContext());
+        Map<String, Object> pageContext = new HashMap<>();
+        if (request.getPageContext() != null) {
+            pageContext.putAll(request.getPageContext());
+        }
+        pageContext.put("recommendMode", true);
+        aiPayload.put("page_context", pageContext);
 
         Map<String, Object> aiResult = aiClient.ask(aiPayload);
         String answer = (String) aiResult.getOrDefault("answer", "");

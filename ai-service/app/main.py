@@ -187,12 +187,13 @@ async def _judge_and_persist(
 
 
 def _build_prompts(question: str, retrieved_chunks: list[dict], page_context: dict | None = None) -> tuple[str, str]:
-    """Unified prompt: AI tự phân tích, trả JSON sản phẩm nếu hỏi mua sắm, text nếu hỏi FAQ."""
+    """Build prompt for RAG chat. Product JSON is reserved for the dedicated recommend API."""
     context_lines: list[str] = []
     for chunk in retrieved_chunks:
         context_lines.append(chunk["chunk_text"])
 
     context_text = "\n\n---\n\n".join(context_lines) if context_lines else "No relevant context found."
+    recommend_mode = bool(page_context and page_context.get("recommendMode") is True)
 
     # Build page context info
     page_info = ""
@@ -207,53 +208,52 @@ def _build_prompts(question: str, retrieved_chunks: list[dict], page_context: di
         if page_title and not product_name:
             page_info += f"- Trang: {page_title}\n"
 
-    system_prompt = (
-        "Bạn là trợ lý AI WISEBOT, có thể vừa tư vấn sản phẩm vừa trả lời câu hỏi thông thường.\n"
-        "PHÂN TÍCH CÂU HỎI để chọn cách trả lời:\n"
-        "\n"
-        "🔹 Nếu hỏi VỀ SẢN PHẨM (tìm mua, so sánh, giá, gợi ý, tư vấn chọn...):\n"
-        "Trả lời theo format SAU (bắt buộc):\n"
-        "  1. Viết 1-2 câu giới thiệu ngắn gọn.\n"
-        "  2. Sau đó là dòng: __JSON_PRODUCTS__\n"
-        "  3. Tiếp theo là JSON array chứa tối đa 3 sản phẩm phù hợp nhất từ context.\n"
-        "  4. Sau đó là dòng: __END_JSON__\n"
-        "  5. Cuối cùng viết 1 câu kết, gợi ý thêm.\n"
-        "\n"
-        "Cấu trúc mỗi object trong JSON array:\n"
-        "{\n"
-        '  "id": <số, id sản phẩm từ CSV>,\n'
-        '  "name": "<tên sản phẩm>",\n'
-        '  "price": <số, giá VND, không có dấu phẩy>,\n'
-        '  "imageUrl": "<url ảnh từ CSV, nếu không có thì để chuỗi rỗng>",\n'
-        '  "detailUrl": "<url chi tiết từ CSV, nếu không có thì để chuỗi rỗng>",\n'
-        '  "reason": "<1 câu ngắn giải thích tại sao sản phẩm này phù hợp>"\n'
-        "}\n"
-        "\n"
-        "VÍ DỤ output đúng:\n"
-        "Dạ, đây là những điện thoại phù hợp với ngân sách của bạn:\n"
-        "__JSON_PRODUCTS__\n"
-        '[{"id":10,"name":"Samsung Galaxy A55 5G","price":9490000,"imageUrl":"https://example.com/a55.jpg","detailUrl":"/products/10","reason":"Pin 5000mAh, camera 50MP, màn hình AMOLED 120Hz"}]\n'
-        "__END_JSON__\n"
-        "Bạn cần thêm thông tin gì về sản phẩm này không ạ?\n"
-        "\n"
-        "⚠ QUAN TRỌNG:\n"
-        " - CHỈ lấy sản phẩm từ context. KHÔNG bịa đặt.\n"
-        " - JSON phải hợp lệ, không có trailing comma.\n"
-        " - price là số nguyên, KHÔNG có dấu phẩy hay ký tự đặc biệt.\n"
-        " - Nếu imageUrl/detailUrl không có trong context → để chuỗi rỗng "".\n"
-        " - Nếu KHÔNG có sản phẩm phù hợp → trả lời text bình thường, KHÔNG dùng format JSON.\n"
-        "\n"
-        "🔹 Nếu hỏi THÔNG TIN CHUNG (chính sách, FAQ, hướng dẫn, điều khoản...):\n"
-        " - Trả lời thẳng, súc tích.\n"
-        " - KHÔNG dùng format __JSON_PRODUCTS__.\n"
-        "\n"
+    common_rules = (
+        "Bạn là trợ lý AI WISEBOT trả lời dựa trên tài liệu được cung cấp.\n"
         "LUẬT CHUNG:\n"
         " - CHỈ trả lời bằng TIẾNG VIỆT.\n"
         " - CHỈ dùng thông tin trong CONTEXT.\n"
-        " - KHÔNG dùng citation markers.\n"
-        " - CHITCHAT: trả lời ngắn gọn, thân thiện.\n"
-        ' - NO MATCH: "Xin lỗi, tôi không tìm thấy thông tin phù hợp."'
+        " - Nếu tài liệu không có thông tin phù hợp, trả lời: \"Xin lỗi, tôi không tìm thấy thông tin phù hợp.\"\n"
+        " - Không dùng citation markers.\n"
+        " - Trả lời thẳng, rõ ràng, súc tích.\n"
     )
+
+    if recommend_mode:
+        system_prompt = (
+            common_rules
+            + "\n"
+            "CHẾ ĐỘ RECOMMEND API:\n"
+            "Nếu câu hỏi yêu cầu gợi ý hoặc tư vấn chọn sản phẩm cụ thể, trả lời theo format sau:\n"
+            "  1. Viết 1-2 câu giới thiệu ngắn gọn.\n"
+            "  2. Sau đó là dòng: __JSON_PRODUCTS__\n"
+            "  3. Tiếp theo là JSON array chứa tối đa 3 sản phẩm phù hợp nhất từ context.\n"
+            "  4. Sau đó là dòng: __END_JSON__\n"
+            "  5. Cuối cùng viết 1 câu kết.\n"
+            "\n"
+            "Cấu trúc mỗi object trong JSON array:\n"
+            "{\n"
+            '  "id": <số, id sản phẩm từ CSV>,\n'
+            '  "name": "<tên sản phẩm>",\n'
+            '  "price": <số, giá VND, không có dấu phẩy>,\n'
+            '  "imageUrl": "<url ảnh từ CSV, nếu không có thì để chuỗi rỗng>",\n'
+            '  "detailUrl": "<url chi tiết từ CSV, nếu không có thì để chuỗi rỗng>",\n'
+            '  "reason": "<1 câu ngắn giải thích tại sao sản phẩm này phù hợp>"\n'
+            "}\n"
+            "Nếu câu hỏi là chính sách, FAQ, hướng dẫn, giao hàng, bảo hành, thanh toán hoặc điều khoản: "
+            "trả lời văn bản bình thường, KHÔNG dùng __JSON_PRODUCTS__.\n"
+            "CHỈ lấy sản phẩm từ context. KHÔNG bịa đặt.\n"
+        )
+    else:
+        system_prompt = (
+            common_rules
+            + "\n"
+            "CHẾ ĐỘ CHAT THƯỜNG:\n"
+            " - Luôn trả lời bằng văn bản tự nhiên.\n"
+            " - TUYỆT ĐỐI KHÔNG xuất JSON sản phẩm.\n"
+            " - TUYỆT ĐỐI KHÔNG dùng các marker __JSON_PRODUCTS__ hoặc __END_JSON__.\n"
+            " - Với câu hỏi về chính sách giao hàng, đổi trả, bảo hành, học phí, đặt lịch, phí dịch vụ: "
+            "tóm tắt đúng các ý trong tài liệu bằng gạch đầu dòng nếu cần.\n"
+        )
 
     user_prompt = f"Câu hỏi:\n{question}\n"
     if page_info:
@@ -303,6 +303,19 @@ def _raise_llm_http_exception(exc: httpx.HTTPError) -> None:
 
 def _to_jsonb_param(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, default=str)
+
+
+def _strip_json_products_block(answer: str) -> str:
+    start_marker = "__JSON_PRODUCTS__"
+    end_marker = "__END_JSON__"
+    cleaned = answer
+    while start_marker in cleaned and end_marker in cleaned:
+        start = cleaned.find(start_marker)
+        end = cleaned.find(end_marker, start)
+        if end < 0:
+            break
+        cleaned = cleaned[:start] + cleaned[end + len(end_marker):]
+    return cleaned.strip()
 
 
 async def _retrieve_context(
@@ -486,6 +499,8 @@ async def rag_ask(
             or llm_result.get("response")
             or ""
         ).strip()
+        if not (payload.page_context and payload.page_context.get("recommendMode") is True):
+            answer_text = _strip_json_products_block(answer_text)
 
         if not answer_text:
             raise ValueError("LLM returned empty response")
@@ -716,6 +731,8 @@ async def rag_ask_stream(
 
             latency_ms = int((time.perf_counter() - llm_start) * 1000)
             answer_text = "".join(answer_parts).strip()
+            if not (payload.page_context and payload.page_context.get("recommendMode") is True):
+                answer_text = _strip_json_products_block(answer_text)
             if not answer_text:
                 raise ValueError("LLM returned empty response")
 
