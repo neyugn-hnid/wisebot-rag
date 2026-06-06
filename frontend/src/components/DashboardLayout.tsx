@@ -176,28 +176,33 @@ function SidebarContent({ filteredItems, role, t, location, isCollapsed, onToggl
       <div className="mt-auto pt-6 space-y-1">
         {[
           { icon: FileText, label: t('nav.docs'), href: '/docs' },
-          { icon: HelpCircle, label: t('nav.faq'), href: '/faq' },
+          { icon: HelpCircle, label: t('nav.faq'), href: '/docs?tab=faq' },
           { icon: Tag, label: t('nav.pricing'), href: '/pricing' },
-          { icon: Code, label: t('nav.integration_secondary'), href: '/integration' },
-          { icon: Send, label: t('nav.contact'), href: '/contact' },
+          { icon: Code, label: t('nav.integration_secondary'), href: '/docs?tab=widget' },
+          { icon: Send, label: t('nav.contact'), href: '/docs?tab=contact' },
           { icon: User, label: t('nav.profile') || 'Profile', href: '/profile' },
-        ].map((item) => (
-          <Link
-            key={item.href}
-            to={item.href}
-            title={isCollapsed ? item.label : undefined}
-            className={cn(
-              "flex items-center rounded-md transition-colors",
-              isCollapsed ? "justify-center p-3" : "gap-3 px-3 py-2 text-[14px] font-medium",
-              location.pathname === item.href
-                ? "bg-[rgba(255,255,255,0.05)] text-[#ffffff]"
-                : "text-[#a1a4a5] hover:text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.02)]"
-            )}
-          >
-            <item.icon size={isCollapsed ? 20 : 16} />
-            {!isCollapsed && <span>{item.label}</span>}
-          </Link>
-        ))}
+        ].map((item) => {
+          const isActive = item.href.includes('?') 
+            ? location.pathname + location.search === item.href 
+            : location.pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              to={item.href}
+              title={isCollapsed ? item.label : undefined}
+              className={cn(
+                "flex items-center rounded-md transition-colors",
+                isCollapsed ? "justify-center p-3" : "gap-3 px-3 py-2 text-[14px] font-medium",
+                isActive
+                  ? "bg-[rgba(255,255,255,0.05)] text-[#ffffff]"
+                  : "text-[#a1a4a5] hover:text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.02)]"
+              )}
+            >
+              <item.icon size={isCollapsed ? 20 : 16} />
+              {!isCollapsed && <span>{item.label}</span>}
+            </Link>
+          );
+        })}
 
         <Link
           to="/settings"

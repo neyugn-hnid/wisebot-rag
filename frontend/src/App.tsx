@@ -24,6 +24,8 @@ import Billing from './pages/Billing';
 import UpgradePlan from './pages/UpgradePlan';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
+import Docs from './pages/Docs';
+import Pricing from './pages/Pricing';
 
 type AppRole = 'ADMIN' | 'OWNER' | 'USER';
 
@@ -75,6 +77,8 @@ function App() {
                   <Route path="/billing/upgrade" element={<ProtectedRoute><DashboardLayout><UpgradePlan /></DashboardLayout></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><DashboardLayout><Settings /></DashboardLayout></ProtectedRoute>} />
                   <Route path="/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
+                  <Route path="/docs" element={<Docs />} />
+                  <Route path="/pricing" element={<Pricing />} />
 
                   {/* Fallback */}
                   <Route path="*" element={<Navigate to="/" replace />} />

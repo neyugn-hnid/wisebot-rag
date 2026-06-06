@@ -472,7 +472,7 @@ export default function UserManagement() {
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
               placeholder={t('common.search')}
-              className="w-full rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] py-2.5 pl-9 pr-4 text-[14px] text-[#f0f0f0] outline-none transition-colors placeholder:text-[#a1a4a5]/40 focus:border-[rgba(59,158,255,0.5)] focus:ring-2 focus:ring-[rgba(59,158,255,0.18)]"
+              className="w-full rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] py-2.5 pl-9 pr-4 text-[14px] text-[#f0f0f0] outline-none transition-colors placeholder:text-[#a1a4a5]/40 focus:border-[#ffffff] focus:ring-[#ffffff]"
             />
           </form>
           <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 xl:w-auto">
@@ -480,7 +480,7 @@ export default function UserManagement() {
               <button
                 type="button"
                 onClick={() => setIsRoleDropdownOpen((prev) => !prev)}
-                className="flex w-full sm:min-w-[170px] items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-[rgba(59,158,255,0.24)]"
+                className="flex w-full sm:min-w-[170px] items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none  focus:ring-[#ffffff]"
               >
                 <span className="min-w-0 truncate">{roleLabel}</span>
                 <ChevronDown
@@ -525,7 +525,7 @@ export default function UserManagement() {
               <button
                 type="button"
                 onClick={() => setIsStatusDropdownOpen((prev) => !prev)}
-                className="flex w-full sm:min-w-[170px] items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-[rgba(59,158,255,0.24)]"
+                className="flex w-full sm:min-w-[170px] items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none  focus:ring-[#ffffff]"
               >
                 <span className="min-w-0 truncate">{statusLabel}</span>
                 <ChevronDown
@@ -570,7 +570,7 @@ export default function UserManagement() {
               <button
                 type="button"
                 onClick={() => setIsSortDropdownOpen((prev) => !prev)}
-                className="flex w-full sm:min-w-[170px] items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-[rgba(59,158,255,0.24)]"
+                className="flex w-full sm:min-w-[170px] items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none  focus:ring-[#ffffff]"
               >
                 <span className="min-w-0 truncate">{sortLabel}</span>
                 <ChevronDown
@@ -808,7 +808,12 @@ export default function UserManagement() {
                     setInviteErrors((current) => ({ ...current, email: validateInviteField('email', inviteEmail) }));
                   }}
                   placeholder="jane@example.com"
-                  className="w-full rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors focus:border-[rgba(59,158,255,0.5)] focus:ring-2 focus:ring-[rgba(59,158,255,0.18)]"
+                  className={cn(
+                    'w-full rounded-[14px] border bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors',
+                    inviteTouched.email && inviteErrors.email
+                      ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-[#ff0000]/20'
+                      : 'border-[rgba(255,255,255,0.12)] focus:border-[#ffffff]  focus:ring-[#ffffff]'
+                  )}
                   aria-invalid={inviteTouched.email && !!inviteErrors.email}
                 />
                 {inviteTouched.email && inviteErrors.email && (
@@ -886,7 +891,12 @@ export default function UserManagement() {
                     setEditTouched((current) => ({ ...current, name: true }));
                     setEditErrors((current) => ({ ...current, name: validateEditField('name', editForm.name) }));
                   }}
-                  className="w-full rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors focus:border-[rgba(59,158,255,0.5)] focus:ring-2 focus:ring-[rgba(59,158,255,0.18)]"
+                  className={cn(
+                    'w-full rounded-[14px] border bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors',
+                    editTouched.name && editErrors.name
+                      ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-[#ff0000]/20'
+                      : 'border-[rgba(255,255,255,0.12)] focus:border-[#ffffff]  focus:ring-[#ffffff]'
+                  )}
                   aria-invalid={editTouched.name && !!editErrors.name}
                 />
                 {editTouched.name && editErrors.name && (
@@ -909,7 +919,12 @@ export default function UserManagement() {
                     setEditTouched((current) => ({ ...current, email: true }));
                     setEditErrors((current) => ({ ...current, email: validateEditField('email', editForm.email) }));
                   }}
-                  className="w-full rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors focus:border-[rgba(59,158,255,0.5)] focus:ring-2 focus:ring-[rgba(59,158,255,0.18)]"
+                  className={cn(
+                    'w-full rounded-[14px] border bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors',
+                    editTouched.email && editErrors.email
+                      ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-[#ff0000]/20'
+                      : 'border-[rgba(255,255,255,0.12)] focus:border-[#ffffff]  focus:ring-[#ffffff]'
+                  )}
                   aria-invalid={editTouched.email && !!editErrors.email}
                 />
                 {editTouched.email && editErrors.email && (
@@ -932,7 +947,12 @@ export default function UserManagement() {
                     setEditTouched((current) => ({ ...current, phone: true }));
                     setEditErrors((current) => ({ ...current, phone: validateEditField('phone', editForm.phone) }));
                   }}
-                  className="w-full rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors focus:border-[rgba(59,158,255,0.5)] focus:ring-2 focus:ring-[rgba(59,158,255,0.18)]"
+                  className={cn(
+                    'w-full rounded-[14px] border bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors',
+                    editTouched.phone && editErrors.phone
+                      ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-[#ff0000]/20'
+                      : 'border-[rgba(255,255,255,0.12)] focus:border-[#ffffff]  focus:ring-[#ffffff]'
+                  )}
                   aria-invalid={editTouched.phone && !!editErrors.phone}
                 />
                 {editTouched.phone && editErrors.phone && (

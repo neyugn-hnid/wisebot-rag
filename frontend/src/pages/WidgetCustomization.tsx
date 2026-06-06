@@ -62,7 +62,7 @@ const WIDGET_SETTINGS_STORAGE_KEY = 'wisebot_widget_settings';
 export default function WidgetCustomization() {
   const { t } = useLanguage();
   const { showToast } = useToast();
-  const fieldClass = "w-full rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm text-[#f0f0f0] outline-none transition-colors placeholder:text-[#7d8183] focus:border-[rgba(59,158,255,0.45)] focus:bg-[rgba(255,255,255,0.06)] focus:ring-2 focus:ring-[rgba(59,158,255,0.18)] disabled:cursor-not-allowed disabled:opacity-60";
+  const fieldClass = "w-full rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm text-[#f0f0f0] outline-none transition-colors placeholder:text-[#7d8183] focus:border-[#ffffff] focus:bg-[rgba(255,255,255,0.06)] focus:ring-[#ffffff] disabled:cursor-not-allowed disabled:opacity-60";
   const sectionCardClass = "rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.22)]";
   const [primaryColor, setPrimaryColor] = useState('#2563EB');
   const [position, setPosition] = useState<'right' | 'left'>('right');

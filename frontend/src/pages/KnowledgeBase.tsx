@@ -49,6 +49,7 @@ import {
   type BillingPlanResponse,
   type SubscriptionResponse,
 } from '../api/billing';
+import DeleteModal from '../components/DeleteModal';
 
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -355,20 +356,12 @@ export default function KnowledgeBase() {
   };
 
   const openDeleteUploadConfirmation = (upload: UploadItem) => {
-    setConfirmModal({
+    setDeleteModal({
       isOpen: true,
-      type: 'delete_upload',
+      type: 'upload',
       title: t('kb.confirm.delete.title'),
-      message: (
-        <>
-          {t('kb.confirm.delete.msg')} <span className="font-bold text-[#f0f0f0]">"{upload.name}"</span>?
-          <br />
-          <span className="text-[#ff0000] font-medium mt-2 block">
-            {t('kb.confirm.delete.undone')}
-          </span>
-        </>
-      ),
-      targetUploadId: upload.id,
+      description: `${t('kb.confirm.delete.msg')} "${upload.name}"?`,
+      targetId: upload.id,
       targetName: upload.name,
     });
   };
@@ -507,15 +500,20 @@ export default function KnowledgeBase() {
     return undefined;
   };
 
-  const [confirmModal, setConfirmModal] = useState<{
+  const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
-    type: 'delete' | 'edit' | 'delete_upload';
+    type: 'knowledge_base' | 'upload';
     title: string;
-    message: React.ReactNode;
-    targetKbId?: string;
+    description: string;
+    targetId?: string;
     targetName?: string;
-    targetUploadId?: string;
-  }>({ isOpen: false, type: 'delete', title: '', message: '' });
+  }>({
+    isOpen: false,
+    type: 'knowledge_base',
+    title: '',
+    description: '',
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const openCreateModal = () => {
     if (knowledgeBaseLimitReached) {
@@ -542,55 +540,44 @@ export default function KnowledgeBase() {
   };
 
   const handleDeleteClick = (source: SourceItem) => {
-    setConfirmModal({
+    setDeleteModal({
       isOpen: true,
-      type: 'delete',
+      type: 'knowledge_base',
       title: t('kb.confirm.delete.title'),
-      message: (
-        <>
-          {t('kb.confirm.delete.msg')} <span className="font-bold text-[#f0f0f0]">"{source.name}"</span>?
-          <br />
-          <span className="text-[#ff0000] font-medium mt-2 block">
-            {t('kb.confirm.delete.undone')}
-          </span>
-        </>
-      ),
-      targetKbId: source.id,
+      description: `${t('kb.confirm.delete.msg')} "${source.name}"?`,
+      targetId: source.id,
       targetName: source.name,
     });
   };
 
   const executeDelete = async () => {
-    if (confirmModal.type === 'delete_upload') {
-      if (confirmModal.targetUploadId) {
-        try {
-          await deleteDocument(confirmModal.targetUploadId);
-          await loadDocumentsByKb(selectedKbForUpload);
-          await loadKnowledgeBases();
-          showToast(t('toast.kb_deleted'), 'success');
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Xóa tài liệu thất bại.';
-          showToast(message, 'error');
-        }
-      }
+    if (!deleteModal.targetId || isDeleting) return;
+
+    setIsDeleting(true);
+    try {
+      if (deleteModal.type === 'upload') {
+        await deleteDocument(deleteModal.targetId);
+        await loadDocumentsByKb(selectedKbForUpload);
+        await loadKnowledgeBases();
+        showToast(t('toast.kb_deleted'), 'success');
       } else {
-        if (confirmModal.targetKbId) {
-          try {
-            const deletingSelected = selectedKbForUpload === confirmModal.targetKbId;
-            await deleteKnowledgeBase(confirmModal.targetKbId);
-            await loadKnowledgeBases();
-            if (deletingSelected) {
-              setSelectedKbForUpload('');
-              setUploads([]);
-            }
-            showToast(t('toast.kb_deleted'), 'success');
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Xóa kho tri thức thất bại.';
-            showToast(message, 'error');
+        const deletingSelected = selectedKbForUpload === deleteModal.targetId;
+        await deleteKnowledgeBase(deleteModal.targetId);
+        await loadKnowledgeBases();
+        if (deletingSelected) {
+          setSelectedKbForUpload('');
+          setUploads([]);
         }
+        showToast(t('toast.kb_deleted'), 'success');
       }
+      setDeleteModal(prev => ({ ...prev, isOpen: false }));
+    } catch (error) {
+      const fallback = deleteModal.type === 'upload' ? 'Xóa tài liệu thất bại.' : 'Xóa kho tri thức thất bại.';
+      const message = error instanceof Error ? error.message : fallback;
+      showToast(message, 'error');
+    } finally {
+      setIsDeleting(false);
     }
-    setConfirmModal(prev => ({ ...prev, isOpen: false }));
   };
 
   const handleSaveClick = async () => {
@@ -602,21 +589,7 @@ export default function KnowledgeBase() {
       showToast(`Gói hiện tại chỉ cho phép tạo tối đa ${knowledgeBaseLimit} cơ sở tri thức. Vui lòng nâng cấp gói để tạo thêm.`, 'error');
       return;
     }
-    if (formMode === 'edit') {
-      const editingName = sources.find((s) => s.id === editingKbId)?.name || kbName;
-      setConfirmModal({
-        isOpen: true,
-        type: 'edit',
-        title: t('kb.confirm.edit.title'),
-        message: (
-          <>
-            {t('kb.confirm.edit.msg')} <span className="font-bold text-[#f0f0f0]">"{editingName}"</span>?
-          </>
-        ),
-      });
-    } else {
-      await executeSave();
-    }
+    await executeSave();
   };
 
   const executeSave = async () => {
@@ -642,7 +615,6 @@ export default function KnowledgeBase() {
       setIsCreateModalOpen(false);
       setKbFormErrors({});
       setKbFormTouched({});
-      setConfirmModal(prev => ({ ...prev, isOpen: false }));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Lưu kho tri thức thất bại.';
       showToast(message, 'error');
@@ -896,7 +868,7 @@ export default function KnowledgeBase() {
                     </button>
 
                     {isKbDropdownOpen && sources.length > 0 ? (
-                      <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[#303030] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.42)]">
+                      <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[#0b0b0c] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.42)]">
                         <button
                           type="button"
                           onClick={() => {
@@ -979,7 +951,7 @@ export default function KnowledgeBase() {
                   value={uploadSearch}
                   onChange={(e) => setUploadSearch(e.target.value)}
                   placeholder={t('kb.recent.search')}
-                  className="w-full rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[#f0f0f0] outline-none transition-colors placeholder:text-[#7d8183] focus:border-[rgba(59,158,255,0.35)]"
+                  className="w-full rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[#f0f0f0] outline-none transition-colors placeholder:text-[#7d8183] focus:border-[#ffffff] focus:ring-[#ffffff]"
                 />
               </div>
               <div className="flex items-center gap-2 justify-start lg:justify-end">
@@ -987,7 +959,7 @@ export default function KnowledgeBase() {
                   <button
                     type="button"
                     onClick={() => setIsUploadFilterOpen((prev) => !prev)}
-                    className="flex w-full sm:min-w-[160px] items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2.5 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-[rgba(59,158,255,0.24)]"
+                    className="flex w-full sm:min-w-[160px] items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-2.5 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none focus:ring-[#ffffff] focus:border-[#ffffff] disabled:cursor-not-allowed disabled:text-[#a1a4a5] disabled:opacity-70"
                   >
                     <span className="min-w-0 truncate">{uploadFilterLabel}</span>
                     <ChevronDown
@@ -1000,7 +972,7 @@ export default function KnowledgeBase() {
                   </button>
 
                   {isUploadFilterOpen ? (
-                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[#303030] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.42)]">
+                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[#0b0b0c] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.42)]">
                       <div className="space-y-1">
                         {uploadFilterOptions.map((item) => {
                           const isSelected = item.id === uploadFilter;
@@ -1216,24 +1188,29 @@ export default function KnowledgeBase() {
       )}
       {/* Create / Edit Knowledge Base Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[#1515177] shadow-[0_18px_48px_rgba(0,0,0,0.32)] animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] p-6">
-              <h3 className="text-[24px] font-display font-medium tracking-tight text-[#f5f5f5]">
-                {formMode === 'create' ? t('kb.modal.create') : t('kb.modal.edit')}
-              </h3>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#000000]/70 p-4 backdrop-blur-xl animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[#050505] shadow-[0_28px_90px_rgba(0,0,0,0.62)] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-6 py-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-[rgba(59,158,255,0.18)] bg-[rgba(59,158,255,0.08)] text-[#9ed1ff]">
+                  <Database size={20} />
+                </div>
+                <h3 className="text-[22px] font-display font-medium tracking-tight text-[#f5f5f5]">
+                  {formMode === 'create' ? t('kb.modal.create') : t('kb.modal.edit')}
+                </h3>
+              </div>
               <button 
                 onClick={() => {
                   setIsCreateModalOpen(false);
                   setKbFormErrors({});
                   setKbFormTouched({});
                 }}
-                className="rounded-md p-1 text-[rgba(255,255,255,0.7)] transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-[#ffffff]"
+                className="rounded-[12px] p-2 text-[#a1a4a5] transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-[#ffffff]"
               >
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-6">
+            <div className="space-y-5 p-6">
               <div className="space-y-2">
                 <label className="text-[12px] font-medium tracking-[0.5px] text-[#a1a4a5]">{t('kb.modal.name')}</label>
                 <input
@@ -1252,10 +1229,10 @@ export default function KnowledgeBase() {
                   }}
                   placeholder={t('kb.modal.name_placeholder')} 
                   className={cn(
-                    'w-full rounded-[14px] border bg-[#1a1a1a] px-4 py-3 text-[14px] text-[#ffffff] outline-none transition-all placeholder:text-[rgba(255,255,255,0.38)]',
+                    'w-full rounded-[14px] border bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors placeholder:text-[#a1a4a5]/40',
                     kbFormTouched.name && kbFormErrors.name
                       ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff0000]/20'
-                      : 'border-[rgba(255,255,255,0.16)] focus:border-[rgba(59,158,255,0.35)] focus:ring-2 focus:ring-[rgba(59,158,255,0.16)]'
+                      : 'border-[rgba(255,255,255,0.12)] focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]'
                   )}
                 />
                 {kbFormTouched.name && kbFormErrors.name ? (
@@ -1269,7 +1246,7 @@ export default function KnowledgeBase() {
                   onChange={(e) => setKbDesc(e.target.value)}
                   placeholder={t('kb.modal.desc_placeholder')} 
                   rows={3}
-                  className="w-full resize-none rounded-[14px] border border-[rgba(255,255,255,0.16)] bg-[#1a1a1a] px-4 py-3 text-[14px] text-[#ffffff] outline-none transition-all placeholder:text-[rgba(255,255,255,0.38)] focus:border-[rgba(59,158,255,0.35)] focus:ring-2 focus:ring-[rgba(59,158,255,0.16)]"
+                  className="w-full resize-none rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors placeholder:text-[#a1a4a5]/40 focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]"
                 />
               </div>
             </div>
@@ -1280,13 +1257,13 @@ export default function KnowledgeBase() {
                   setKbFormErrors({});
                   setKbFormTouched({});
                 }}
-                className="flex-1 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] py-3 text-sm font-semibold text-[#f0f0f0] transition-all hover:bg-[rgba(255,255,255,0.08)]"
+                className="flex-1 rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] py-3 text-sm font-semibold text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.1)]"
               >
                 {t('common.cancel')}
               </button>
               <button 
                 onClick={handleSaveClick}
-                className="flex-1 rounded-[16px] bg-[#ffffff] py-3 text-sm font-semibold text-[#000000] transition-colors hover:bg-[#ececec] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex-1 rounded-[14px] bg-[#ffffff] py-3 text-sm font-semibold text-[#000000] transition-colors hover:bg-[#ececec] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {formMode === 'create' ? t('common.create') : t('common.save')}
               </button>
@@ -1297,20 +1274,25 @@ export default function KnowledgeBase() {
 
       {/* Details Modal */}
       {isDetailsModalOpen && selectedUpload && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)]">
-              <h3 className="text-lg font-bold text-[#ffffff]">{t('common.view_details')}</h3>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#000000]/70 p-4 backdrop-blur-xl animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[#050505] shadow-[0_28px_90px_rgba(0,0,0,0.62)] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-6 py-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-[rgba(59,158,255,0.18)] bg-[rgba(59,158,255,0.08)] text-[#9ed1ff]">
+                  <FileText size={20} />
+                </div>
+                <h3 className="text-[22px] font-display font-medium tracking-tight text-[#f5f5f5]">{t('common.view_details')}</h3>
+              </div>
               <button 
                 onClick={() => setIsDetailsModalOpen(false)}
-                className="text-[#a1a4a5] hover:text-[#a1a4a5] transition-colors"
+                className="rounded-[12px] p-2 text-[#a1a4a5] transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-[#ffffff]"
               >
                 <X size={20} />
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="flex items-center gap-4 p-4 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)]">
-                <div className={cn("w-12 h-12 rounded-[12px] bg-[#000000] flex items-center justify-center shadow-md shadow-black/40", selectedUpload.color)}>
+              <div className="flex items-center gap-4 rounded-[18px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] p-4">
+                <div className={cn("w-12 h-12 rounded-[14px] bg-[rgba(255,255,255,0.06)] flex items-center justify-center shadow-md shadow-black/40", selectedUpload.color)}>
                   <FileText size={24} />
                 </div>
                 <div className="min-w-0">
@@ -1320,7 +1302,7 @@ export default function KnowledgeBase() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)]">
+                <div className="rounded-[16px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] p-3">
                   <p className="text-[10px] font-black text-[#a1a4a5] uppercase tracking-wider mb-1">{t('kb.table.status')}</p>
                   <div className="flex items-center gap-2">
                     <span className={cn(
@@ -1331,13 +1313,13 @@ export default function KnowledgeBase() {
                     <p className="text-xs font-bold text-[#f0f0f0]">{selectedUpload.status}</p>
                   </div>
                 </div>
-                <div className="p-3 bg-[rgba(255,255,255,0.02)] rounded-[16px] border border-[rgba(255,255,255,0.3)]">
+                <div className="rounded-[16px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] p-3">
                   <p className="text-[10px] font-black text-[#a1a4a5] uppercase tracking-wider mb-1">{t('kb.table.date')}</p>
                   <p className="text-xs font-bold text-[#f0f0f0]">{selectedUpload.date}</p>
                 </div>
               </div>
 
-              <div className="rounded-[16px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-4">
+              <div className="rounded-[16px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] p-4">
                 <div className="flex items-start gap-3">
                   <Database size={18} className="mt-0.5 text-[#9ed1ff]" />
                   <div>
@@ -1347,19 +1329,19 @@ export default function KnowledgeBase() {
                 </div>
               </div>
             </div>
-            <div className="p-6 border-t border-[rgba(255,255,255,0.3)] bg-[#000000] flex justify-end gap-3">
+            <div className="flex justify-end gap-3 border-t border-[rgba(255,255,255,0.08)] p-6">
               <button 
                 onClick={() => {
                   setIsDetailsModalOpen(false);
                   handlePreview(selectedUpload);
                 }}
-                className="px-6 py-2.5 text-sm font-bold border border-[rgba(255,255,255,0.3)] text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.05)] rounded-[12px] transition-colors"
+                className="rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-6 py-2.5 text-sm font-semibold text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.1)]"
               >
                 {t('kb.preview')}
               </button>
               <button 
                 onClick={() => setIsDetailsModalOpen(false)}
-                className="px-6 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-[12px] transition-colors shadow-md shadow-black/40 shadow-primary/20"
+                className="rounded-[14px] bg-[#ffffff] px-6 py-2.5 text-sm font-semibold text-[#000000] transition-colors hover:bg-[#ececec]"
               >
                 {t('common.done')}
               </button>
@@ -1370,21 +1352,21 @@ export default function KnowledgeBase() {
 
       {/* Preview Modal */}
       {isPreviewModalOpen && previewData && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[rgba(44,44,46,0.48)] backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[#000000] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-2xl shadow-black/35 w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col h-[90vh]">
-            <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)] shrink-0">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#000000]/70 p-4 backdrop-blur-xl animate-in fade-in duration-200">
+          <div className="flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[#050505] shadow-[0_28px_90px_rgba(0,0,0,0.62)] animate-in zoom-in-95 duration-200">
+            <div className="flex shrink-0 items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-6 py-6">
               <div>
-                <h3 className="text-lg font-bold text-[#f0f0f0]">{t('kb.preview')}</h3>
+                <h3 className="text-[22px] font-display font-medium tracking-tight text-[#f5f5f5]">{t('kb.preview')}</h3>
                 <p className="text-xs text-[#a1a4a5] mt-0.5">{previewData.name}</p>
               </div>
               <button 
                 onClick={closePreview}
-                className="text-[#a1a4a5] hover:text-[#a1a4a5] transition-colors"
+                className="rounded-[12px] p-2 text-[#a1a4a5] transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-[#ffffff]"
               >
                 <X size={20} />
               </button>
             </div>
-            <div className="flex-1 overflow-hidden bg-[rgba(255,255,255,0.02)] relative">
+            <div className="relative flex-1 overflow-hidden bg-[rgba(255,255,255,0.03)]">
               {isPreviewLoading ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#000000]/50 backdrop-blur-sm z-10">
                   <Loader2 size={40} className="text-[#3b9eff] animate-spin mb-4" />
@@ -1396,7 +1378,7 @@ export default function KnowledgeBase() {
                 {previewData.pdfPages ? (
                   <div className="flex flex-col gap-6 items-center">
                     {previewData.pdfPages.map((pageData, i) => (
-                      <div key={i} className="bg-[#000000] shadow-md shadow-black/40 border border-[rgba(255,255,255,0.3)] rounded-sm overflow-hidden max-w-full">
+                      <div key={i} className="max-w-full overflow-hidden rounded-[10px] border border-[rgba(255,255,255,0.12)] bg-[#000000] shadow-md shadow-black/40">
                         <img 
                           src={pageData} 
                           alt={`Page ${i + 1}`} 
@@ -1414,11 +1396,11 @@ export default function KnowledgeBase() {
                 ) : previewData.url ? (
                   <iframe 
                     src={previewData.url} 
-                    className="w-full h-full rounded-[16px] border border-[rgba(255,255,255,0.3)] bg-[#000000] shadow-md shadow-black/40"
+                    className="h-full w-full rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[#000000] shadow-md shadow-black/40"
                     title="PDF Preview"
                   />
                 ) : previewData.content ? (
-                  <div className="bg-[#000000] p-8 rounded-[16px] border border-[rgba(255,255,255,0.3)] shadow-md shadow-black/40 min-h-full prose prose-slate max-w-none">
+                  <div className="min-h-full max-w-none rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[#000000] p-8 shadow-md shadow-black/40 prose prose-slate">
                     {previewData.type === 'DOCX' ? (
                       <div dangerouslySetInnerHTML={{ __html: previewData.content }} />
                     ) : (
@@ -1442,10 +1424,10 @@ export default function KnowledgeBase() {
                 )}
               </div>
             </div>
-            <div className="p-6 border-t border-[rgba(255,255,255,0.3)] bg-[#000000] flex justify-end shrink-0">
+            <div className="flex shrink-0 justify-end border-t border-[rgba(255,255,255,0.08)] p-6">
               <button 
                 onClick={closePreview}
-                className="px-6 py-2.5 text-sm font-bold bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f0] rounded-md transition-colors shadow-md shadow-black/40 shadow-primary/20"
+                className="rounded-[14px] bg-[#ffffff] px-6 py-2.5 text-sm font-semibold text-[#000000] transition-colors hover:bg-[#ececec]"
               >
                 {t('common.done')}
               </button>
@@ -1454,54 +1436,21 @@ export default function KnowledgeBase() {
         </div>
       )}
 
-      {/* Confirmation Modal */}
-      {confirmModal.isOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[#151517] shadow-[0_18px_48px_rgba(0,0,0,0.32)] animate-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
-              className="absolute right-5 top-5 rounded-md p-1 text-[rgba(255,255,255,0.7)] transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-[#ffffff]"
-            >
-              <X size={20} />
-            </button>
-            <div className="flex flex-col items-center px-6 pb-6 pt-8 text-center">
-              <div className={`mb-5 flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border ${
-                  confirmModal.type.startsWith('delete')
-                    ? 'border-[#ff0000]/20 bg-[#ff0000]/10 text-[#ff0000]'
-                    : 'border-[rgba(59,158,255,0.18)] bg-[rgba(59,158,255,0.08)] text-[#9ed1ff]'
-                }`}>
-                {confirmModal.type.startsWith('delete') ? <Trash2 size={22} /> : <AlertCircle size={22} />}
-              </div>
-              <div className="w-full max-w-[26rem] space-y-3">
-                <h3 className="text-[24px] font-display font-medium tracking-tight text-[#f5f5f5]">
-                  {confirmModal.title}
-                </h3>
-                <div className="text-sm leading-7 text-[#a1a4a5]">
-                  {confirmModal.message}
-                </div>
-              </div>
-              <div className="mt-7 flex w-full gap-3">
-                <button
-                  onClick={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
-                  className="flex-1 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] py-3 text-sm font-semibold text-[#f0f0f0] transition-all hover:bg-[rgba(255,255,255,0.08)]"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  onClick={confirmModal.type.startsWith('delete') ? executeDelete : executeSave}
-                  className={`flex-1 rounded-[16px] py-3 text-sm font-semibold transition-colors ${
-                    confirmModal.type.startsWith('delete')
-                      ? 'bg-[#ff0000] text-[#ffffff] hover:bg-[#e00000]'
-                      : 'bg-[#ffffff] text-[#000000] hover:bg-[#ececec]'
-                  }`}
-                >
-                  {confirmModal.type.startsWith('delete') ? t('common.delete') : t('common.confirm')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModal(prev => ({ ...prev, isOpen: false }));
+          }
+        }}
+        onConfirm={executeDelete}
+        isDeleting={isDeleting}
+        title={deleteModal.title}
+        description={deleteModal.description}
+        warningText={t('kb.confirm.delete.undone')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+      />
     </>
   );
 }

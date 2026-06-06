@@ -11,13 +11,15 @@ import {
   User,
   Eye,
   EyeOff,
+  Globe,
+  ArrowRight
 } from 'lucide-react';
 import { GoogleIcon, GithubIcon } from '../components/SocialIcons';
 
 type FieldErrors = Record<string, string | undefined>;
 
 export default function Register() {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -77,10 +79,10 @@ export default function Register() {
   };
 
   const inputClass = (field: string) =>
-    `w-full rounded-[14px] border bg-[#f8fafc] pl-11 pr-4 py-3 text-[14px] text-[#111111] outline-none transition-all placeholder:text-[#9ca3af] ${
+    `w-full rounded-xl border bg-slate-950/80 pl-11 pr-4 py-3 text-[14px] text-slate-100 outline-none transition-all placeholder:text-slate-600 ${
       touched[field] && errors[field]
-        ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff0000]/20'
-        : 'border-[#e5e7eb] focus:border-[#00D4A4] focus:bg-white focus:ring-2 focus:ring-[#00D4A4]/20'
+        ? 'border-red-500/40 focus:border-red-500/80 focus:ring-2 focus:ring-red-500/10'
+        : 'border-slate-800 focus:border-emerald-500/80 focus:ring-2 focus:ring-emerald-500/10'
     }`;
 
   const validateAll = (): boolean => {
@@ -121,29 +123,75 @@ export default function Register() {
     }
   };
 
+  const toggleLanguage = () => setLanguage(language === 'en' ? 'vi' : 'en');
+
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#e7f8ff_0%,#f8fbf8_48%,#ffffff_100%)] px-6 pt-10 pb-6 text-[#111111] selection:bg-[#00D4A4] selection:text-[#111111]">
-      <div className="pointer-events-none fixed inset-x-0 top-12 mx-auto h-[320px] max-w-[900px] rounded-full bg-white/50 blur-3xl" />
-      <div className="pointer-events-none fixed left-[8%] top-24 h-24 w-48 rounded-full bg-[#00D4A4]/10 blur-2xl" />
-      <div className="pointer-events-none fixed right-[10%] top-36 h-20 w-56 rounded-full bg-[#60a5fa]/15 blur-2xl" />
-      <div className="mx-auto flex min-h-[calc(100vh-64px)] max-w-6xl items-center justify-center">
-        <section className="relative w-full max-w-md">
-          <div className="rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:p-8">
+    <div className="min-h-screen bg-[#030712] px-6 pt-10 pb-6 text-slate-100 selection:bg-emerald-400 selection:text-slate-950 relative overflow-hidden flex items-center justify-center font-sans">
+      
+      {/* Global CSS Style tag for Custom advanced animations */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes float-slow {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(35px, 20px) scale(1.1); }
+        }
+        @keyframes float-medium {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-25px, 35px) scale(0.95); }
+        }
+        .animate-float-slow { animation: float-slow 16s ease-in-out infinite; }
+        .animate-float-medium { animation: float-medium 12s ease-in-out infinite; }
+
+        @keyframes borderGlow {
+          0%, 100% { border-color: rgba(16, 185, 129, 0.2); }
+          50% { border-color: rgba(99, 102, 241, 0.6); }
+        }
+        .animate-border-glow {
+          animation: borderGlow 4s ease-in-out infinite;
+        }
+      `}} />
+
+      {/* Background Gradients & Mesh */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-10%,rgba(99,102,241,0.15),transparent_50%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_60%,rgba(16,185,129,0.06),transparent_40%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
+
+      {/* Floating neon light blobs */}
+      <div className="absolute top-[15%] left-[-5%] w-[300px] h-[300px] bg-indigo-500/10 rounded-full blur-[90px] animate-float-slow pointer-events-none" />
+      <div className="absolute bottom-[15%] right-[-5%] w-[350px] h-[350px] bg-emerald-500/6 rounded-full blur-[100px] animate-float-medium pointer-events-none" />
+
+      {/* Language Toggle in Top Right */}
+      <div className="absolute top-6 right-6 z-20">
+        <button 
+          onClick={toggleLanguage} 
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-950/80 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white hover:border-slate-700 transition"
+        >
+          <Globe size={14} />
+          {language.toUpperCase()}
+        </button>
+      </div>
+
+      <div className="mx-auto flex w-full max-w-md items-center justify-center relative z-10">
+        <section className="relative w-full">
+          {/* Card Frame */}
+          <div className="rounded-3xl border border-slate-800/80 bg-slate-950/60 p-6 shadow-[0_30px_70px_rgba(0,0,0,0.8)] backdrop-blur-xl sm:p-8 animate-border-glow">
+            
             <div className="mb-8 space-y-4 text-center">
-              <div className="flex justify-center">
-                <Logo customSize={132} />
-              </div>
+              <Link to="/" className="flex justify-center hover:opacity-90 transition">
+                <Logo theme="dark" customSize={118} />
+              </Link>
               <div className="space-y-2">
-                <h1 className="text-[30px] font-display font-medium tracking-tight text-[#111111]">{t('auth.register.title')}</h1>
-                <p className="text-sm leading-6 text-[#4b5563]">{t('auth.register.desc')}</p>
+                <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('auth.register.title')}</h1>
+                <p className="text-xs text-slate-400 font-light">{t('auth.register.desc')}</p>
               </div>
             </div>
 
-            <form className="space-y-5" onSubmit={handleRegister} noValidate>
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-medium tracking-[0.5px] text-[#64748b]">{t('auth.register.full_name')}</label>
+            <form className="space-y-4" onSubmit={handleRegister} noValidate>
+              
+              {/* Full Name */}
+              <div className="space-y-1 text-left">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('auth.register.full_name')}</label>
                 <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748b]" size={16} />
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input
                     type="text"
                     placeholder="John Doe"
@@ -156,14 +204,15 @@ export default function Register() {
                   />
                 </div>
                 {touched.fullName && errors.fullName ? (
-                  <p className="mt-1 text-[11px] font-medium text-[#ff0000]">{errors.fullName}</p>
+                  <p className="mt-1 text-[11px] font-medium text-red-400">{errors.fullName}</p>
                 ) : null}
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-medium tracking-[0.5px] text-[#64748b]">{t('auth.email')}</label>
+              {/* Email */}
+              <div className="space-y-1 text-left">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('auth.email')}</label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748b]" size={16} />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input
                     type="email"
                     value={email}
@@ -176,14 +225,15 @@ export default function Register() {
                   />
                 </div>
                 {touched.email && errors.email ? (
-                  <p className="mt-1 text-[11px] font-medium text-[#ff0000]">{errors.email}</p>
+                  <p className="mt-1 text-[11px] font-medium text-red-400">{errors.email}</p>
                 ) : null}
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-medium tracking-[0.5px] text-[#64748b]">{t('auth.password')}</label>
+              {/* Password */}
+              <div className="space-y-1 text-left">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('auth.password')}</label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748b]" size={16} />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
@@ -197,20 +247,21 @@ export default function Register() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#64748b] transition-colors hover:text-[#111111]"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition-colors hover:text-slate-300"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
                 {touched.password && errors.password ? (
-                  <p className="mt-1 text-[11px] font-medium text-[#ff0000]">{errors.password}</p>
+                  <p className="mt-1 text-[11px] font-medium text-red-400">{errors.password}</p>
                 ) : null}
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-medium tracking-[0.5px] text-[#64748b]">{t('auth.confirm_password')}</label>
+              {/* Confirm Password */}
+              <div className="space-y-1 text-left">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('auth.confirm_password')}</label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748b]" size={16} />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
@@ -223,11 +274,12 @@ export default function Register() {
                   />
                 </div>
                 {touched.confirmPassword && errors.confirmPassword ? (
-                  <p className="mt-1 text-[11px] font-medium text-[#ff0000]">{errors.confirmPassword}</p>
+                  <p className="mt-1 text-[11px] font-medium text-red-400">{errors.confirmPassword}</p>
                 ) : null}
               </div>
 
-              <div className="flex items-start gap-3">
+              {/* Terms checkbox */}
+              <div className="flex items-start gap-3 text-left pt-1">
                 <input
                   type="checkbox"
                   id="terms"
@@ -236,54 +288,63 @@ export default function Register() {
                     setAcceptedTerms(e.target.checked);
                     if (e.target.checked) setErrors((prev) => ({ ...prev, terms: undefined }));
                   }}
-                  className="mt-1 rounded border-[#cbd5e1] bg-white text-[#00D4A4] focus:ring-2 focus:ring-[#00D4A4]/30"
+                  className="mt-1 h-4 w-4 rounded border-slate-800 bg-slate-950 text-emerald-500 focus:ring-0 focus:ring-offset-0 bg-none cursor-pointer"
                 />
-                <label htmlFor="terms" className="text-[14px] leading-relaxed text-[#64748b]">
+                <label htmlFor="terms" className="text-[13px] leading-relaxed text-slate-400 select-none">
                   {t('auth.i_agree')}{' '}
-                  <a href="#" className="font-semibold text-[#047857] hover:underline">{t('landing.footer.links.terms')}</a>{' '}
+                  <a href="#" className="font-bold text-emerald-400 hover:underline">{t('landing.footer.links.terms')}</a>{' '}
                   {t('auth.and')}{' '}
-                  <a href="#" className="font-semibold text-[#047857] hover:underline">{t('landing.footer.links.privacy')}</a>.
+                  <a href="#" className="font-bold text-emerald-400 hover:underline">{t('landing.footer.links.privacy')}</a>.
                 </label>
               </div>
               {touched.terms && errors.terms ? (
-                <p className="-mt-3 ml-2 text-[11px] font-medium text-[#ff0000]">{errors.terms}</p>
+                <p className="text-[11px] font-medium text-red-400 text-left pl-7">{errors.terms}</p>
               ) : null}
 
+              {/* Submit */}
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#111111] py-3 text-[14px] font-semibold text-white transition-all hover:bg-[#2b2b2b] disabled:cursor-not-allowed disabled:opacity-60"
+                className="relative flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-slate-950 transition-all duration-300 hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.35)] shadow-[0_0_10px_rgba(16,185,129,0.15)] disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden mt-2"
               >
-                {isSubmitting ? t('auth.register.submitting') : t('auth.register.submit')}
+                {isSubmitting && (
+                  <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
+                )}
+                <span>{isSubmitting ? t('auth.register.submitting') : t('auth.register.submit')}</span>
               </button>
+
             </form>
 
-            <div className="relative py-6">
+            {/* Separator */}
+            <div className="relative py-5">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[#e5e7eb]"></div>
+                <div className="w-full border-t border-slate-900"></div>
               </div>
-              <div className="relative flex justify-center text-[12px]">
-                <span className="bg-white px-4 font-semibold tracking-[0.5px] text-[#94a3b8]">
+              <div className="relative flex justify-center text-[11px]">
+                <span className="bg-slate-950 px-4 font-bold uppercase tracking-wider text-slate-500">
                   {t('auth.or_continue')}
                 </span>
               </div>
             </div>
 
+            {/* Social */}
             <div className="grid grid-cols-2 gap-4">
-              <button className="flex items-center justify-center gap-2 rounded-[16px] border border-[#e5e7eb] bg-white py-3 text-[14px] font-semibold text-[#111111] transition-all hover:bg-[#f8fafc]">
-                <GoogleIcon size={16} /> Google
+              <button className="flex items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-950/50 py-3 text-xs font-semibold text-slate-300 transition-all hover:bg-slate-900 hover:border-slate-700">
+                <GoogleIcon size={14} /> Google
               </button>
-              <button className="flex items-center justify-center gap-2 rounded-[16px] border border-[#e5e7eb] bg-white py-3 text-[14px] font-semibold text-[#111111] transition-all hover:bg-[#f8fafc]">
-                <GithubIcon size={16} className="text-[#111111]" /> GitHub
+              <button className="flex items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-950/50 py-3 text-xs font-semibold text-slate-300 transition-all hover:bg-slate-900 hover:border-slate-700">
+                <GithubIcon size={14} className="text-slate-300" /> GitHub
               </button>
             </div>
 
-            <p className="mt-8 text-center text-[14px] text-[#64748b]">
+            {/* Link to Login */}
+            <p className="mt-8 text-center text-[13px] text-slate-400">
               {t('auth.register.have_account')}{' '}
-              <Link to="/login" className="font-semibold text-[#047857] hover:text-[#065f46]">
+              <Link to="/login" className="font-bold text-emerald-400 hover:text-emerald-300 transition">
                 {t('auth.register.login')}
               </Link>
             </p>
+
           </div>
         </section>
       </div>
