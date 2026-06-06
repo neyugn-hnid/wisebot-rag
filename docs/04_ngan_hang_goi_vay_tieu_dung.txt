@@ -1,0 +1,103 @@
+NGÂN HÀNG ABC - GÓI VAY TIÊU DÙNG CÁ NHÂN
+
+1. Giới thiệu
+
+Gói vay tiêu dùng cá nhân của Ngân hàng ABC dành cho khách hàng có nhu cầu chi tiêu, mua sắm, sửa nhà, học tập, du lịch hoặc thanh toán chi phí cá nhân hợp pháp.
+
+Sản phẩm trong tài liệu này chỉ là dữ liệu demo, không phải tư vấn tài chính thật.
+
+2. Đối tượng vay
+
+Khách hàng cần đáp ứng:
+- Là công dân Việt Nam.
+- Từ 22 đến 60 tuổi tại thời điểm tất toán khoản vay.
+- Có thu nhập ổn định từ 8.000.000 VND/tháng trở lên.
+- Có hợp đồng lao động hoặc nguồn thu nhập chứng minh được.
+- Không có nợ xấu nhóm 2 trở lên trong 12 tháng gần nhất.
+
+3. Hạn mức vay
+
+Hạn mức tối thiểu:
+- 20.000.000 VND.
+
+Hạn mức tối đa:
+- 500.000.000 VND.
+
+Hạn mức cụ thể phụ thuộc:
+- Thu nhập hằng tháng.
+- Lịch sử tín dụng.
+- Nơi làm việc.
+- Thời hạn vay.
+- Tài liệu chứng minh thu nhập.
+
+4. Thời hạn vay
+
+Khách hàng có thể chọn thời hạn:
+- 6 tháng.
+- 12 tháng.
+- 24 tháng.
+- 36 tháng.
+- 48 tháng.
+- 60 tháng.
+
+5. Lãi suất tham khảo
+
+Lãi suất ưu đãi:
+- Từ 12%/năm trong 6 tháng đầu.
+
+Sau thời gian ưu đãi:
+- Lãi suất thả nổi theo quy định ngân hàng.
+- Mức tham khảo từ 15% đến 18%/năm.
+
+Lưu ý:
+Lãi suất thực tế phụ thuộc hồ sơ và chính sách tại thời điểm phê duyệt.
+
+6. Hồ sơ cần chuẩn bị
+
+Hồ sơ cá nhân:
+- CCCD/CMND còn hiệu lực.
+- Sổ hộ khẩu hoặc giấy xác nhận nơi cư trú.
+- Giấy đăng ký kết hôn hoặc xác nhận độc thân nếu cần.
+
+Hồ sơ thu nhập:
+- Hợp đồng lao động.
+- Sao kê lương 3 đến 6 tháng gần nhất.
+- Quyết định bổ nhiệm hoặc xác nhận công tác nếu có.
+
+Với chủ hộ kinh doanh:
+- Giấy phép kinh doanh.
+- Sao kê tài khoản kinh doanh.
+- Hóa đơn, hợp đồng mua bán hoặc chứng từ doanh thu.
+
+7. Quy trình đăng ký
+
+Bước 1: Khách hàng để lại thông tin tư vấn.
+Bước 2: Nhân viên ngân hàng gọi xác minh nhu cầu.
+Bước 3: Khách hàng nộp hồ sơ.
+Bước 4: Ngân hàng thẩm định thu nhập và lịch sử tín dụng.
+Bước 5: Thông báo hạn mức, lãi suất và thời hạn dự kiến.
+Bước 6: Ký hợp đồng nếu khách hàng đồng ý.
+Bước 7: Giải ngân vào tài khoản của khách hàng.
+
+8. Thời gian phê duyệt
+
+Nếu hồ sơ đầy đủ, thời gian phê duyệt thông thường là 1 đến 3 ngày làm việc.
+
+Nếu cần bổ sung chứng từ, thời gian có thể kéo dài hơn.
+
+9. Tất toán trước hạn
+
+Khách hàng có thể tất toán trước hạn.
+
+Phí tất toán trước hạn tham khảo:
+- Năm đầu: 3% số tiền trả trước.
+- Năm thứ hai: 2% số tiền trả trước.
+- Từ năm thứ ba: 1% số tiền trả trước.
+
+10. Câu hỏi demo gợi ý
+
+- Điều kiện thu nhập tối thiểu để vay là bao nhiêu?
+- Hạn mức vay tối đa là bao nhiêu?
+- Hồ sơ vay cần những gì?
+- Thời gian phê duyệt mất bao lâu?
+- Tất toán trước hạn có mất phí không?
