@@ -34,16 +34,21 @@ import vandinh.wisebot.widgetservice.service.WidgetService;
 import vandinh.wisebot.widgetservice.service.BillingEntitlementService;
 
 import java.nio.charset.StandardCharsets;
+import java.net.URI;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class WidgetServiceImpl implements WidgetService {
+
+    private static final String DEVELOPER_API_WIDGET_CODE = "__developer_api__";
+    private static final String DEVELOPER_API_WIDGET_NAME = "Developer API";
 
     private final WidgetRepository widgetRepository;
     private final WidgetEventRepository eventRepository;
@@ -86,8 +91,9 @@ public class WidgetServiceImpl implements WidgetService {
 
     @Override
     @Transactional(readOnly = true)
-    public PublicWidgetResponse getPublicWidgetByCode(String code) {
+    public PublicWidgetResponse getPublicWidgetByCode(String code, String origin, String referer) {
         Widget widget = findWidgetByCode(code);
+        assertWidgetOriginAllowed(widget, origin, referer, null);
         return PublicWidgetResponse.builder()
                 .id(widget.getId())
                 .tenantId(widget.getTenantId())
@@ -100,16 +106,26 @@ public class WidgetServiceImpl implements WidgetService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public WidgetSessionResponse createPublicSession(String code, CreateWidgetSessionRequest request) {
+    public WidgetSessionResponse createPublicSession(String code, CreateWidgetSessionRequest request, String origin, String referer) {
         Widget widget = findWidgetByCode(code);
+        assertWidgetOriginAllowed(widget, origin, referer, request.getSourceUrl());
         return createSession(widget.getId(), request);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public WidgetEventResponse trackPublicEvent(String code, TrackEventRequest request) {
+    public WidgetEventResponse trackPublicEvent(String code, TrackEventRequest request, String origin, String referer) {
         Widget widget = findWidgetByCode(code);
+        assertWidgetOriginAllowed(widget, origin, referer, null);
         return trackEvent(widget.getId(), request);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isWidgetOriginAllowed(UUID widgetId, String origin, String referer, String sourceUrl) {
+        Widget widget = widgetRepository.findById(widgetId)
+                .orElseThrow(() -> new ResourceNotFoundException("Widget not found: " + widgetId));
+        return isWidgetOriginAllowed(widget, origin, referer, sourceUrl);
     }
 
     @Override
@@ -238,6 +254,36 @@ public class WidgetServiceImpl implements WidgetService {
 
         @Override
         @Transactional(rollbackFor = Exception.class)
+        public ApiKeyResponse createTenantApiKey(UUID tenantId, CreateApiKeyRequest request) {
+        Widget widget = getOrCreateDeveloperApiWidget(tenantId);
+        return createApiKey(widget.getId(), request);
+        }
+
+        @Override
+        @Transactional(readOnly = true)
+        public List<ApiKeyResponse> listTenantApiKeys(UUID tenantId) {
+        return widgetRepository.findByTenantIdAndCode(tenantId, DEVELOPER_API_WIDGET_CODE)
+            .map(widget -> apiKeyRepository.findAllByWidget_IdOrderByCreatedAtDesc(widget.getId())
+                .stream()
+                .map(this::mapApiKey)
+                .toList())
+            .orElseGet(List::of);
+        }
+
+        @Override
+        @Transactional(rollbackFor = Exception.class)
+        public void deleteTenantApiKey(UUID tenantId, UUID keyId) {
+        WidgetApiKey apiKey = apiKeyRepository.findById(keyId)
+            .orElseThrow(() -> new ResourceNotFoundException("API key not found: " + keyId));
+        if (!tenantId.equals(apiKey.getWidget().getTenantId())
+            || !DEVELOPER_API_WIDGET_CODE.equals(apiKey.getWidget().getCode())) {
+            throw new ResourceNotFoundException("API key not found: " + keyId);
+        }
+        apiKeyRepository.delete(apiKey);
+        }
+
+        @Override
+        @Transactional(rollbackFor = Exception.class)
         public WidgetSessionResponse createSession(UUID widgetId, CreateWidgetSessionRequest request) {
         Widget widget = widgetRepository.findById(widgetId)
             .orElseThrow(() -> new ResourceNotFoundException("Widget not found: " + widgetId));
@@ -288,6 +334,80 @@ public class WidgetServiceImpl implements WidgetService {
     private Widget findWidgetByCode(String code) {
         return widgetRepository.findByCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("Widget not found with code: " + code));
+    }
+
+    private void assertWidgetOriginAllowed(Widget widget, String origin, String referer, String sourceUrl) {
+        if (!isWidgetOriginAllowed(widget, origin, referer, sourceUrl)) {
+            throw new InvalidDataException("Domain not allowed for this widget");
+        }
+    }
+
+    private boolean isWidgetOriginAllowed(Widget widget, String origin, String referer, String sourceUrl) {
+        List<WidgetAllowedDomain> allowedDomains = domainRepository.findAllByWidget_Id(widget.getId());
+        if (allowedDomains.isEmpty()) {
+            return false;
+        }
+
+        String requestHost = firstHost(origin, referer, sourceUrl);
+        if (requestHost == null || requestHost.isBlank()) {
+            return false;
+        }
+
+        String normalizedRequestHost = normalizeDomain(requestHost);
+        return allowedDomains.stream().anyMatch(domain -> domainMatches(normalizedRequestHost, domain));
+    }
+
+    private String firstHost(String... urls) {
+        for (String url : urls) {
+            String host = extractHost(url);
+            if (host != null && !host.isBlank()) {
+                return host;
+            }
+        }
+        return null;
+    }
+
+    private String extractHost(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        try {
+            URI uri = URI.create(trimmed.contains("://") ? trimmed : "https://" + trimmed);
+            return uri.getHost();
+        } catch (IllegalArgumentException ignored) {
+            return trimmed;
+        }
+    }
+
+    private boolean domainMatches(String requestHost, WidgetAllowedDomain domain) {
+        String allowedDomain = normalizeDomain(domain.getDomain());
+        if (requestHost.equals(allowedDomain)) {
+            return true;
+        }
+        return domain.isAllowSubdomains() && requestHost.endsWith("." + allowedDomain);
+    }
+
+    private String normalizeDomain(String domain) {
+        String normalized = domain == null ? "" : domain.trim().toLowerCase(Locale.ROOT);
+        if (normalized.startsWith("www.")) {
+            return normalized.substring(4);
+        }
+        return normalized;
+    }
+
+    private Widget getOrCreateDeveloperApiWidget(UUID tenantId) {
+        return widgetRepository.findByTenantIdAndCode(tenantId, DEVELOPER_API_WIDGET_CODE)
+                .orElseGet(() -> widgetRepository.save(Widget.builder()
+                        .tenantId(tenantId)
+                        .name(DEVELOPER_API_WIDGET_NAME)
+                        .code(DEVELOPER_API_WIDGET_CODE)
+                        .status("ACTIVE")
+                        .welcomeMessage("Developer API access")
+                        .publicConfig(writeAppearanceConfig(new WidgetAppearanceConfig()))
+                        .privateConfig("{}")
+                        .build()));
     }
 
     private String writeAppearanceConfig(WidgetAppearanceConfig appearanceConfig) {

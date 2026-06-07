@@ -83,7 +83,7 @@ const initialSources: SourceItem[] = [];
 const recentUploads: UploadItem[] = [];
 
 export default function KnowledgeBase() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [currentView, setCurrentView] = useState<'overview' | 'manage'>('overview');
@@ -651,35 +651,36 @@ export default function KnowledgeBase() {
   return (
     <>
       {currentView === 'manage' ? (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto relative">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => setCurrentView('overview')}
-                className="p-2 text-[#a1a4a5] hover:text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.05)] rounded-[12px] transition-colors"
-              >
-                <ArrowLeft size={20} />
-              </button>
-              <div>
-                <div className="space-y-1">
-                  <h2 className="text-2xl font-black tracking-tight text-[#f0f0f0]">{t('kb.manage.title')}</h2>
-                  <p className="text-sm text-[#8b8f91] max-w-2xl">{t('kb.manage.helper')}</p>
-                </div>
+        <div className="mx-auto max-w-6xl space-y-8 animate-in fade-in duration-500">
+          <div className="rounded-[24px] p-6">
+            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+              <div className="max-w-2xl">
+                <button
+                  onClick={() => setCurrentView('overview')}
+                  className="mb-4 inline-flex items-center gap-2 rounded-[12px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm font-semibold text-[#d7d9da] transition-colors hover:bg-[rgba(255,255,255,0.08)]"
+                >
+                  <ArrowLeft size={16} />
+                  {language === 'vi' ? 'Quay lại tổng quan' : 'Back to overview'}
+                </button>
+                <h2 className="text-[24px] font-display font-medium tracking-tight text-[#f0f0f0]">
+                  {t('kb.manage.title')}
+                </h2>
+                
               </div>
+              <button
+                onClick={() => {
+                  if (knowledgeBaseLimitReached) {
+                    navigate('/billing/upgrade', { state: { from: 'knowledge-base-limit' } });
+                    return;
+                  }
+                  openCreateModal();
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-[#ffffff] px-5 py-2.5 text-sm font-bold text-[#000000] shadow-[0_14px_30px_rgba(0,0,0,0.22)] transition-colors hover:bg-[#f0f0f0]"
+              >
+                <PlusCircle size={18} />
+                {knowledgeBaseLimitReached ? (t('billing.upgrade') || 'Nâng cấp gói') : t('kb.create')}
+              </button>
             </div>
-            <button 
-              onClick={() => {
-                if (knowledgeBaseLimitReached) {
-                  navigate('/billing/upgrade', { state: { from: 'knowledge-base-limit' } });
-                  return;
-                }
-                openCreateModal();
-              }}
-              className="bg-[#ffffff] text-[#000000] px-4 py-2 rounded-md font-semibold text-sm flex items-center gap-2 hover:bg-[#f0f0f0] transition-all shadow-md shadow-black/40 shadow-primary/20"
-            >
-              <PlusCircle size={18} />
-              {knowledgeBaseLimitReached ? (t('billing.upgrade') || 'Nâng cấp gói') : t('kb.create')}
-            </button>
           </div>
 
           {knowledgeBaseLimitReached && (
@@ -689,72 +690,104 @@ export default function KnowledgeBase() {
             </div>
           )}
 
-          <div className="bg-[#000000] rounded-[16px] shadow-md shadow-black/40 border border-[rgba(255,255,255,0.3)] overflow-hidden">
-            <div className="p-6 space-y-3">
-              {isLoadingKb ? (
-                Array.from({ length: 3 }).map((_, idx) => (
-                  <div key={`kb-skeleton-${idx}`} className="p-4 border border-[rgba(255,255,255,0.3)] rounded-[16px] animate-pulse">
-                    <div className="h-4 w-1/3 bg-[rgba(255,255,255,0.08)] rounded mb-3"></div>
-                    <div className="h-3 w-2/3 bg-[rgba(255,255,255,0.06)] rounded mb-2"></div>
-                    <div className="h-3 w-1/5 bg-[rgba(255,255,255,0.06)] rounded"></div>
-                  </div>
-                ))
-              ) : sources.length === 0 ? (
-                <div className="text-center py-12">
-                  <Database size={48} className="mx-auto text-[rgba(255,255,255,0.3)] mb-4" />
-                  <p className="text-[#a1a4a5] font-medium">{t('kb.no_sources')}</p>
-                  <p className="mt-2 text-sm text-[#7d8183]">{t('kb.empty.cta')}</p>
-                </div>
-              ) : (
-                sources.map(source => (
-                  <div key={source.id} className="flex flex-col gap-4 p-5 bg-[#000000] border border-[rgba(255,255,255,0.3)] rounded-[20px] hover:border-[rgba(59,158,255,0.28)] hover:shadow-md shadow-black/40 transition-all md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-[12px] bg-[rgba(255,255,255,0.02)] flex items-center justify-center text-[#3b9eff] shrink-0">
-                        <source.icon size={24} />
-                      </div>
-                      <div className="space-y-2">
-                        <div>
-                          <h4 className="font-bold text-[#f0f0f0] text-sm">{source.name}</h4>
-                          <p className="text-xs text-[#a1a4a5] mt-0.5 line-clamp-2">{source.desc}</p>
+          <div className="overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)]">
+            
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] border-collapse text-left">
+                <thead>
+                  <tr className="bg-[rgba(255,255,255,0.02)]">
+                    <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">
+                      {language === 'vi' ? 'Cơ sở tri thức' : 'Knowledge Base'}
+                    </th>
+                    <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">
+                      {language === 'vi' ? 'Tài liệu' : 'Documents'}
+                    </th>
+                    <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">
+                      {language === 'vi' ? 'Cập nhật' : 'Updated'}
+                    </th>
+                    <th className="border-b border-[rgba(255,255,255,0.08)] px-6 py-4 text-right text-xs font-black uppercase tracking-[0.14em] text-[#8b8f91]">
+                      {language === 'vi' ? 'Hành động' : 'Actions'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[rgba(255,255,255,0.08)]">
+                  {isLoadingKb ? (
+                    Array.from({ length: 3 }).map((_, idx) => (
+                      <tr key={`kb-skeleton-${idx}`}>
+                        <td className="px-6 py-4" colSpan={4}>
+                          <div className="h-12 animate-pulse rounded-[12px] bg-[rgba(255,255,255,0.04)]" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : sources.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center">
+                        <div className="mx-auto flex size-16 items-center justify-center rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] text-[rgba(255,255,255,0.3)]">
+                          <Database size={28} />
                         </div>
-                        <div className="flex flex-wrap items-center gap-3">
-                          <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#a1a4a5]">
-                            <FileText size={10} /> {source.count}
+                        <h3 className="mt-4 text-base font-semibold text-[#f0f0f0]">{t('kb.no_sources')}</h3>
+                        <p className="mt-1 text-sm text-[#a1a4a5]">{t('kb.empty.cta')}</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    sources.map((source) => (
+                      <tr key={source.id} className="transition-colors hover:bg-[rgba(255,255,255,0.03)]">
+                        <td className="px-6 py-4">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex size-11 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] text-[#3b9eff]">
+                              <source.icon size={19} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-[#f0f0f0]">{source.name}</p>
+                              <p className="mt-1 line-clamp-1 text-xs text-[#a1a4a5]">{source.desc}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#a1a4a5]">
+                            {source.count}
                           </span>
-                          <span className="inline-flex items-center gap-1 text-[11px] text-[#7d8183]">
-                            <Clock size={11} /> {source.time}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => {
-                          setSelectedKbForUpload(source.id);
-                          setCurrentView('overview');
-                        }}
-                        className="rounded-[12px] border border-[rgba(255,255,255,0.12)] px-3 py-2 text-xs font-semibold text-[#f0f0f0] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
-                      >
-                        {t('kb.upload.title')}
-                      </button>
-                      <button 
-                        onClick={() => openEditModal(source)} 
-                        className="p-2 text-[#3b9eff] hover:bg-[rgba(59,158,255,0.05)] rounded-[12px] transition-colors"
-                        title="Edit"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteClick(source)} 
-                        className="p-2 text-[#ff0000] hover:bg-[#ff0000]/10 rounded-[12px] transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#a1a4a5]">
+                          <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5">
+                            <Clock size={14} />
+                            <span className="text-xs font-semibold">{source.time}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => {
+                                setSelectedKbForUpload(source.id);
+                                setCurrentView('overview');
+                              }}
+                              className="rounded-[12px] border border-transparent p-2 text-[#3b9eff] transition-all hover:border-[#3b9eff]/20 hover:bg-[rgba(59,158,255,0.08)]"
+                              title={t('kb.upload.title')}
+                            >
+                              <UploadCloud size={18} />
+                            </button>
+                            <button
+                              onClick={() => openEditModal(source)}
+                              className="rounded-[12px] border border-transparent p-2 text-[#f0f0f0] transition-all hover:border-[rgba(255,255,255,0.12)] hover:bg-[rgba(255,255,255,0.06)]"
+                              title="Edit"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(source)}
+                              className="rounded-[12px] border border-transparent p-2 text-[#ff0000] transition-all hover:border-[#ff0000]/20 hover:bg-[#ff0000]/10"
+                              title="Delete"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1232,7 +1265,7 @@ export default function KnowledgeBase() {
                     'w-full rounded-[14px] border bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors placeholder:text-[#a1a4a5]/40',
                     kbFormTouched.name && kbFormErrors.name
                       ? 'border-[#ff0000] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff0000]/20'
-                      : 'border-[rgba(255,255,255,0.12)] focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]'
+                      : 'border-[rgba(255,255,255,0.12)] focus:border-[#ffffff] focus:ring-[#ffffff]'
                   )}
                 />
                 {kbFormTouched.name && kbFormErrors.name ? (
@@ -1246,7 +1279,7 @@ export default function KnowledgeBase() {
                   onChange={(e) => setKbDesc(e.target.value)}
                   placeholder={t('kb.modal.desc_placeholder')} 
                   rows={3}
-                  className="w-full resize-none rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors placeholder:text-[#a1a4a5]/40 focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]"
+                  className="w-full resize-none rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#ffffff] outline-none transition-colors placeholder:text-[#a1a4a5]/40 focus:border-[#ffffff] focus:ring-[#ffffff]"
                 />
               </div>
             </div>

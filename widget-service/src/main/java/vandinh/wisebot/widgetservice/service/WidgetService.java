@@ -21,11 +21,13 @@ public interface WidgetService {
 
     WidgetResponse updateWidget(UUID widgetId, UpdateWidgetRequest request);
 
-    PublicWidgetResponse getPublicWidgetByCode(String code);
+    PublicWidgetResponse getPublicWidgetByCode(String code, String origin, String referer);
 
-    WidgetSessionResponse createPublicSession(String code, CreateWidgetSessionRequest request);
+    WidgetSessionResponse createPublicSession(String code, CreateWidgetSessionRequest request, String origin, String referer);
 
-    WidgetEventResponse trackPublicEvent(String code, TrackEventRequest request);
+    WidgetEventResponse trackPublicEvent(String code, TrackEventRequest request, String origin, String referer);
+
+    boolean isWidgetOriginAllowed(UUID widgetId, String origin, String referer, String sourceUrl);
 
     List<WidgetResponse> listWidgets(UUID tenantId);
 
@@ -40,6 +42,12 @@ public interface WidgetService {
     ApiKeyResponse createApiKey(UUID widgetId, CreateApiKeyRequest request);
 
     List<ApiKeyResponse> listApiKeys(UUID widgetId);
+
+    ApiKeyResponse createTenantApiKey(UUID tenantId, CreateApiKeyRequest request);
+
+    List<ApiKeyResponse> listTenantApiKeys(UUID tenantId);
+
+    void deleteTenantApiKey(UUID tenantId, UUID keyId);
 
     WidgetResponse validateApiKey(String rawApiKey);
 

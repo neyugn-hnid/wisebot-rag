@@ -121,6 +121,36 @@ public class WidgetController {
                 .build();
     }
 
+    @PostMapping("/api-keys")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    public ApiResponse createTenantApiKey(@RequestParam UUID tenantId, @RequestBody CreateApiKeyRequest request) {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Developer API key created")
+                .data(widgetService.createTenantApiKey(tenantId, request))
+                .build();
+    }
+
+    @GetMapping("/api-keys")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    public ApiResponse listTenantApiKeys(@RequestParam UUID tenantId) {
+        return ApiResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Developer API keys")
+                .data(widgetService.listTenantApiKeys(tenantId))
+                .build();
+    }
+
+    @DeleteMapping("/api-keys/{keyId}")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    public ApiResponse deleteTenantApiKey(@RequestParam UUID tenantId, @PathVariable UUID keyId) {
+        widgetService.deleteTenantApiKey(tenantId, keyId);
+        return ApiResponse.builder()
+                .status(HttpStatus.NO_CONTENT.value())
+                .message("Developer API key revoked")
+                .build();
+    }
+
     @PostMapping("/widgets/{widgetId}/sessions")
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER','WIDGET_CLIENT')")
     public ApiResponse createSession(@PathVariable UUID widgetId, @Valid @RequestBody CreateWidgetSessionRequest request) {

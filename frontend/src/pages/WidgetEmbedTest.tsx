@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
-import { listWidgets } from '../api/widget';
+import { listWidgetDomains, listWidgets, type DomainResponse } from '../api/widget';
 import { getStoredAccessToken } from '../lib/auth';
 
 function parseJwt(token: string): Record<string, unknown> | null {
@@ -27,6 +27,29 @@ function tenantId() {
   const token = getStoredAccessToken();
   const payload = token ? parseJwt(token) : null;
   return typeof payload?.tenantId === 'string' ? payload.tenantId.trim() : '';
+}
+
+function currentDomain() {
+  return window.location.hostname.replace(/^www\./, '').toLowerCase();
+}
+
+function domainAllowed(host: string, domains: DomainResponse[]) {
+  return domains.some((item) => {
+    const allowed = item.domain.replace(/^www\./, '').toLowerCase();
+    return host === allowed || (item.allowSubdomains && host.endsWith(`.${allowed}`));
+  });
+}
+
+function useViewportWidth() {
+  const [width, setWidth] = React.useState(() => window.innerWidth);
+
+  React.useEffect(() => {
+    const handleResize = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return width;
 }
 
 const BLUE = '#006cb5';
@@ -48,6 +71,8 @@ const BANNERS = [
   '/ictu-banner2.png',
   '/ictu-banner3.jpg',
 ];
+
+const WIDGET_SCRIPT_VERSION = '20260607-session-ttl';
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
@@ -318,9 +343,13 @@ export default function WidgetEmbedTest() {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const [widgetCode, setWidgetCode] = React.useState('');
+  const [domainWarning, setDomainWarning] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [slide, setSlide] = React.useState(0);
   const [searchOpen, setSearchOpen] = React.useState(false);
+  const viewportWidth = useViewportWidth();
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1100;
 
   React.useEffect(() => {
     const id = setInterval(() => setSlide((current) => (current + 1) % BANNERS.length), 5000);
@@ -338,7 +367,25 @@ export default function WidgetEmbedTest() {
     setLoading(true);
     try {
       const widgets = await listWidgets(id);
-      setWidgetCode(widgets[0]?.code || '');
+      const activeWidget = widgets[0] || null;
+      if (!activeWidget) {
+        setWidgetCode('');
+        setDomainWarning('');
+        return;
+      }
+
+      const domains = await listWidgetDomains(activeWidget.id);
+      const host = currentDomain();
+      if (!domainAllowed(host, domains)) {
+        setWidgetCode('');
+        setDomainWarning(
+          `Domain hiện tại "${host}" chưa được thêm vào Allowed domains của widget. Hãy thêm domain này ở trang Tùy chỉnh Widget rồi quay lại test.`
+        );
+        return;
+      }
+
+      setDomainWarning('');
+      setWidgetCode(activeWidget.code || '');
     } catch (error) {
       showToast(error instanceof Error ? error.message : t('widget.load_failed'), 'error');
       setWidgetCode('');
@@ -358,7 +405,7 @@ export default function WidgetEmbedTest() {
     if (!widgetCode) return;
 
     const script = document.createElement('script');
-    script.src = '/widget.js';
+    script.src = `/widget.js?v=${WIDGET_SCRIPT_VERSION}`;
     script.async = true;
     script.dataset.id = widgetCode;
     script.dataset.apiBase = window.location.origin;
@@ -373,19 +420,40 @@ export default function WidgetEmbedTest() {
 
   return (
     <div style={styles.page}>
-      {!widgetCode && !loading && <div style={styles.noWidget}>{t('widget.publish_first')}</div>}
+      {!widgetCode && !loading && (
+        <div style={styles.noWidget}>
+          {domainWarning || t('widget.publish_first')}
+        </div>
+      )}
 
       <header style={styles.header}>
-        <div style={styles.headerInner}>
-          <div style={styles.logoGroup}>
-            <img src="/ictu-logo.png" alt="ICTU Logo" style={styles.logo} />
-            <div style={styles.logoText}>
+        <div
+          style={{
+            ...styles.headerInner,
+            padding: isMobile ? '8px 14px' : '0 20px',
+            alignItems: isMobile ? 'flex-start' : 'center',
+            gap: isMobile ? 10 : 14,
+          }}
+        >
+          <div style={{ ...styles.logoGroup, gap: isMobile ? 10 : 14, minWidth: 0 }}>
+            <img
+              src="/ictu-logo.png"
+              alt="ICTU Logo"
+              style={{ ...styles.logo, height: isMobile ? 48 : 64 }}
+            />
+            <div
+              style={{
+                ...styles.logoText,
+                fontSize: isMobile ? 12 : isTablet ? 14 : 16,
+                maxWidth: isMobile ? 'calc(100vw - 86px)' : undefined,
+              }}
+            >
               <div>Đại học Thái Nguyên</div>
               <div>Trường Đại học Công nghệ Thông tin và Truyền thông</div>
             </div>
           </div>
 
-          <div style={styles.social}>
+          <div style={{ ...styles.social, display: isMobile ? 'none' : 'flex' }}>
             <a href="#" aria-label="Facebook" style={styles.socialIcon}>
               <img src="/social-facebook.svg" alt="Facebook" style={styles.socialImage} />
             </a>
@@ -406,12 +474,52 @@ export default function WidgetEmbedTest() {
       </header>
 
       <nav style={styles.nav}>
-        <div style={styles.navInner}>
-          <a href="/customization" style={styles.homeIcon}><ArrowLeft size={16} /></a>
+        <div
+          style={{
+            ...styles.navInner,
+            padding: isMobile ? '0 10px' : '0 20px',
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+          }}
+        >
+          <a
+            href="/customization"
+            style={{
+              ...styles.homeIcon,
+              height: isMobile ? 42 : 46,
+              padding: isMobile ? '0 12px' : '0 18px',
+              flex: '0 0 auto',
+            }}
+          >
+            <ArrowLeft size={16} />
+          </a>
           {NAV.map((item) => (
-            <a key={item} href="#" style={styles.navItem}>{item}</a>
+            <a
+              key={item}
+              href="#"
+              style={{
+                ...styles.navItem,
+                height: isMobile ? 42 : 46,
+                padding: isMobile ? '0 14px' : isTablet ? '0 16px' : '0 23px',
+                fontSize: isMobile ? 12 : 14,
+                flex: '0 0 auto',
+              }}
+            >
+              {item}
+            </a>
           ))}
-          <button type="button" onClick={() => setSearchOpen(true)} style={{ ...styles.searchBtn, border: 0, background: 'transparent' }}>
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            style={{
+              ...styles.searchBtn,
+              width: isMobile ? 42 : 46,
+              height: isMobile ? 42 : 46,
+              border: 0,
+              background: 'transparent',
+              flex: '0 0 auto',
+            }}
+          >
             <Search size={22} />
           </button>
         </div>
@@ -426,7 +534,13 @@ export default function WidgetEmbedTest() {
         </div>
       )}
 
-      <section style={styles.hero}>
+      <section
+        style={{
+          ...styles.hero,
+          aspectRatio: isMobile ? '16 / 10' : isTablet ? '16 / 7' : styles.hero.aspectRatio,
+          minHeight: isMobile ? 260 : undefined,
+        }}
+      >
         {BANNERS.map((src, index) => (
           <img
             key={src}
@@ -452,8 +566,14 @@ export default function WidgetEmbedTest() {
         </div>
       </section>
 
-      <footer style={styles.footer}>
-        <div style={styles.footerInner}>
+      <footer style={{ ...styles.footer, padding: isMobile ? '28px 16px 0' : '36px 20px 0' }}>
+        <div
+          style={{
+            ...styles.footerInner,
+            gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1.5fr 1fr 1fr' : styles.footerInner.gridTemplateColumns,
+            gap: isMobile ? 22 : 36,
+          }}
+        >
           <div>
             <div style={styles.logoBlock}>
               <img src="/ictu-logo.png" alt="ICTU" style={styles.footerLogo} />
@@ -482,7 +602,16 @@ export default function WidgetEmbedTest() {
           ))}
         </div>
 
-        <div style={styles.bottom}>
+        <div
+          style={{
+            ...styles.bottom,
+            flexDirection: isMobile ? 'column' : 'row',
+            alignItems: isMobile ? 'flex-start' : 'center',
+            gap: isMobile ? 8 : 0,
+            padding: isMobile ? '14px 0 18px' : '14px 0',
+            lineHeight: 1.5,
+          }}
+        >
           <span>© 2026 Trường Đại học Công nghệ Thông tin và Truyền thông – ICTU</span>
           <div>Powered by <span style={{ color: ORANGE, fontWeight: 700 }}>WiseBot AI</span></div>
         </div>

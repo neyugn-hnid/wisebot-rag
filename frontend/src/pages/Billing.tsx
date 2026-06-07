@@ -439,13 +439,6 @@ export default function Billing() {
               <h3 className="text-[16px] font-semibold text-[#f0f0f0]">Quản lý gói dịch vụ</h3>
               <p className="mt-1 text-xs text-[#8b8f91]">Thêm, sửa, ẩn/hiện các gói dịch vụ.</p>
             </div>
-            <button
-              onClick={openCreateModal}
-              className="inline-flex items-center gap-2 rounded-[12px] bg-[#3b9eff] px-4 py-2 text-xs font-bold text-white hover:bg-[#2f8ae6] transition-colors"
-            >
-              <Plus size={14} />
-              Thêm gói
-            </button>
           </div>
 
           {loadingPlans ? (

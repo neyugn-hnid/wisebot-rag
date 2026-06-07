@@ -56,6 +56,14 @@ export interface ApiKeyResponse {
   createdAt?: string;
 }
 
+export interface DomainResponse {
+  id: string;
+  widgetId: string;
+  domain: string;
+  allowSubdomains: boolean;
+  verifiedAt?: string | null;
+}
+
 // --- Helper ---
 
 const WIDGET_BASE = '/api/widget';
@@ -97,6 +105,23 @@ export async function updateWidget(id: string, request: UpdateWidgetRequest): Pr
   return handleResponse<WidgetResponse>(res);
 }
 
+export async function listWidgetDomains(widgetId: string): Promise<DomainResponse[]> {
+  const res = await fetchWithAuth(`${WIDGET_BASE}/widgets/${widgetId}/domains`);
+  return handleResponse<DomainResponse[]>(res);
+}
+
+export async function addWidgetDomain(
+  widgetId: string,
+  request: { domain: string; allowSubdomains: boolean }
+): Promise<DomainResponse> {
+  const res = await fetchWithAuth(`${WIDGET_BASE}/widgets/${widgetId}/domains`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<DomainResponse>(res);
+}
+
 // --- API Key functions ---
 
 export async function listApiKeys(widgetId: string): Promise<ApiKeyResponse[]> {
@@ -111,4 +136,27 @@ export async function createApiKey(widgetId: string, request: CreateApiKeyReques
     body: JSON.stringify(request),
   });
   return handleResponse<ApiKeyResponse>(res);
+}
+
+export async function listTenantApiKeys(tenantId: string): Promise<ApiKeyResponse[]> {
+  const res = await fetchWithAuth(`${WIDGET_BASE}/api-keys?tenantId=${encodeURIComponent(tenantId)}`);
+  return handleResponse<ApiKeyResponse[]>(res);
+}
+
+export async function createTenantApiKey(tenantId: string, request: CreateApiKeyRequest): Promise<ApiKeyResponse> {
+  const res = await fetchWithAuth(`${WIDGET_BASE}/api-keys?tenantId=${encodeURIComponent(tenantId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<ApiKeyResponse>(res);
+}
+
+export async function deleteTenantApiKey(tenantId: string, keyId: string): Promise<void> {
+  const res = await fetchWithAuth(`${WIDGET_BASE}/api-keys/${keyId}?tenantId=${encodeURIComponent(tenantId)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    await handleResponse<unknown>(res);
+  }
 }

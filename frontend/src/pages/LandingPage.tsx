@@ -416,17 +416,7 @@ export default function LandingPage() {
                 </Button>
               </div>
 
-              {/* Badges/Highlights */}
-              <div className="grid grid-cols-3 gap-3 max-w-lg pt-4 border-t border-slate-900">
-                {[t('landing.hero.no_credit_card'), t('landing.hero.setup_minutes'), t('landing.hero.citations_included')].map((item) => (
-                  <div key={item} className="flex flex-col gap-1.5 p-3 rounded-lg border border-slate-800/80 bg-slate-950/40 glow-hover-card">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
-                      <Check size={14} />
-                    </div>
-                    <span className="text-xs font-medium text-slate-400 leading-tight">{item}</span>
-                  </div>
-                ))}
-              </div>
+              
             </div>
 
             {/* Right Hero: INTERACTIVE RAG SANDBOX */}
@@ -683,7 +673,7 @@ export default function LandingPage() {
                   )}
 
                   {/* Sandbox helper footer */}
-                  <div className="text-[10px] text-slate-600 font-mono flex items-center justify-between">
+                  <div className="mt-2 text-[10px] text-slate-600 font-mono flex items-center justify-between">
                     <span>{t('landing.showcase.status_ready')}</span>
                     <span>{t('landing.showcase.engine_label')}</span>
                   </div>
@@ -695,29 +685,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* CONTINUOUS MARQUEE / TECH STACK */}
-        <section className="border-y border-slate-900 bg-slate-950/50 py-10 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,7,18,1)_0%,transparent_15%,transparent_85%,rgba(3,7,18,1)_100%)] z-10 pointer-events-none" />
-          <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8 text-center">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-6">{t('landing.showcase.architecture_title')}</h3>
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              {techStack.map((tech) => (
-                <div
-                  key={tech.name}
-                  className={cn(
-                    'flex items-center gap-3 rounded-xl border bg-slate-900/40 px-5 py-3 transition hover:-translate-y-1 hover:bg-slate-900 hover:border-slate-700 duration-200 cursor-pointer shadow-lg group glow-hover-card',
-                    tech.color
-                  )}
-                >
-                  <div className="flex flex-col text-left">
-                    <span className="text-sm font-bold text-slate-100 group-hover:text-emerald-400 transition">{tech.name}</span>
-                    <span className="text-[10px] text-slate-500">{t(tech.descKey)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        
 
         {/* INTERACTIVE PIPELINE ROADMAP */}
         <section className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8 py-20">
@@ -776,7 +744,7 @@ export default function LandingPage() {
                     <span className="rounded bg-slate-900 border border-slate-800 px-3 py-1 text-xs text-slate-300">.pdf</span>
                     <span className="rounded bg-slate-900 border border-slate-800 px-3 py-1 text-xs text-slate-300">.docx</span>
                     <span className="rounded bg-slate-900 border border-slate-800 px-3 py-1 text-xs text-slate-300">.txt</span>
-                    <span className="rounded bg-slate-900 border border-slate-800 px-3 py-1 text-xs text-slate-300">URL Crawl</span>
+                    <span className="rounded bg-slate-900 border border-slate-800 px-3 py-1 text-xs text-slate-300">.xlsx</span>
                   </div>
                 </div>
                 <div className="rounded-lg bg-slate-900/60 p-4 border border-slate-800 text-xs font-mono text-slate-400 space-y-2">
@@ -789,8 +757,8 @@ export default function LandingPage() {
                     <span className="text-slate-500">1.2 MB</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>🔗 docs.wisebot.dev/api</span>
-                    <span className="text-slate-500">Crawled 1hr ago</span>
+                    <span>📊 sales_data.xlsx</span>
+                    <span className="text-slate-500">2.5 MB</span>
                   </div>
                 </div>
               </div>
@@ -907,22 +875,22 @@ export default function LandingPage() {
                     </div>
                     <div className="space-y-1.5 text-left">
                       <div className="flex items-center gap-2 text-slate-300">
-                        <span className="text-slate-600">📁</span> <span>root / kb_warranty</span>
+                        <span className="text-slate-600">📁</span> <span>workspace / product_kb</span>
                       </div>
                       <div className="flex items-center justify-between pl-4 text-emerald-400">
                         <div className="flex items-center gap-2">
-                          <span>📄</span> <span>policy_hardware.pdf</span>
+                          <span>📄</span> <span>faq-san-pham.pdf</span>
                         </div>
                         <span className="text-[10px] bg-emerald-500/10 px-1.5 py-0.5 rounded text-emerald-400">{t('landing.showcase.synced')}</span>
                       </div>
                       <div className="flex items-center justify-between pl-4 text-slate-400">
                         <div className="flex items-center gap-2">
-                          <span>📄</span> <span>billing_faq.txt</span>
+                          <span>📄</span> <span>huong-dan-su-dung.txt</span>
                         </div>
                         <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">{t('landing.showcase.synced')}</span>
                       </div>
                       <div className="flex items-center gap-2 pl-4 text-slate-500">
-                        <span>🔗</span> <span>http://support.wisebot.dev/faq</span>
+                        <span>🔗</span> <span>wisebot.vn/docs/widget</span>
                       </div>
                     </div>
                   </div>

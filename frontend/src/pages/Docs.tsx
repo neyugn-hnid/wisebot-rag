@@ -34,6 +34,49 @@ import { cn } from '../lib/utils';
 type DocSection = 'quickstart' | 'widget' | 'api' | 'webhooks' | 'wordpress' | 'shopify' | 'faq' | 'contact';
 type CodeLang = 'curl' | 'javascript' | 'python';
 
+const WIDGET_SCRIPT = `<script
+  src="https://your-domain.com/widget.js?v=20260607-session-ttl"
+  data-id="wb_your_widget_code"
+  data-api-base="https://your-domain.com"
+  data-session-ttl-hours="24"
+  async>
+</script>`;
+
+const API_ASK_SNIPPET = `const response = await fetch("https://wisebot.qzz.io/api/chat/public/api/v1/ask", {
+  method: "POST",
+  headers: {
+    "X-API-Key": process.env.WISEBOT_API_KEY,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    question: "Chính sách bảo hành của công ty là gì?",
+    knowledgeBaseId: "optional-knowledge-base-id",
+    topK: 5,
+    temperature: 0.2
+  })
+});
+
+const data = await response.json();`;
+
+const API_RECOMMEND_SNIPPET = `const response = await fetch("https://wisebot.qzz.io/api/chat/public/api/v1/recommend", {
+  method: "POST",
+  headers: {
+    "X-API-Key": process.env.WISEBOT_API_KEY,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    question: "Có điện thoại nào dưới 10 triệu không?",
+    knowledgeBaseId: "optional-knowledge-base-id",
+    pageContext: {
+      productCategory: "Điện thoại"
+    },
+    topK: 5,
+    temperature: 0.2
+  })
+});
+
+const data = await response.json();`;
+
 export default function Docs() {
   const { t, language, setLanguage } = useLanguage();
   const { isAuthenticated } = useRole();
@@ -49,12 +92,11 @@ export default function Docs() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
-  // Form states for contact support
   const [contactForm, setContactForm] = useState({
     name: '',
     email: '',
     subject: '',
-    message: ''
+    message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -68,7 +110,7 @@ export default function Docs() {
 
   const handleContactChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setContactForm(prev => ({ ...prev, [name]: value }));
+    setContactForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleContactSubmit = (e: React.FormEvent) => {
@@ -85,8 +127,8 @@ export default function Docs() {
     setTimeout(() => {
       setIsSubmitting(false);
       showToast(
-        language === 'vi' 
-          ? 'Tin nhắn của bạn đã được gửi thành công đến đội ngũ kỹ thuật.' 
+        language === 'vi'
+          ? 'Tin nhắn của bạn đã được gửi thành công đến đội ngũ kỹ thuật.'
           : 'Your support ticket has been created successfully.',
         'success'
       );
@@ -95,87 +137,61 @@ export default function Docs() {
   };
 
   const codeSnippets = {
-    curl: `curl -X POST https://api.wisebot.dev/v1/chat/completions \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Content-Type: application/json" \\
+    curl: `curl -X POST https://wisebot.qzz.io/api/chat/public/api/v1/ask 
+  -H "X-API-Key: $WISEBOT_API_KEY" 
+  -H "Content-Type: application/json" 
   -d '{
-    "chatbot_id": "cb_9f2a8c7e",
-    "messages": [
-      {
-        "role": "user",
-        "content": "Chính sách bảo hành sản phẩm là gì?"
-      }
-    ],
-    "stream": false
+    "question": "Chính sách bảo hành sản phẩm là gì?",
+    "knowledgeBaseId": "optional-knowledge-base-id",
+    "topK": 5,
+    "temperature": 0.2
   }'`,
-    javascript: `const response = await fetch('https://api.wisebot.dev/v1/chat/completions', {
+    javascript: `const response = await fetch('https://wisebot.qzz.io/api/chat/public/api/v1/ask', {
   method: 'POST',
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
+    'X-API-Key': process.env.WISEBOT_API_KEY,
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
-    chatbot_id: 'cb_9f2a8c7e',
-    messages: [
-      {
-        role: 'user',
-        content: 'Chính sách bảo hành sản phẩm là gì?'
-      }
-    ],
-    stream: false
+    question: 'Chính sách bảo hành sản phẩm là gì?',
+    knowledgeBaseId: 'optional-knowledge-base-id',
+    topK: 5,
+    temperature: 0.2
   })
 });
 const data = await response.json();
-console.log(data.choices[0].message.content);`,
-    python: `import requests
+console.log(data.answer);`,
+    python: `import os
+import requests
 
-url = "https://api.wisebot.dev/v1/chat/completions"
+url = "https://wisebot.qzz.io/api/chat/public/api/v1/ask"
 headers = {
-    "Authorization": "Bearer YOUR_API_KEY",
+    "X-API-Key": os.getenv("WISEBOT_API_KEY"),
     "Content-Type": "application/json"
 }
 data = {
-    "chatbot_id": "cb_9f2a8c7e",
-    "messages": [
-        {
-            "role": "user",
-            "content": "Chính sách bảo hành sản phẩm là gì?"
-        }
-    ],
-    "stream": False
+    "question": "Chính sách bảo hành sản phẩm là gì?",
+    "knowledgeBaseId": "optional-knowledge-base-id",
+    "topK": 5,
+    "temperature": 0.2
 }
 
 response = requests.post(url, headers=headers, json=data)
-print(response.json()["choices"][0]["message"]["content"])`
+print(response.json()["answer"])`,
   };
 
-  const widgetCode = `<script 
-  src="https://cdn.wisebot.dev/widget.js" 
-  data-chatbot-id="cb_9f2a8c7e"
-  data-theme-color="#10b981"
-  defer>
-</script>`;
+  const widgetCode = WIDGET_SCRIPT;
 
-  const wordpressCode = `// Thêm mã nhúng Wisebot vào footer của giao diện WordPress
+  const wordpressCode = `// Thêm mã nhúng WiseBot vào footer của giao diện WordPress
 add_action('wp_footer', 'add_wisebot_widget');
 function add_wisebot_widget() {
     ?>
-    <script 
-      src="https://cdn.wisebot.dev/widget.js" 
-      data-chatbot-id="cb_9f2a8c7e" 
-      data-theme-color="#10b981" 
-      defer>
-    </script>
+    ${WIDGET_SCRIPT.replace(/\n/g, '\n    ')}
     <?php
 }`;
 
   const shopifyCode = `<!-- Thêm đoạn mã này vào theme.liquid ngay trước thẻ đóng </body> -->
-<script 
-  src="https://cdn.wisebot.dev/widget.js" 
-  data-chatbot-id="cb_9f2a8c7e"
-  data-theme-color="#10b981"
-  defer>
-</script>`;
+${WIDGET_SCRIPT}`;
 
   const webhookPayload = `{
   "event": "message.sent",
@@ -257,7 +273,7 @@ function add_wisebot_widget() {
       group: language === 'vi' ? 'TÍCH HỢP CỐT LÕI' : 'CORE INTEGRATIONS',
       items: [
         { id: 'widget', label: language === 'vi' ? 'Nhúng Web Widget' : 'Web Widget Embed', icon: Code },
-        { id: 'api', label: language === 'vi' ? 'Kết nối REST API' : 'REST API Reference', icon: Terminal },
+        { id: 'api', label: language === 'vi' ? 'API Key' : 'API Key', icon: Terminal },
         { id: 'webhooks', label: language === 'vi' ? 'Webhook sự kiện' : 'Webhooks Trigger', icon: Layers }
       ]
     },
@@ -297,9 +313,9 @@ function add_wisebot_widget() {
       { id: 'wd-params', label: language === 'vi' ? 'Các tham số' : 'Parameters' }
     ],
     api: [
-      { id: 'api-intro', label: 'REST API' },
+      { id: 'api-intro', label: 'API Key' },
       { id: 'api-endpoint', label: 'Endpoint' },
-      { id: 'api-auth', label: 'Authorization' },
+      { id: 'api-auth', label: 'X-API-Key' },
       { id: 'api-sample', label: 'Code Sample' }
     ],
     webhooks: [
@@ -493,8 +509,8 @@ function add_wisebot_widget() {
                     <h2 className="text-3xl font-extrabold text-white tracking-tight">Web Widget Embed</h2>
                     <p className="text-sm text-zinc-400 leading-relaxed font-light">
                       {language === 'vi'
-                        ? 'Tích hợp tiện ích bong bóng chat nổi trực tiếp ở chân trang web để hỗ trợ người dùng cuối.'
-                        : 'Embed the floating chat widget into your website footer layout to serve customer questions automatically.'}
+                        ? 'Nhúng chatbot bằng widget.js hiện tại, giống cách cấu hình trong Widget Customization sau khi publish.'
+                        : 'Embed the chatbot with the current widget.js flow used in Widget Customization after publishing.'}
                     </p>
                   </div>
 
@@ -516,14 +532,19 @@ function add_wisebot_widget() {
                         </thead>
                         <tbody>
                           <tr className="border-b border-zinc-800/60 bg-zinc-950/20">
-                            <td className="p-3 font-mono text-amber-500 font-bold">data-chatbot-id</td>
+                            <td className="p-3 font-mono text-amber-500 font-bold">data-id</td>
                             <td className="p-3 text-zinc-500">string</td>
-                            <td className="p-3 text-zinc-300">{language === 'vi' ? 'Khóa định danh duy nhất của Chatbot.' : 'Unique identifier for your RAG chatbot instance.'}</td>
+                            <td className="p-3 text-zinc-300">{language === 'vi' ? 'Mã widget public dùng để gắn chatbot vào website.' : 'Public widget code used to attach the chatbot to your website.'}</td>
                           </tr>
                           <tr className="bg-zinc-950/10">
-                            <td className="p-3 font-mono text-cyan-400 font-bold">data-theme-color</td>
-                            <td className="p-3 text-zinc-500">string (HEX)</td>
-                            <td className="p-3 text-zinc-300">{language === 'vi' ? 'Tùy chỉnh màu chủ đạo của Widget (ví dụ #f97316).' : 'HEX primary color accent code (e.g. #f97316).'}</td>
+                            <td className="p-3 font-mono text-cyan-400 font-bold">data-api-base</td>
+                            <td className="p-3 text-zinc-500">string (URL)</td>
+                            <td className="p-3 text-zinc-300">{language === 'vi' ? 'Domain backend nơi widget gọi API, ví dụ https://your-domain.com.' : 'Backend base URL used by the widget, e.g. https://your-domain.com.'}</td>
+                          </tr>
+                          <tr className="border-t border-zinc-800/60 bg-zinc-950/10">
+                            <td className="p-3 font-mono text-cyan-400 font-bold">data-session-ttl-hours</td>
+                            <td className="p-3 text-zinc-500">number</td>
+                            <td className="p-3 text-zinc-300">{language === 'vi' ? 'Thời gian sống của phiên chat tính bằng giờ, hiện đang là 24.' : 'Chat session lifetime in hours, currently 24.'}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -536,11 +557,11 @@ function add_wisebot_widget() {
               {activeSection === 'api' && (
                 <div className="space-y-8 animate-fadeIn">
                   <div id="api-intro" className="space-y-3 border-b border-zinc-800 pb-5">
-                    <h2 className="text-3xl font-extrabold text-white tracking-tight">REST API Reference</h2>
+                    <h2 className="text-3xl font-extrabold text-white tracking-tight">API Key Usage</h2>
                     <p className="text-sm text-zinc-400 leading-relaxed font-light">
                       {language === 'vi'
-                        ? 'Kết nối trực tiếp vào máy chủ WiseBot để xây dựng giao diện hội thoại tùy chỉnh của riêng bạn.'
-                        : 'Connect directly to Wisebot server API to query RAG sources and build custom application layouts.'}
+                        ? 'Dùng API key ở backend để gọi REST API, không đưa key vào frontend.'
+                        : 'Use the API key from your backend to call the REST API. Never expose the key in frontend code.'}
                     </p>
                   </div>
 
@@ -548,7 +569,11 @@ function add_wisebot_widget() {
                     <h3 className="text-sm font-bold text-white">Request Endpoint</h3>
                     <div className="flex items-center gap-2 border border-zinc-800 bg-zinc-950 rounded-lg p-3 font-mono text-xs">
                       <span className="bg-[#f97316]/10 text-[#f97316] text-[10px] font-bold px-2 py-0.5 rounded border border-[#f97316]/20">POST</span>
-                      <span className="text-zinc-300 select-all">https://api.wisebot.dev/v1/chat/completions</span>
+                      <span className="text-zinc-300 select-all">https://wisebot.qzz.io/api/chat/public/api/v1/ask</span>
+                    </div>
+                    <div className="flex items-center gap-2 border border-zinc-800 bg-zinc-950 rounded-lg p-3 font-mono text-xs mt-2">
+                      <span className="bg-[#f97316]/10 text-[#f97316] text-[10px] font-bold px-2 py-0.5 rounded border border-[#f97316]/20">POST</span>
+                      <span className="text-zinc-300 select-all">https://wisebot.qzz.io/api/chat/public/api/v1/recommend</span>
                     </div>
                   </div>
 
@@ -556,11 +581,11 @@ function add_wisebot_widget() {
                     <h3 className="text-sm font-bold text-white">Authentication</h3>
                     <p className="text-xs text-zinc-400 leading-relaxed font-light">
                       {language === 'vi'
-                        ? 'Tất cả cuộc gọi API yêu cầu đính kèm Mã API (API Key) của Workspace trong Header HTTP Authorization.'
-                        : 'Authenticate HTTP client calls by appending your workspace API key in Authorization headers.'}
+                        ? 'Tất cả cuộc gọi API yêu cầu đính kèm API Key của Workspace trong header X-API-Key.'
+                        : 'Authenticate HTTP calls by appending your workspace API key in the X-API-Key header.'}
                     </p>
                     <div className="bg-zinc-950 border border-zinc-900 rounded-lg p-3 font-mono text-xs text-zinc-400">
-                      Authorization: Bearer <span className="text-amber-500">YOUR_API_KEY</span>
+                      X-API-Key: <span className="text-amber-500">YOUR_API_KEY</span>
                     </div>
                   </div>
 

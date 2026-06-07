@@ -114,7 +114,7 @@ export default function Profile() {
     profileTouched[field] && profileErrors[field]
       ? 'border-[#f00000] bg-[#f00000]/5 text-[#f0f0f0] focus:border-[#f00000] focus:ring-2 focus:ring-[#f00000]/15'
       : editable
-        ? 'border-[rgba(255,255,255,0.18)] bg-[rgba(255,255,255,0.03)] text-[#f0f0f0] focus:border-[rgba(59,158,255,0.35)] focus:ring-2 focus:ring-[rgba(59,158,255,0.16)]'
+        ? 'border-[rgba(255,255,255,0.18)] bg-[rgba(255,255,255,0.03)] text-[#f0f0f0] focus:border-[#ffffff] focus:ring-[#ffffff]'
         : 'border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] text-[#a1a4a5]',
   );
 
@@ -122,7 +122,7 @@ export default function Profile() {
     'w-full rounded-[12px] border bg-[rgba(255,255,255,0.03)] px-4 py-3 pr-11 text-sm text-[#f0f0f0] outline-none transition-all placeholder:text-[#6f7578]',
     passwordTouched[field] && passwordErrors[field]
       ? 'border-[#f00000] bg-[#f00000]/5 focus:border-[#f00000] focus:ring-2 focus:ring-[#f00000]/15'
-      : 'border-[rgba(255,255,255,0.18)] focus:border-[rgba(59,158,255,0.35)] focus:ring-2 focus:ring-[rgba(59,158,255,0.16)]',
+      : 'border-[rgba(255,255,255,0.18)] focus:border-[#ffffff] focus:ring-[#ffffff]',
   );
 
   const loadProfile = async () => {

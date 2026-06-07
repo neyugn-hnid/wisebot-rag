@@ -31,12 +31,16 @@
   var scriptUrl = new URL(currentScript.src, window.location.href);
   var apiBase = currentScript.getAttribute('data-api-base') || scriptUrl.origin;
   var apiUrl = apiBase.replace(/\/$/, '') + '/api/widget/public/widgets/code/' + encodeURIComponent(widgetCode);
+  var sessionTtlHours = Number(currentScript.getAttribute('data-session-ttl-hours') || '24');
+  var sessionTtlMs = Math.max(1, sessionTtlHours) * 60 * 60 * 1000;
   var widgetSessionStorageKey = 'wisebot_widget_analytics_session_v2_' + widgetCode;
+  var widgetSessionCreatedAtKey = widgetSessionStorageKey + '_created_at';
   var chatSessionStorageKey = 'wisebot_chat_session_v2_' + widgetCode;
+  var chatSessionCreatedAtKey = chatSessionStorageKey + '_created_at';
   var state = {
     config: null,
-    widgetSessionId: window.localStorage.getItem(widgetSessionStorageKey) || '',
-    chatSessionId: window.localStorage.getItem(chatSessionStorageKey) || '',
+    widgetSessionId: getStoredSession(widgetSessionStorageKey, widgetSessionCreatedAtKey),
+    chatSessionId: getStoredSession(chatSessionStorageKey, chatSessionCreatedAtKey),
     isOpen: false,
     messages: [],
     isReplying: false,
@@ -55,9 +59,10 @@
     '.wisebot-widget-root{position:fixed;bottom:24px;z-index:2147483000;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}',
     '.wisebot-widget-root[data-position="left"]{left:24px;}',
     '.wisebot-widget-root[data-position="right"]{right:24px;}',
-    '.wisebot-bubble{width:64px;height:64px;border-radius:20px;border:none;cursor:pointer;box-shadow:0 18px 45px rgba(15,23,42,.28);display:flex;align-items:center;justify-content:center;color:#fff;transition:transform .18s ease,box-shadow .18s ease;}',
-    '.wisebot-bubble img{width:100%;height:100%;object-fit:cover;border-radius:20px;}',
-    '.wisebot-bubble:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 22px 55px rgba(15,23,42,.34);}',
+    '.wisebot-bubble{width:64px;height:64px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:inherit;padding:0;transition:transform .18s ease;}',
+    '.wisebot-bubble svg{width:100%;height:100%;display:block;}',
+    '.wisebot-bubble img{width:100%;height:100%;object-fit:cover;display:block;}',
+    '.wisebot-bubble:hover{transform:translateY(-2px) scale(1.03);}',
     '.wisebot-bubble:active{transform:scale(.96);}',
     '.wisebot-panel{width:380px;max-width:calc(100vw - 32px);height:590px;max-height:calc(100vh - 104px);background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 24px 70px rgba(15,23,42,.22);display:flex;flex-direction:column;border:1px solid rgba(203,213,225,.85);}',
     '.wisebot-header{padding:14px 16px;display:flex;align-items:center;justify-content:space-between;color:#fff;}',
@@ -131,6 +136,30 @@
     return visitorId;
   }
 
+  function getStoredSession(storageKey, createdAtKey) {
+    var sessionId = window.localStorage.getItem(storageKey) || '';
+    var createdAt = Number(window.localStorage.getItem(createdAtKey) || '0');
+    if (!sessionId) {
+      return '';
+    }
+    if (!createdAt || Date.now() - createdAt > sessionTtlMs) {
+      window.localStorage.removeItem(storageKey);
+      window.localStorage.removeItem(createdAtKey);
+      return '';
+    }
+    return sessionId;
+  }
+
+  function rememberSession(storageKey, createdAtKey, sessionId) {
+    if (!sessionId) {
+      return;
+    }
+    window.localStorage.setItem(storageKey, sessionId);
+    if (!window.localStorage.getItem(createdAtKey)) {
+      window.localStorage.setItem(createdAtKey, String(Date.now()));
+    }
+  }
+
   function ensureWidgetSession(widget) {
     if (state.widgetSessionId) {
       return Promise.resolve(state.widgetSessionId);
@@ -145,7 +174,7 @@
     }).then(function (payload) {
       state.widgetSessionId = payload && payload.data && payload.data.id ? payload.data.id : '';
       if (state.widgetSessionId) {
-        window.localStorage.setItem(widgetSessionStorageKey, state.widgetSessionId);
+        rememberSession(widgetSessionStorageKey, widgetSessionCreatedAtKey, state.widgetSessionId);
       }
       return state.widgetSessionId;
     }).catch(function () {
@@ -165,7 +194,7 @@
     }).then(function (payload) {
       state.chatSessionId = payload && payload.data && payload.data.id ? payload.data.id : '';
       if (state.chatSessionId) {
-        window.localStorage.setItem(chatSessionStorageKey, state.chatSessionId);
+        rememberSession(chatSessionStorageKey, chatSessionCreatedAtKey, state.chatSessionId);
       }
       return state.chatSessionId;
     }).catch(function () {
@@ -235,8 +264,9 @@
   function getIconSvg(iconId, size) {
     var iconSize = size || 20;
     var common = 'width="' + iconSize + '" height="' + iconSize + '" viewBox="0 0 24 24" fill="none" aria-hidden="true"';
+    var robotLogo = '<svg width="' + iconSize + '" height="' + iconSize + '" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="wisebotBlueGrad" x1="0" y1="0" x2="100" y2="100"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#6366f1"/></linearGradient><linearGradient id="wisebotFaceGrad" x1="0" y1="0" x2="0" y2="100"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#c4d5e8"/></linearGradient><filter id="wisebotShadow" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/></filter></defs><path d="M 35 75 L 30 100 L 60 78 Z" fill="url(#wisebotBlueGrad)"/><path fill-rule="evenodd" clip-rule="evenodd" d="M50 5C25.147 5 5 25.147 5 50C5 74.853 25.147 95 50 95C74.853 95 95 74.853 95 50C95 25.147 74.853 5 50 5ZM50 17C31.775 17 17 31.775 17 50C17 68.225 31.775 83 50 83C68.225 83 83 68.225 83 50C83 31.775 68.225 17 50 17Z" fill="url(#wisebotBlueGrad)"/><path d="M 38 75 L 34 94 L 56 79 Z" fill="url(#wisebotFaceGrad)"/><ellipse cx="50" cy="53" rx="34" ry="29" fill="url(#wisebotFaceGrad)" filter="url(#wisebotShadow)"/><rect x="25" y="42" width="50" height="24" rx="12" fill="#030712"/><circle cx="37" cy="52" r="4.5" fill="#10b981"/><circle cx="63" cy="52" r="4.5" fill="#10b981"/><path d="M 45 60 Q 50 64 55 60" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/><path d="M 15 51 C 9 51 9 61 15 61 Z" fill="#030712"/><path d="M 85 51 C 91 51 91 61 85 61 Z" fill="#030712"/><path d="M 45 28 L 55 28 L 53 24 L 47 24 Z" fill="url(#wisebotFaceGrad)"/><rect x="48.5" y="12" width="3" height="15" fill="url(#wisebotBlueGrad)"/><circle cx="50" cy="12" r="4.5" fill="url(#wisebotBlueGrad)"/><circle cx="50" cy="12" r="2.5" fill="#10b981"/></svg>';
     var icons = {
-      bot: '<svg ' + common + '><rect x="5" y="7" width="14" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M12 4v3M9 4h6M9 12h.01M15 12h.01M9.5 15h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+      bot: robotLogo,
       sparkles: '<svg ' + common + '><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3ZM5 15l.8 2.2L8 18l-2.2.8L5 21l-.8-2.2L2 18l2.2-.8L5 15ZM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
       brain: '<svg ' + common + '><path d="M9 4.5a3 3 0 0 0-3 3 3 3 0 0 0-1.5 5.6A3.3 3.3 0 0 0 8 18h1V4.5ZM15 4.5a3 3 0 0 1 3 3 3 3 0 0 1 1.5 5.6A3.3 3.3 0 0 1 16 18h-1V4.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 8H7.5M15 8h1.5M9 12H7M15 12h2M9 16H7.5M15 16h1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
       cpu: '<svg ' + common + '><rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/><rect x="10" y="10" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.6"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
@@ -281,8 +311,8 @@
 
     if (!state.isOpen) {
       var bubble = createEl('button', 'wisebot-bubble', null);
-      bubble.style.background = config.primaryColor;
-      renderAvatar(bubble, config, widget.name, 30);
+      bubble.style.color = config.primaryColor;
+      renderAvatar(bubble, config, widget.name, 64);
       bubble.addEventListener('click', function () {
         state.isOpen = true;
         render();

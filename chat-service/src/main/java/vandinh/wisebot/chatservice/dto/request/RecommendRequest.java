@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Data
 public class RecommendRequest {
@@ -13,6 +14,9 @@ public class RecommendRequest {
 
     // Optional: page context (product name, category...)
     private Map<String, Object> pageContext;
+
+    // Optional: developer API can target a specific knowledge base.
+    private UUID knowledgeBaseId;
 
     // Optional: override topK
     private int topK = 5;
