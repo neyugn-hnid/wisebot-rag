@@ -18,9 +18,10 @@ export const CustomRobotLogo = ({ size, className }: { size: number, className?:
     height={size}
   >
     <defs>
+      {/* Updated to Cybernetic Neon emerald-indigo gradient */}
       <linearGradient id="blueGrad" x1="0" y1="0" x2="100" y2="100">
-        <stop offset="0%" stopColor="#00e5ff" />
-        <stop offset="100%" stopColor="#0044ff" />
+        <stop offset="0%" stopColor="#10b981" />
+        <stop offset="100%" stopColor="#6366f1" />
       </linearGradient>
       <linearGradient id="faceGrad" x1="0" y1="0" x2="0" y2="100">
         <stop offset="0%" stopColor="#ffffff" />
@@ -44,18 +45,18 @@ export const CustomRobotLogo = ({ size, className }: { size: number, className?:
     <ellipse cx="50" cy="53" rx="34" ry="29" fill="url(#faceGrad)" filter="url(#shadow)" />
 
     {/* Dark face visor */}
-    <rect x="25" y="42" width="50" height="24" rx="12" fill="#0A192F" />
+    <rect x="25" y="42" width="50" height="24" rx="12" fill="#030712" />
 
-    {/* Cyan eyes */}
-    <circle cx="37" cy="52" r="4.5" fill="#00e5ff" />
-    <circle cx="63" cy="52" r="4.5" fill="#00e5ff" />
+    {/* Emerald eyes */}
+    <circle cx="37" cy="52" r="4.5" fill="#10b981" />
+    <circle cx="63" cy="52" r="4.5" fill="#10b981" />
 
     {/* Smile */}
-    <path d="M 45 60 Q 50 64 55 60" stroke="#00e5ff" strokeWidth="2.5" strokeLinecap="round" />
+    <path d="M 45 60 Q 50 64 55 60" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" />
 
     {/* Ears */}
-    <path d="M 15 51 C 9 51 9 61 15 61 Z" fill="#0A192F" />
-    <path d="M 85 51 C 91 51 91 61 85 61 Z" fill="#0A192F" />
+    <path d="M 15 51 C 9 51 9 61 15 61 Z" fill="#030712" />
+    <path d="M 85 51 C 91 51 91 61 85 61 Z" fill="#030712" />
 
     {/* Antenna Base */}
     <path d="M 45 28 L 55 28 L 53 24 L 47 24 Z" fill="url(#faceGrad)" />
@@ -65,38 +66,48 @@ export const CustomRobotLogo = ({ size, className }: { size: number, className?:
     
     {/* Antenna Top */}
     <circle cx="50" cy="12" r="4.5" fill="url(#blueGrad)" />
-    <circle cx="50" cy="12" r="2.5" fill="#00e5ff" />
+    <circle cx="50" cy="12" r="2.5" fill="#10b981" />
   </svg>
 );
 
 export default function Logo({ className, iconOnly = false, size = 'md', theme = 'dark', customSize }: LogoProps & { customSize?: number }) {
   const sizeClasses: Record<string, number> = {
-    sm: 40,
-    md: 96,
-    lg: 140,
-    xl: 180,
+    sm: 32,
+    md: 40,
+    lg: 48,
+    xl: 64,
   };
 
-  const iconSize = customSize ?? (sizeClasses[size] ?? 72);
+  // Calculate proportional size for the SVG icon
+  const iconSize = customSize 
+    ? (iconOnly ? customSize : customSize * 0.35) 
+    : (sizeClasses[size] ?? 40);
+
+  // Calculate proportional font size
+  const fontSize = customSize 
+    ? customSize * 0.22 
+    : (size === 'sm' ? 14 : size === 'md' ? 18 : size === 'lg' ? 24 : 32);
 
   if (iconOnly) {
     return (
-      <div className={cn('flex items-center', className)}>
+      <div className={cn('flex items-center justify-center', className)}>
         <CustomRobotLogo size={iconSize} />
       </div>
     );
   }
 
   return (
-    <div className={cn('flex items-center', className)}>
-      <div style={{ maxWidth: `${iconSize}px`, width: '100%' }}>
-        <img
-          src="/img/logo.png"
-          alt="WiseBot"
-          style={{ width: '100%', height: 'auto', display: 'block' }}
-          className="object-contain"
-        />
-      </div>
+    <div className={cn('flex items-center gap-2 select-none text-left', className)}>
+      <CustomRobotLogo size={iconSize} className="shrink-0" />
+      <span 
+        className={cn(
+          "font-extrabold tracking-tight font-sans",
+          theme === 'dark' ? "text-white" : "text-slate-900"
+        )}
+        style={{ fontSize: `${fontSize}px`, lineHeight: '1.2' }}
+      >
+        Wise<span className="text-emerald-400">Bot</span>
+      </span>
     </div>
   );
 }

@@ -35,8 +35,11 @@ import {
   listWidgets,
   createWidget,
   updateWidget,
+  listWidgetDomains,
+  addWidgetDomain,
   type WidgetResponse,
   type WidgetAppearanceConfig,
+  type DomainResponse,
 } from '../api/widget';
 import { getMySubscription, listPlans, type BillingPlanResponse, type SubscriptionResponse } from '../api/billing';
 
@@ -58,11 +61,12 @@ interface WidgetSettings extends WidgetAppearanceConfig {
 }
 
 const WIDGET_SETTINGS_STORAGE_KEY = 'wisebot_widget_settings';
+const WIDGET_SCRIPT_VERSION = '20260607-session-ttl';
 
 export default function WidgetCustomization() {
   const { t } = useLanguage();
   const { showToast } = useToast();
-  const fieldClass = "w-full rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm text-[#f0f0f0] outline-none transition-colors placeholder:text-[#7d8183] focus:border-[rgba(59,158,255,0.45)] focus:bg-[rgba(255,255,255,0.06)] focus:ring-2 focus:ring-[rgba(59,158,255,0.18)] disabled:cursor-not-allowed disabled:opacity-60";
+  const fieldClass = "w-full rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm text-[#f0f0f0] outline-none transition-colors placeholder:text-[#7d8183] focus:border-[#ffffff] focus:bg-[rgba(255,255,255,0.06)] focus:ring-[#ffffff] disabled:cursor-not-allowed disabled:opacity-60";
   const sectionCardClass = "rounded-[24px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.22)]";
   const [primaryColor, setPrimaryColor] = useState('#2563EB');
   const [position, setPosition] = useState<'right' | 'left'>('right');
@@ -82,7 +86,12 @@ export default function WidgetCustomization() {
   const [widget, setWidget] = useState<WidgetResponse | null>(null);
   const [isLoadingWidget, setIsLoadingWidget] = useState(false);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseResponse[]>([]);
+  const [allowedDomains, setAllowedDomains] = useState<DomainResponse[]>([]);
+  const [domainInput, setDomainInput] = useState('');
+  const [allowSubdomains, setAllowSubdomains] = useState(true);
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
+  const [isLoadingDomains, setIsLoadingDomains] = useState(false);
+  const [isSavingDomain, setIsSavingDomain] = useState(false);
   const [widgetCustomizationEnabled, setWidgetCustomizationEnabled] = useState(true);
   const [isKnowledgeBaseDropdownOpen, setIsKnowledgeBaseDropdownOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,12 +99,16 @@ export default function WidgetCustomization() {
   const hasHydratedLocalSettings = useRef(false);
 
   const SelectedIcon = BOT_ICONS.find(i => i.id === selectedIconId)?.icon || Bot;
-  const widgetScriptSrc = typeof window !== 'undefined' ? `${window.location.origin}/widget.js` : 'https://cdn.wisebot.ai/widget.js';
+  const widgetScriptSrc = typeof window !== 'undefined'
+    ? `${window.location.origin}/widget.js?v=${WIDGET_SCRIPT_VERSION}`
+    : `https://cdn.wisebot.ai/widget.js?v=${WIDGET_SCRIPT_VERSION}`;
   const widgetApiBase = typeof window !== 'undefined' ? window.location.origin : 'https://app.wisebot.ai';
 
   const widgetScript = widget?.code
-    ? `<script src="${widgetScriptSrc}" data-id="${widget.code}" data-api-base="${widgetApiBase}" async></script>`
+    ? `<script src="${widgetScriptSrc}" data-id="${widget.code}" data-api-base="${widgetApiBase}" data-session-ttl-hours="24" async></script>`
     : '<!-- Publish widget to generate embed code -->';
+
+  const hasAllowedDomain = allowedDomains.length > 0;
 
   const parseJwtPayload = (token: string): Record<string, unknown> | null => {
     try {
@@ -124,6 +137,21 @@ export default function WidgetCustomization() {
 
   const generateWidgetCode = () => {
     return `wb_${Math.random().toString(36).slice(2, 10)}`;
+  };
+
+  const normalizeWebsiteDomain = (value: string) => {
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed) {
+      return '';
+    }
+
+    try {
+      const url = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+      return url.hostname.replace(/^www\./, '');
+    } catch {
+      const host = trimmed.replace(/^https?:\/\//, '').split('/')[0] || '';
+      return host.replace(/^www\./, '');
+    }
   };
 
   useEffect(() => {
@@ -214,8 +242,9 @@ export default function WidgetCustomization() {
         const scopedItems = tenantItems.length > 0 ? tenantItems : allItems;
         setKnowledgeBases(scopedItems);
 
-        if (!knowledgeBaseId && scopedItems.length === 1) {
-          setKnowledgeBaseId(scopedItems[0].id);
+        const onlyKnowledgeBase = scopedItems[0];
+        if (!knowledgeBaseId && scopedItems.length === 1 && onlyKnowledgeBase?.id) {
+          setKnowledgeBaseId(onlyKnowledgeBase.id);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : t('widget.kb_load_failed');
@@ -282,9 +311,46 @@ export default function WidgetCustomization() {
     void loadWidget();
   }, [showToast]);
 
+  useEffect(() => {
+    const widgetId = widget?.id;
+    if (!widgetId) {
+      setAllowedDomains([]);
+      return;
+    }
+
+    let cancelled = false;
+    async function loadDomains(activeWidgetId: string) {
+      setIsLoadingDomains(true);
+      try {
+        const domains = await listWidgetDomains(activeWidgetId);
+        if (!cancelled) {
+          setAllowedDomains(domains);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : t('widget.domain_load_failed');
+          showToast(message, 'error');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingDomains(false);
+        }
+      }
+    }
+
+    void loadDomains(widgetId);
+    return () => {
+      cancelled = true;
+    };
+  }, [widget?.id, showToast, t]);
+
   const handleCopyCode = () => {
     if (!widget?.code) {
       showToast(t('widget.publish_first'), 'error');
+      return;
+    }
+    if (!hasAllowedDomain) {
+      showToast(t('widget.domain_required'), 'error');
       return;
     }
 
@@ -294,10 +360,7 @@ export default function WidgetCustomization() {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handlePublish = async () => {
-    setIsPublishing(true);
-    
-    // Save settings locally so widget preview state survives page changes.
+  const saveWidgetSettings = async () => {
     const settings = {
       primaryColor,
       botName,
@@ -312,46 +375,49 @@ export default function WidgetCustomization() {
     };
     localStorage.setItem(WIDGET_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
 
+    const tenantId = resolveTenantIdFromToken();
+    if (!tenantId) {
+      throw new Error(t('widget.tenant_missing'));
+    }
+
+    const appearanceConfig = {
+      primaryColor: widgetCustomizationEnabled ? primaryColor : '#2563EB',
+      position,
+      iconColor: widgetCustomizationEnabled ? iconColor : '#ffffff',
+      selectedIconId: widgetCustomizationEnabled ? selectedIconId : 'bot',
+      customIconUrl: widgetCustomizationEnabled ? customIconUrl : null,
+      knowledgeBaseId: knowledgeBaseId || null,
+      topK,
+      temperature,
+    };
+
+    let activeWidget = widget;
+    if (!activeWidget) {
+      activeWidget = await createWidget({
+        tenantId,
+        name: botName.trim() || t('widget.default_name'),
+        code: generateWidgetCode(),
+        welcomeMessage: welcomeMsg.trim(),
+        createdBy: resolveUserIdFromToken() || null,
+        appearanceConfig,
+      });
+    } else {
+      activeWidget = await updateWidget(activeWidget.id, {
+        name: botName.trim() || t('widget.default_name'),
+        welcomeMessage: welcomeMsg.trim(),
+        appearanceConfig,
+      });
+    }
+
+    setWidget(activeWidget);
+    return activeWidget;
+  };
+
+  const handlePublish = async () => {
+    setIsPublishing(true);
+    
     try {
-      const tenantId = resolveTenantIdFromToken();
-      if (!tenantId) {
-        throw new Error(t('widget.tenant_missing'));
-      }
-
-      const appearanceConfig = {
-        primaryColor: widgetCustomizationEnabled ? primaryColor : '#2563EB',
-        position,
-        iconColor: widgetCustomizationEnabled ? iconColor : '#ffffff',
-        selectedIconId: widgetCustomizationEnabled ? selectedIconId : 'bot',
-        customIconUrl: widgetCustomizationEnabled ? customIconUrl : null,
-        knowledgeBaseId: knowledgeBaseId || null,
-        topK,
-        temperature,
-      };
-
-      let activeWidget = widget;
-      if (!activeWidget) {
-        const created = await createWidget({
-          tenantId,
-          name: botName.trim() || t('widget.default_name'),
-          code: generateWidgetCode(),
-          welcomeMessage: welcomeMsg.trim(),
-          createdBy: resolveUserIdFromToken() || null,
-          appearanceConfig,
-        });
-
-        activeWidget = created;
-        setWidget(created);
-      } else {
-        const updated = await updateWidget(activeWidget.id, {
-          name: botName.trim() || t('widget.default_name'),
-          welcomeMessage: welcomeMsg.trim(),
-          appearanceConfig,
-        });
-
-        activeWidget = updated;
-        setWidget(updated);
-      }
+      await saveWidgetSettings();
 
       setIsPublishing(false);
       showToast(t('widget.publish_success'), 'success');
@@ -359,6 +425,32 @@ export default function WidgetCustomization() {
       setIsPublishing(false);
       const message = error instanceof Error ? error.message : t('widget.publish_failed');
       showToast(message, 'error');
+    }
+  };
+
+  const handleAddDomain = async () => {
+    const domain = normalizeWebsiteDomain(domainInput);
+    if (!/^(localhost|[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+)$/.test(domain)) {
+      showToast(t('widget.domain_invalid'), 'error');
+      return;
+    }
+    if (allowedDomains.some((item) => item.domain.replace(/^www\./, '').toLowerCase() === domain)) {
+      showToast(t('widget.domain_exists'), 'error');
+      return;
+    }
+
+    setIsSavingDomain(true);
+    try {
+      const activeWidget = widget?.id ? widget : await saveWidgetSettings();
+      const created = await addWidgetDomain(activeWidget.id, { domain, allowSubdomains });
+      setAllowedDomains((prev) => [...prev, created]);
+      setDomainInput('');
+      showToast(t('widget.domain_added'), 'success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('widget.domain_add_failed');
+      showToast(message, 'error');
+    } finally {
+      setIsSavingDomain(false);
     }
   };
 
@@ -598,10 +690,10 @@ export default function WidgetCustomization() {
                       className={cn(
                         "w-10 h-10 rounded-[12px] flex items-center justify-center transition-all border",
                         !widgetCustomizationEnabled
-                          ? "bg-[#000000] text-[#6b7280] border border-[rgba(255,255,255,0.15)] cursor-not-allowed"
+                          ? "bg-[#151517] text-[#6b7280] border border-[rgba(255,255,255,0.15)] cursor-not-allowed"
                           : selectedIconId === item.id 
                             ? "text-white border border-transparent shadow-md shadow-black/40" 
-                            : "bg-[#000000] text-[#a1a4a5] border border-[rgba(255,255,255,0.3)] hover:border-primary/50 hover:text-[#3b9eff]"
+                            : "bg-[#151517] text-[#a1a4a5] border border-[rgba(255,255,255,0.3)] hover:border-primary/50 hover:text-[#3b9eff]"
                       )}
                       style={widgetCustomizationEnabled && selectedIconId === item.id ? { backgroundColor: primaryColor, boxShadow: `0 4px 12px ${primaryColor}33` } : {}}
                     >
@@ -778,20 +870,93 @@ export default function WidgetCustomization() {
                 </div>
                 <p className="text-sm leading-6 text-[#8b8f91]">{t('widget.embed_status_desc')}</p>
 
+                <div className="rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold text-[#f0f0f0] py-1">{t('widget.domain_title')}</p>
+                    </div>
+                    {hasAllowedDomain ? (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold text-emerald-300">
+                        <CheckCircle2 size={12} />
+                        {t('widget.domain_ready')}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 rounded-full border border-[#ff801f]/20 bg-[#ff801f]/10 px-2.5 py-1 text-[10px] font-bold text-[#ffb86b]">
+                        {t('widget.domain_required_badge')}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    <div className="flex gap-2">
+                      <input
+                        value={domainInput}
+                        onChange={(event) => setDomainInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            void handleAddDomain();
+                          }
+                        }}
+                        placeholder="example.com"
+                        disabled={isSavingDomain}
+                        className={cn(fieldClass, "h-11 py-2.5")}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddDomain}
+                        disabled={isSavingDomain || !domainInput.trim()}
+                        className="shrink-0 rounded-[14px] bg-[#ffffff] px-4 text-xs font-bold text-[#000000] transition-colors hover:bg-[#f0f0f0] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isSavingDomain ? t('common.loading') : t('widget.domain_add')}
+                      </button>
+                    </div>
+
+                    <label className="flex items-center gap-2 text-[11px] font-medium text-[#a1a4a5]">
+                      <input
+                        type="checkbox"
+                        checked={allowSubdomains}
+                        onChange={(event) => setAllowSubdomains(event.target.checked)}
+                        className="h-4 w-4 accent-[#ffffff]"
+                      />
+                      {t('widget.domain_subdomains')}
+                    </label>
+
+                    {isLoadingDomains ? (
+                      <p className="text-[11px] text-[#8b8f91]">{t('common.loading')}</p>
+                    ) : allowedDomains.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {allowedDomains.map((item) => (
+                          <span
+                            key={item.id}
+                            className="rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.05)] px-3 py-1.5 text-[11px] font-semibold text-[#d7d9da]"
+                          >
+                            {item.domain}{item.allowSubdomains ? ' + subdomains' : ''}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] leading-5 text-[#ffb86b]">{t('widget.domain_empty')}</p>
+                    )}
+                  </div>
+                </div>
+
                 <div className="relative group">
                   <pre className="bg-[#0b0b0c] text-[rgba(255,255,255,0.55)] p-4 rounded-[16px] text-[10px] font-mono overflow-x-auto border border-[rgba(255,255,255,0.08)] leading-relaxed">
                     {widgetScript}
                   </pre>
                   <button 
                     onClick={handleCopyCode}
-                    className="absolute top-2 right-2 p-2 bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.12)] text-white rounded-md transition-all backdrop-blur-sm"
+                    disabled={!widget?.code || !hasAllowedDomain}
+                    className="absolute top-2 right-2 p-2 bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.12)] text-white rounded-md transition-all backdrop-blur-sm disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isCopied ? <Check size={16} className="text-emerald-400" /> : <Paperclip size={16} />}
                   </button>
                 </div>
                 <button 
                   onClick={handleCopyCode}
-                  className="w-full py-3 bg-[rgba(255,255,255,0.06)] text-[#f0f0f0] text-xs font-bold rounded-[14px] hover:bg-[rgba(255,255,255,0.1)] transition-all flex items-center justify-center gap-2 border-none"
+                  disabled={!widget?.code || !hasAllowedDomain}
+                  className="w-full py-3 bg-[rgba(255,255,255,0.06)] text-[#f0f0f0] text-xs font-bold rounded-[14px] hover:bg-[rgba(255,255,255,0.1)] transition-all flex items-center justify-center gap-2 border-none disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isCopied ? t('widget.code_copied') : t('widget.copy_code')}
                 </button>
@@ -894,8 +1059,20 @@ export default function WidgetCustomization() {
           "absolute bottom-4 sm:bottom-8 transition-all duration-500",
           position === 'right' ? "right-4 sm:right-8" : "left-4 sm:left-8"
         )}>
-          <div className="w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white cursor-pointer hover:scale-110 transition-transform" style={{ backgroundColor: primaryColor }}>
-            <MessageSquare size={28} />
+          <div
+            className="w-14 h-14 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform overflow-hidden [&>svg]:h-full [&>svg]:w-full"
+            style={{ color: primaryColor }}
+          >
+            {selectedIconId === 'custom' && customIconUrl ? (
+              <img
+                src={customIconUrl}
+                alt={botName}
+                className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <SelectedIcon size={40} />
+            )}
           </div>
         </div>
       </div>

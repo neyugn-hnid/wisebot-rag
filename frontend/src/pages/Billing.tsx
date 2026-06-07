@@ -51,6 +51,9 @@ interface Invoice {
   status: string;
 }
 
+type PlanFormErrors = Partial<Record<'code' | 'name', string>>;
+type PlanFormTouched = Partial<Record<'code' | 'name', boolean>>;
+
 function formatCurrency(amount: number, currency = 'VND') {
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
@@ -78,10 +81,13 @@ export default function Billing() {
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState<BillingPlanResponse | null>(null);
   const [planForm, setPlanForm] = useState<CreatePlanRequest>({ code: '', name: '', description: '' });
+  const [planFormErrors, setPlanFormErrors] = useState<PlanFormErrors>({});
+  const [planFormTouched, setPlanFormTouched] = useState<PlanFormTouched>({});
   const [savingPlan, setSavingPlan] = useState(false);
   const [editingPrices, setEditingPrices] = useState<BillingPlanPriceResponse[]>([]);
   const [priceLoading, setPriceLoading] = useState(false);
   const [priceForms, setPriceForms] = useState<Record<string, { amountCents: number; currency: string }>>({});
+  const [priceErrors, setPriceErrors] = useState<Record<string, string>>({});
   const [savingPrice, setSavingPrice] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -210,15 +216,51 @@ export default function Billing() {
   };
 
   // ── Admin plan handlers ────────────────────────────────────────────
+  const validatePlanForm = (form: CreatePlanRequest): PlanFormErrors => {
+    const errors: PlanFormErrors = {};
+    const code = form.code.trim();
+    const name = form.name.trim();
+
+    if (!code) {
+      errors.code = 'Vui lòng nhập mã gói.';
+    } else if (!/^[a-z0-9_-]+$/.test(code)) {
+      errors.code = 'Mã gói chỉ dùng chữ thường, số, dấu gạch ngang hoặc gạch dưới.';
+    } else if (code.length < 2 || code.length > 32) {
+      errors.code = 'Mã gói phải từ 2 đến 32 ký tự.';
+    }
+
+    if (!name) {
+      errors.name = 'Vui lòng nhập tên gói.';
+    } else if (name.length < 2 || name.length > 80) {
+      errors.name = 'Tên gói phải từ 2 đến 80 ký tự.';
+    }
+
+    return errors;
+  };
+
+  const validatePriceAmount = (amount: number | undefined) => {
+    if (!Number.isFinite(amount)) return 'Giá phải là số hợp lệ.';
+    if ((amount ?? 0) < 0) return 'Giá không được nhỏ hơn 0.';
+    return '';
+  };
+
   const openCreateModal = () => {
     setEditingPlan(null);
     setPlanForm({ code: '', name: '', description: '' });
+    setPlanFormErrors({});
+    setPlanFormTouched({});
+    setEditingPrices([]);
+    setPriceForms({});
+    setPriceErrors({});
     setShowPlanModal(true);
   };
 
   const openEditModal = async (plan: BillingPlanResponse) => {
     setEditingPlan(plan);
     setPlanForm({ code: plan.code, name: plan.name, description: plan.description || '' });
+    setPlanFormErrors({});
+    setPlanFormTouched({});
+    setPriceErrors({});
     setShowPlanModal(true);
     // Fetch prices for this plan
     setPriceLoading(true);
@@ -236,17 +278,29 @@ export default function Billing() {
   };
 
   const handleSavePlan = async () => {
-    if (!planForm.code.trim() || !planForm.name.trim()) return;
+    const errors = validatePlanForm(planForm);
+    setPlanFormTouched({ code: true, name: true });
+    setPlanFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setSavingPlan(true);
     try {
+      const payload = {
+        ...planForm,
+        code: planForm.code.trim(),
+        name: planForm.name.trim(),
+        description: planForm.description?.trim() || '',
+      };
       if (editingPlan) {
-        await updatePlan(editingPlan.id, planForm);
+        await updatePlan(editingPlan.id, payload);
         showToast('Đã cập nhật gói dịch vụ', 'success');
       } else {
-        await createPlan(planForm);
+        await createPlan(payload);
         showToast('Đã tạo gói dịch vụ mới', 'success');
       }
       setShowPlanModal(false);
+      setPlanFormErrors({});
+      setPlanFormTouched({});
       await fetchBackendData();
     } catch (err: any) {
       showToast(err.message || 'Lỗi khi lưu gói dịch vụ', 'error');
@@ -278,11 +332,21 @@ export default function Billing() {
 
   const handleSavePrice = async (priceId: string) => {
     const form = priceForms[priceId];
-    if (!form || form.amountCents < 0) return;
+    const error = validatePriceAmount(form?.amountCents);
+    if (!form || error) {
+      setPriceErrors(prev => ({ ...prev, [priceId]: error || 'Vui lòng nhập giá.' }));
+      return;
+    }
+
     setSavingPrice(priceId);
     try {
       await updatePlanPrice(priceId, { amountCents: form.amountCents, currency: form.currency });
       showToast('Đã cập nhật giá', 'success');
+      setPriceErrors(prev => {
+        const next = { ...prev };
+        delete next[priceId];
+        return next;
+      });
       // Refresh prices
       if (editingPlan) {
         const prices = await listPlanPrices(editingPlan.id).catch(() => [] as BillingPlanPriceResponse[]);
@@ -375,13 +439,6 @@ export default function Billing() {
               <h3 className="text-[16px] font-semibold text-[#f0f0f0]">Quản lý gói dịch vụ</h3>
               <p className="mt-1 text-xs text-[#8b8f91]">Thêm, sửa, ẩn/hiện các gói dịch vụ.</p>
             </div>
-            <button
-              onClick={openCreateModal}
-              className="inline-flex items-center gap-2 rounded-[12px] bg-[#3b9eff] px-4 py-2 text-xs font-bold text-white hover:bg-[#2f8ae6] transition-colors"
-            >
-              <Plus size={14} />
-              Thêm gói
-            </button>
           </div>
 
           {loadingPlans ? (
@@ -460,97 +517,160 @@ export default function Billing() {
 
         {/* Plan edit/create modal */}
         {showPlanModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-[24px] border border-[rgba(255,255,255,0.14)] bg-[rgba(30,30,30,0.98)] p-6 shadow-2xl shadow-black/50">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[18px] font-bold text-[#f8f8f8]">
-                  {editingPlan ? 'Sửa gói dịch vụ' : 'Thêm gói dịch vụ mới'}
-                </h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000000]/70 p-4 backdrop-blur-xl animate-in fade-in duration-200">
+            <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-[28px] border border-[rgba(255,255,255,0.1)] bg-[#050505] shadow-[0_28px_90px_rgba(0,0,0,0.62)] animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-6 py-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-12 items-center justify-center rounded-[18px] border border-[#3b9eff]/20 bg-[#3b9eff]/10 text-[#3b9eff]">
+                    <CreditCard size={22} />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b8f91]">Admin billing</p>
+                    <h3 className="mt-1 text-[22px] font-display font-medium tracking-tight text-[#f8f8f8]">
+                      {editingPlan ? 'Sửa gói dịch vụ' : 'Thêm gói dịch vụ mới'}
+                    </h3>
+                  </div>
+                </div>
                 <button
-                  onClick={() => setShowPlanModal(false)}
-                  className="rounded-lg p-1.5 text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                  onClick={() => {
+                    setShowPlanModal(false);
+                    setPlanFormErrors({});
+                    setPlanFormTouched({});
+                    setPriceErrors({});
+                  }}
+                  className="rounded-[12px] p-2 text-[#a1a4a5] transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-[#ffffff]"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="mt-6 space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-[#a1a4a5] mb-1.5">Mã gói (code)</label>
+              <div className="max-h-[calc(90vh-180px)] space-y-5 overflow-y-auto p-6 scrollbar-hide">
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-[#a1a4a5]">Mã gói (code)</label>
                   <input
                     type="text"
                     value={planForm.code}
-                    onChange={e => setPlanForm(p => ({ ...p, code: e.target.value }))}
+                    onChange={e => {
+                      const nextForm = { ...planForm, code: e.target.value.toLowerCase() };
+                      setPlanForm(nextForm);
+                      if (planFormTouched.code) {
+                        setPlanFormErrors(validatePlanForm(nextForm));
+                      }
+                    }}
+                    onBlur={() => {
+                      setPlanFormTouched(prev => ({ ...prev, code: true }));
+                      setPlanFormErrors(validatePlanForm(planForm));
+                    }}
                     placeholder="VD: pro, plus, enterprise"
-                    className="w-full rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.05)] px-4 py-2.5 text-sm text-[#f0f0f0] placeholder:text-[#6b6f71] focus:border-[#3b9eff] focus:outline-none"
+                    className={cn(
+                      "w-full rounded-[14px] border bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#f0f0f0] outline-none transition-colors placeholder:text-[#a1a4a5]/40",
+                      planFormTouched.code && planFormErrors.code
+                        ? "border-[#ff0000] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff0000]/20"
+                        : "border-[rgba(255,255,255,0.12)] focus:border-[#ffffff] focus:ring-[#ffffff]"
+                    )}
                   />
+                  {planFormTouched.code && planFormErrors.code ? (
+                    <p className="text-[11px] font-medium text-[#ff0000]">{planFormErrors.code}</p>
+                  ) : null}
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#a1a4a5] mb-1.5">Tên gói</label>
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-[#a1a4a5]">Tên gói</label>
                   <input
                     type="text"
                     value={planForm.name}
-                    onChange={e => setPlanForm(p => ({ ...p, name: e.target.value }))}
+                    onChange={e => {
+                      const nextForm = { ...planForm, name: e.target.value };
+                      setPlanForm(nextForm);
+                      if (planFormTouched.name) {
+                        setPlanFormErrors(validatePlanForm(nextForm));
+                      }
+                    }}
+                    onBlur={() => {
+                      setPlanFormTouched(prev => ({ ...prev, name: true }));
+                      setPlanFormErrors(validatePlanForm(planForm));
+                    }}
                     placeholder="VD: Pro, Plus"
-                    className="w-full rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.05)] px-4 py-2.5 text-sm text-[#f0f0f0] placeholder:text-[#6b6f71] focus:border-[#3b9eff] focus:outline-none"
+                    className={cn(
+                      "w-full rounded-[14px] border bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#f0f0f0] outline-none transition-colors placeholder:text-[#a1a4a5]/40",
+                      planFormTouched.name && planFormErrors.name
+                        ? "border-[#ff0000] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff0000]/20"
+                        : "border-[rgba(255,255,255,0.12)] focus:border-[#ffffff] focus:ring-[#ffffff]"
+                    )}
                   />
+                  {planFormTouched.name && planFormErrors.name ? (
+                    <p className="text-[11px] font-medium text-[#ff0000]">{planFormErrors.name}</p>
+                  ) : null}
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#a1a4a5] mb-1.5">Mô tả (mỗi dòng 1 tính năng)</label>
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-[#a1a4a5]">Mô tả (mỗi dòng 1 tính năng)</label>
                   <textarea
                     value={planForm.description || ''}
                     onChange={e => setPlanForm(p => ({ ...p, description: e.target.value }))}
                     rows={4}
                     placeholder={'Không giới hạn tin nhắn\n5 kho tri thức\nHỗ trợ ưu tiên'}
-                    className="w-full rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.05)] px-4 py-2.5 text-sm text-[#f0f0f0] placeholder:text-[#6b6f71] focus:border-[#3b9eff] focus:outline-none resize-none"
+                    className="w-full resize-none rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-[#f0f0f0] outline-none transition-colors placeholder:text-[#a1a4a5]/40 focus:border-[#ffffff] focus:ring-[#ffffff]"
                   />
                 </div>
 
                 {/* ── Price management (edit mode only) ── */}
                 {editingPlan && (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
+                  <div className="rounded-[18px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] p-4">
+                    <div className="mb-3 flex items-center justify-between">
                       <label className="text-xs font-bold text-[#a1a4a5]">Giá dịch vụ</label>
                     </div>
                     {priceLoading ? (
                       <Loader2 size={16} className="animate-spin text-[#a1a4a5] mx-auto my-3" />
                     ) : editingPrices.length === 0 ? (
-                      <p className="text-xs text-[#6b6f71] mb-2">Chưa có mức giá nào.</p>
+                      <p className="mb-3 text-xs text-[#6b6f71]">Chưa có mức giá nào.</p>
                     ) : (
-                      <div className="space-y-2 mb-2">
+                      <div className="mb-3 space-y-2">
                         {editingPrices.map((price) => (
-                          <div key={price.id} className="flex items-center gap-2 rounded-[10px] bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] px-3 py-2">
-                            <span className={cn(
-                              'text-[10px] font-black uppercase px-2 py-0.5 rounded-md shrink-0',
-                              price.billingCycle === 'YEARLY' ? 'bg-[#3b9eff]/15 text-[#3b9eff]' : 'bg-[#11ff99]/10 text-[#11ff99]'
-                            )}>
-                              {price.billingCycle === 'YEARLY' ? 'Năm' : 'Tháng'}
-                            </span>
-                            <input
-                              type="number"
-                              min={0}
-                              value={priceForms[price.id]?.amountCents ?? price.amountCents}
-                              onChange={e => setPriceForms(pf => ({
-                                ...pf,
-                                [price.id]: { ...pf[price.id], amountCents: Number(e.target.value) }
-                              }))}
-                              className="w-24 rounded-[8px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.06)] px-2 py-1 text-xs text-[#f0f0f0] text-right focus:border-[#3b9eff] focus:outline-none"
-                            />
-                            <span className="text-xs text-[#8b8f91]">{price.currency}</span>
-                            <button
-                              onClick={() => handleSavePrice(price.id)}
-                              disabled={savingPrice === price.id}
-                              className="ml-auto rounded-[8px] bg-[#3b9eff] px-2.5 py-1 text-[10px] font-bold text-white hover:bg-[#2f8ae6] transition-colors disabled:opacity-50"
-                            >
-                              {savingPrice === price.id ? <Loader2 size={12} className="animate-spin" /> : 'Lưu'}
-                            </button>
-                            <button
-                              onClick={() => handleRemovePrice(price.id)}
-                              disabled={savingPrice === price.id}
-                              className="rounded-[8px] p-1 text-[#ff4d4f] hover:bg-[rgba(255,77,79,0.1)] transition-colors"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                          <div key={price.id} className="rounded-[14px] border border-[rgba(255,255,255,0.08)] bg-[rgba(0,0,0,0.22)] p-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={cn(
+                                'text-[10px] font-black uppercase px-2 py-0.5 rounded-md shrink-0',
+                                price.billingCycle === 'YEARLY' ? 'bg-[#3b9eff]/15 text-[#3b9eff]' : 'bg-[#11ff99]/10 text-[#11ff99]'
+                              )}>
+                                {price.billingCycle === 'YEARLY' ? 'Năm' : 'Tháng'}
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                value={priceForms[price.id]?.amountCents ?? price.amountCents}
+                                onChange={e => {
+                                  const amountCents = Number(e.target.value);
+                                  setPriceForms(pf => ({
+                                    ...pf,
+                                    [price.id]: { ...(pf[price.id] ?? { currency: price.currency }), amountCents }
+                                  }));
+                                  setPriceErrors(prev => ({ ...prev, [price.id]: validatePriceAmount(amountCents) }));
+                                }}
+                                className={cn(
+                                  "w-28 rounded-[10px] border bg-[rgba(255,255,255,0.06)] px-2 py-1.5 text-right text-xs text-[#f0f0f0] outline-none transition-colors",
+                                  priceErrors[price.id]
+                                    ? "border-[#ff0000] focus:border-[#ff0000] focus:ring-2 focus:ring-[#ff0000]/20"
+                                    : "border-[rgba(255,255,255,0.1)] focus:border-[#ffffff] focus:ring-[#ffffff]"
+                                )}
+                              />
+                              <span className="text-xs text-[#8b8f91]">{price.currency}</span>
+                              <button
+                                onClick={() => handleSavePrice(price.id)}
+                                disabled={savingPrice === price.id || Boolean(priceErrors[price.id])}
+                                className="ml-auto rounded-[10px] bg-[#ffffff] px-3 py-1.5 text-[10px] font-bold text-[#111111] transition-colors hover:bg-[#ececec] disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {savingPrice === price.id ? <Loader2 size={12} className="animate-spin" /> : 'Lưu'}
+                              </button>
+                              <button
+                                onClick={() => handleRemovePrice(price.id)}
+                                disabled={savingPrice === price.id}
+                                className="rounded-[10px] p-1.5 text-[#ff4d4f] transition-colors hover:bg-[rgba(255,77,79,0.1)] disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                            {priceErrors[price.id] ? (
+                              <p className="mt-2 text-[11px] font-medium text-[#ff0000]">{priceErrors[price.id]}</p>
+                            ) : null}
                           </div>
                         ))}
                       </div>
@@ -561,7 +681,7 @@ export default function Billing() {
                         <button
                           onClick={() => handleAddPrice('MONTHLY')}
                           disabled={savingPrice === 'new-MONTHLY'}
-                          className="inline-flex items-center gap-1 rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 text-[10px] font-bold text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.06)] transition-colors"
+                          className="inline-flex items-center gap-1 rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.06)] px-3 py-1.5 text-[10px] font-bold text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.1)] disabled:opacity-50"
                         >
                           {savingPrice === 'new-MONTHLY' ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
                           Thêm giá tháng
@@ -571,7 +691,7 @@ export default function Billing() {
                         <button
                           onClick={() => handleAddPrice('YEARLY')}
                           disabled={savingPrice === 'new-YEARLY'}
-                          className="inline-flex items-center gap-1 rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3 py-1.5 text-[10px] font-bold text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.06)] transition-colors"
+                          className="inline-flex items-center gap-1 rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.06)] px-3 py-1.5 text-[10px] font-bold text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.1)] disabled:opacity-50"
                         >
                           {savingPrice === 'new-YEARLY' ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
                           Thêm giá năm
@@ -582,17 +702,22 @@ export default function Billing() {
                 )}
               </div>
 
-              <div className="mt-6 flex gap-3">
+              <div className="flex gap-3 border-t border-[rgba(255,255,255,0.08)] p-6">
                 <button
-                  onClick={() => setShowPlanModal(false)}
-                  className="flex-1 rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-transparent py-2.5 text-sm font-bold text-[#a1a4a5] hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+                  onClick={() => {
+                    setShowPlanModal(false);
+                    setPlanFormErrors({});
+                    setPlanFormTouched({});
+                    setPriceErrors({});
+                  }}
+                  className="flex-1 rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] py-3 text-sm font-semibold text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.1)]"
                 >
                   Hủy
                 </button>
                 <button
                   onClick={handleSavePlan}
-                  disabled={savingPlan || !planForm.code.trim() || !planForm.name.trim()}
-                  className="flex-1 rounded-[14px] bg-[#ffffff] py-2.5 text-sm font-bold text-[#111111] hover:bg-[#f0f0f0] transition-colors disabled:opacity-40"
+                  disabled={savingPlan}
+                  className="flex-1 rounded-[14px] bg-[#ffffff] py-3 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#ececec] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {savingPlan ? <Loader2 size={16} className="animate-spin mx-auto" /> : editingPlan ? 'Cập nhật' : 'Tạo gói'}
                 </button>

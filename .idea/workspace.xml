@@ -5,12 +5,42 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9395e225-b2fc-43f8-8b76-11165b432eb5" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/ChatRetentionProperties.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/service/ChatRetentionCleanupService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-service/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/ai-service/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.yml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/ChatServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/ChatServiceApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/AppConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/config/AppConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/PublicApiController.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/PublicApiController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/PublicChatController.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/controller/PublicChatController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/request/RecommendRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/dto/request/RecommendRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/repository/ChatMessageCitationRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/repository/ChatMessageCitationRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/repository/ChatMessageFeedbackRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/repository/ChatMessageFeedbackRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/repository/ChatMessageRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/repository/ChatMessageRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/repository/ChatSessionRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/java/vandinh/wisebot/chatservice/repository/ChatSessionRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chat-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/chat-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/public/widget.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/public/widget.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/api/widget.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/widget.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/contexts/LanguageContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/contexts/LanguageContext.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/APIKeys.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/APIKeys.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/ActivityLog.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/ActivityLog.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Analytics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Analytics.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Billing.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Billing.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Contact.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Docs.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Docs.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Faq.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Integration.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/KnowledgeBase.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/KnowledgeBase.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/pages/LandingPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/LandingPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Login.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Login.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Register.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Register.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Profile.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Profile.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/WidgetCustomization.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/WidgetCustomization.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/WidgetEmbedTest.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/WidgetEmbedTest.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/controller/PublicWidgetController.java" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/controller/PublicWidgetController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/controller/WidgetController.java" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/controller/WidgetController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/repository/WidgetRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/repository/WidgetRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/service/WidgetService.java" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/service/WidgetService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/service/impl/WidgetServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/widget-service/src/main/java/vandinh/wisebot/widgetservice/service/impl/WidgetServiceImpl.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -87,7 +117,7 @@
     &quot;Spring Boot.DocumentServiceApplication.executor&quot;: &quot;Run&quot;,
     &quot;Spring Boot.UserServiceApplication.executor&quot;: &quot;Run&quot;,
     &quot;Spring Boot.WidgetServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;fix/minor-bugs&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;jdk.selected.JAVA_MODULE&quot;: &quot;17&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;C:/Users/VanDinh/OneDrive/Máy tính/wisebot-rag&quot;,
@@ -228,6 +258,8 @@
       <workItem from="1780114351008" duration="3458000" />
       <workItem from="1780197818642" duration="1557000" />
       <workItem from="1780279544348" duration="66000" />
+      <workItem from="1780756736105" duration="3000000" />
+      <workItem from="1780801617151" duration="5207000" />
     </task>
     <servers />
   </component>

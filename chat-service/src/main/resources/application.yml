@@ -46,6 +46,14 @@ integration:
 widget:
   base-url: ${WIDGET_BASE_URL:http://localhost:8084}
 
+chat:
+  retention:
+    cleanup-enabled: ${CHAT_RETENTION_CLEANUP_ENABLED:true}
+    widget-session-days: ${CHAT_RETENTION_WIDGET_SESSION_DAYS:90}
+    batch-size: ${CHAT_RETENTION_BATCH_SIZE:500}
+    cleanup-initial-delay-ms: ${CHAT_RETENTION_INITIAL_DELAY_MS:300000}
+    cleanup-fixed-delay-ms: ${CHAT_RETENTION_FIXED_DELAY_MS:86400000}
+
 realtime:
   websocket-endpoint: /ws/chat
   app-prefix: /app

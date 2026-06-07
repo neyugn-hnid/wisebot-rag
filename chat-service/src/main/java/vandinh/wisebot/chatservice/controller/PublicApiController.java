@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import vandinh.wisebot.chatservice.config.WidgetProperties;
+import vandinh.wisebot.chatservice.dto.request.AskRequest;
 import vandinh.wisebot.chatservice.dto.request.RecommendRequest;
-import vandinh.wisebot.chatservice.dto.response.RecommendResponse;
 import vandinh.wisebot.chatservice.dto.response.ProductItem;
 import vandinh.wisebot.chatservice.service.client.AiClient;
 
@@ -33,53 +33,64 @@ public class PublicApiController {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
+    @PostMapping("/ask")
+    public ResponseEntity<?> ask(
+            @RequestHeader("X-API-Key") String apiKey,
+            @Valid @RequestBody AskRequest request
+    ) {
+        WidgetContext context = validateApiKey(apiKey);
+        if (!context.valid()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", context.error()));
+        }
+
+        UUID knowledgeBaseId = resolveKnowledgeBaseId(request.getKnowledgeBaseId(), context.widgetData());
+
+        Map<String, Object> aiPayload = new HashMap<>();
+        aiPayload.put("tenant_id", context.tenantId());
+        aiPayload.put("question", request.getQuestion());
+        aiPayload.put("top_k", request.getTopK());
+        aiPayload.put("temperature", request.getTemperature());
+        if (knowledgeBaseId != null) {
+            aiPayload.put("knowledge_base_id", knowledgeBaseId);
+        }
+        if (request.getPageContext() != null) {
+            aiPayload.put("page_context", request.getPageContext());
+        }
+
+        Map<String, Object> aiResult = aiClient.ask(aiPayload);
+        String answer = aiResult == null || aiResult.get("answer") == null
+                ? ""
+                : aiResult.get("answer").toString();
+        Object citations = aiResult == null || aiResult.get("citations") == null
+                ? List.of()
+                : aiResult.get("citations");
+        return ResponseEntity.ok(Map.of(
+                "answer", answer,
+                "citations", citations
+        ));
+    }
+
     @PostMapping("/recommend")
     public ResponseEntity<?> recommend(
             @RequestHeader("X-API-Key") String apiKey,
             @Valid @RequestBody RecommendRequest request
     ) {
-        // 1. Validate API key via widget-service
-        Map<String, Object> widgetData;
-        try {
-            var headers = new org.springframework.http.HttpHeaders();
-            headers.set("X-API-Key", apiKey);
-            var entity = new org.springframework.http.HttpEntity<>(null, headers);
-            var response = restTemplate.postForEntity(
-                    widgetProperties.getBaseUrl() + "/internal/api-keys/validate",
-                    entity,
-                    Map.class
-            );
-            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Invalid API key"));
-            }
-            widgetData = response.getBody();
-        } catch (Exception e) {
+        WidgetContext context = validateApiKey(apiKey);
+        if (!context.valid()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Invalid API key: " + e.getMessage()));
+                    .body(Map.of("error", context.error()));
         }
 
-        // 2. Extract widget info
-        Map<String, Object> data = (Map<String, Object>) widgetData.get("data");
-        if (data == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Invalid API key"));
-        }
-        UUID tenantId = UUID.fromString(data.get("tenantId").toString());
-        String knowledgeBaseIdStr = null;
-        Map<String, Object> appearanceConfig = (Map<String, Object>) data.get("appearanceConfig");
-        if (appearanceConfig != null && appearanceConfig.get("knowledgeBaseId") != null) {
-            knowledgeBaseIdStr = appearanceConfig.get("knowledgeBaseId").toString();
-        }
+        UUID knowledgeBaseId = resolveKnowledgeBaseId(request.getKnowledgeBaseId(), context.widgetData());
 
-        // 3. Call AI service
         Map<String, Object> aiPayload = new HashMap<>();
-        aiPayload.put("tenant_id", tenantId);
+        aiPayload.put("tenant_id", context.tenantId());
         aiPayload.put("question", request.getQuestion());
         aiPayload.put("top_k", request.getTopK());
         aiPayload.put("temperature", request.getTemperature());
-        if (knowledgeBaseIdStr != null) {
-            aiPayload.put("knowledge_base_id", UUID.fromString(knowledgeBaseIdStr));
+        if (knowledgeBaseId != null) {
+            aiPayload.put("knowledge_base_id", knowledgeBaseId);
         }
         Map<String, Object> pageContext = new HashMap<>();
         if (request.getPageContext() != null) {
@@ -91,8 +102,47 @@ public class PublicApiController {
         Map<String, Object> aiResult = aiClient.ask(aiPayload);
         String answer = (String) aiResult.getOrDefault("answer", "");
 
-        // 4. Parse JSON products from answer
         return ResponseEntity.ok(parseRecommendResponse(answer));
+    }
+
+    @SuppressWarnings("unchecked")
+    private WidgetContext validateApiKey(String apiKey) {
+        try {
+            var headers = new org.springframework.http.HttpHeaders();
+            headers.set("X-API-Key", apiKey);
+            var entity = new org.springframework.http.HttpEntity<>(null, headers);
+            var response = restTemplate.postForEntity(
+                    widgetProperties.getBaseUrl() + "/internal/api-keys/validate",
+                    entity,
+                    Map.class
+            );
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                return WidgetContext.invalid("Invalid API key");
+            }
+
+            Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
+            if (data == null || data.get("tenantId") == null) {
+                return WidgetContext.invalid("Invalid API key");
+            }
+
+            return WidgetContext.valid(UUID.fromString(data.get("tenantId").toString()), data);
+        } catch (Exception e) {
+            return WidgetContext.invalid("Invalid API key: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private UUID resolveKnowledgeBaseId(UUID requestKnowledgeBaseId, Map<String, Object> widgetData) {
+        if (requestKnowledgeBaseId != null) {
+            return requestKnowledgeBaseId;
+        }
+
+        Map<String, Object> appearanceConfig = (Map<String, Object>) widgetData.get("appearanceConfig");
+        if (appearanceConfig != null && appearanceConfig.get("knowledgeBaseId") != null) {
+            return UUID.fromString(appearanceConfig.get("knowledgeBaseId").toString());
+        }
+
+        return null;
     }
 
     private Map<String, Object> parseRecommendResponse(String answer) {
@@ -123,5 +173,15 @@ public class PublicApiController {
         result.put("message", answer);
         result.put("products", List.of());
         return result;
+    }
+
+    private record WidgetContext(boolean valid, UUID tenantId, Map<String, Object> widgetData, String error) {
+        private static WidgetContext valid(UUID tenantId, Map<String, Object> widgetData) {
+            return new WidgetContext(true, tenantId, widgetData, null);
+        }
+
+        private static WidgetContext invalid(String error) {
+            return new WidgetContext(false, null, Map.of(), error);
+        }
     }
 }

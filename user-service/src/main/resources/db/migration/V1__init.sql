@@ -6,7 +6,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ===============================
 -- TENANTS
 -- ===============================
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     tenants (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
         name VARCHAR(255) NOT NULL UNIQUE,
@@ -17,7 +17,7 @@ CREATE TABLE
 -- ===============================
 -- USERS
 -- ===============================
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
         tenant_id UUID NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE
 -- ===============================
 -- ROLES
 -- ===============================
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     roles (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
         name VARCHAR(50) NOT NULL UNIQUE,
@@ -53,7 +53,7 @@ CREATE TABLE
 -- ===============================
 -- PERMISSIONS
 -- ===============================
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     permissions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
         name VARCHAR(100) NOT NULL UNIQUE,
@@ -63,7 +63,7 @@ CREATE TABLE
 -- ===============================
 -- USER_ROLES
 -- ===============================
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     user_roles (
         user_id UUID NOT NULL,
         role_id UUID NOT NULL,
@@ -75,7 +75,7 @@ CREATE TABLE
 -- ===============================
 -- ROLE_PERMISSIONS
 -- ===============================
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     role_permissions (
         role_id UUID NOT NULL,
         permission_id UUID NOT NULL,
@@ -87,26 +87,26 @@ CREATE TABLE
 -- ===============================
 -- INDEXES (QUAN TRỌNG)
 -- ===============================
-CREATE INDEX idx_users_email ON users (email);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 
-CREATE INDEX idx_users_username ON users (username);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 
-CREATE INDEX idx_users_tenant ON users (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_users_tenant ON users (tenant_id);
 
-CREATE INDEX idx_users_email_verification_token ON users (email_verification_token);
+CREATE INDEX IF NOT EXISTS idx_users_email_verification_token ON users (email_verification_token);
 
-CREATE INDEX idx_users_password_reset_token ON users (password_reset_token);
+CREATE INDEX IF NOT EXISTS idx_users_password_reset_token ON users (password_reset_token);
 
-CREATE INDEX idx_user_roles_user ON user_roles (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_user ON user_roles (user_id);
 
-CREATE INDEX idx_user_roles_role ON user_roles (role_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles (role_id);
 
-CREATE INDEX idx_role_permissions_role ON role_permissions (role_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON role_permissions (role_id);
 
 -- ===============================
 -- AUDIT LOG
 -- ===============================
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     audit_logs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
         user_id UUID,
@@ -124,7 +124,7 @@ CREATE TABLE
 -- ===============================
 -- API USAGE
 -- ===============================
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     api_usage (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
         user_id UUID,
@@ -137,7 +137,7 @@ CREATE TABLE
 -- ===============================
 -- JWT BLACKLIST
 -- ===============================
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     blacklisted_tokens (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
         token TEXT NOT NULL,
@@ -147,7 +147,7 @@ CREATE TABLE
 -- ===============================
 -- TENANT INVITES
 -- ===============================
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     tenant_invites (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
         tenant_id UUID NOT NULL,
@@ -160,14 +160,14 @@ CREATE TABLE
         CONSTRAINT fk_tenant_invites_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
     );
 
-CREATE INDEX idx_tenant_invites_token ON tenant_invites (token);
+CREATE INDEX IF NOT EXISTS idx_tenant_invites_token ON tenant_invites (token);
 
-CREATE INDEX idx_tenant_invites_tenant_email ON tenant_invites (tenant_id, email);
+CREATE INDEX IF NOT EXISTS idx_tenant_invites_tenant_email ON tenant_invites (tenant_id, email);
 
 -- ===============================
 -- EMAIL LOGS
 -- ===============================
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     email_logs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
         recipient VARCHAR(200) NOT NULL,
@@ -178,14 +178,14 @@ CREATE TABLE
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
-CREATE INDEX idx_email_logs_recipient ON email_logs (recipient);
+CREATE INDEX IF NOT EXISTS idx_email_logs_recipient ON email_logs (recipient);
 
-CREATE INDEX idx_email_logs_status ON email_logs (status);
+CREATE INDEX IF NOT EXISTS idx_email_logs_status ON email_logs (status);
 
 -- ===============================
 -- SYSTEM SETTINGS
 -- ===============================
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     system_settings (
         id UUID PRIMARY KEY,
         setting_key VARCHAR(120) NOT NULL UNIQUE,
@@ -196,7 +196,7 @@ CREATE TABLE
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
-CREATE INDEX idx_system_settings_key ON system_settings (setting_key);
+CREATE INDEX IF NOT EXISTS idx_system_settings_key ON system_settings (setting_key);
 
 -- ===============================
 -- SEED ROLES

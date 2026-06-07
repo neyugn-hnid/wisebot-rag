@@ -260,32 +260,36 @@ export default function Analytics() {
       {isAdmin && (
         <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <ChartPanel title={t('analytics.admin.plan_distribution')} description={t('analytics.panel.plan_desc')}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={planDistributionData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={62}
-                  outerRadius={88}
-                  paddingAngle={5}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {planDistributionData.map((entry, index) => (
-                    <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={chartTooltipStyle} itemStyle={{ color: '#f0f0f0' }} labelStyle={{ color: '#a1a4a5' }} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="mt-4 flex flex-wrap justify-center gap-4">
-              {planDistributionData.map((entry, index) => (
-                <div key={entry.name} className="flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                  <span className="text-xs font-semibold text-[#a1a4a5]">{entry.name}</span>
-                </div>
-              ))}
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="min-h-0 flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={planDistributionData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={62}
+                      outerRadius={88}
+                      paddingAngle={5}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {planDistributionData.map((entry, index) => (
+                        <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={chartTooltipStyle} itemStyle={{ color: '#f0f0f0' }} labelStyle={{ color: '#a1a4a5' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 flex w-full flex-wrap justify-center gap-4">
+                {planDistributionData.map((entry, index) => (
+                  <div key={entry.name} className="flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                    <span className="text-xs font-semibold text-[#a1a4a5]">{entry.name}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </ChartPanel>
 

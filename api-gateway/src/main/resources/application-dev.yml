@@ -78,7 +78,7 @@ spring:
 
             # Widget service (protected)
             - id: widget-service-public
-              uri: ${WIDGET_SERVICE_URL:http://localhost:8083}
+              uri: ${WIDGET_SERVICE_URL:http://localhost:8084}
               predicates:
                 - Path=/api/widget/public/**
               filters:
