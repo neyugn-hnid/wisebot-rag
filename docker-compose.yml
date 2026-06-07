@@ -79,14 +79,30 @@ services:
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY required}
       MINERU_ENABLED: ${MINERU_ENABLED:-false}
       MINERU_BASE_URL: ${MINERU_BASE_URL:-http://mineru:8000}
+      MINERU_BACKEND: ${MINERU_BACKEND:-pipeline}
+      MINERU_PARSE_METHOD: ${MINERU_PARSE_METHOD:-txt}
+      MINERU_LANG: ${MINERU_LANG:-latin}
+      MINERU_READ_TIMEOUT_MS: ${MINERU_READ_TIMEOUT_MS:-900000}
+      MARKITDOWN_ENABLED: ${MARKITDOWN_ENABLED:-true}
+      MARKITDOWN_BASE_URL: ${MARKITDOWN_BASE_URL:-http://markitdown-service:8006}
     depends_on:
       - postgres
       - embedding-service
       - billing-service
+      - markitdown-service
     ports:
       - "8081:8081"
     volumes:
       - uploads_data:/app/data/uploads
+
+  markitdown-service:
+    build:
+      context: ./markitdown-service
+      dockerfile: ../docker/markitdown-service.Dockerfile
+    environment:
+      APP_PORT: 8006
+    ports:
+      - "8006:8006"
 
   chat-service:
     build:
@@ -180,12 +196,31 @@ services:
       - "8001:8001"
 
   mineru:
-    image: opendatalab/mineru-api:latest
+    build:
+      context: .
+      dockerfile: docker/mineru.Dockerfile
+    image: mineru:latest
     container_name: wisebot-mineru
+    environment:
+      MINERU_MODEL_SOURCE: local
+      MINERU_API_OUTPUT_ROOT: /app/output
+      MINERU_API_TASK_RETENTION_SECONDS: 86400
+    entrypoint: mineru-api
+    command:
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
     ports:
       - "8000:8000"
     volumes:
-      - mineru_data:/app/data
+      - mineru_data:/app/output
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
     deploy:
       resources:
         reservations:

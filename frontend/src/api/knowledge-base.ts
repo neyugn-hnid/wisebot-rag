@@ -15,7 +15,7 @@ export interface KnowledgeBaseRequest {
   description?: string;
 }
 
-export type DocumentStatus = 'UPLOADED' | 'PROCESSED' | 'FAILED';
+export type DocumentStatus = 'UPLOADED' | 'PROCESSING' | 'PROCESSED' | 'FAILED';
 
 export interface DocumentResponse {
   id: string;
@@ -25,6 +25,11 @@ export interface DocumentResponse {
   size?: number;
   status: DocumentStatus;
   createdAt?: string;
+}
+
+export interface DocumentUploadResponse {
+  document: DocumentResponse;
+  chunkCount: number;
 }
 
 // --- Helper ---
@@ -84,17 +89,14 @@ export async function listDocuments(knowledgeBaseId: string): Promise<DocumentRe
   return handleResponse<DocumentResponse[]>(res);
 }
 
-export async function uploadDocument(knowledgeBaseId: string, file: File): Promise<void> {
+export async function uploadDocument(knowledgeBaseId: string, file: File): Promise<DocumentUploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
   const res = await fetchWithAuth(`${KB_BASE}/${knowledgeBaseId}/documents`, {
     method: 'POST',
     body: formData,
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error((body as { message?: string })?.message || `Upload failed: ${res.status}`);
-  }
+  return handleResponse<DocumentUploadResponse>(res);
 }
 
 export async function deleteDocument(id: string): Promise<void> {

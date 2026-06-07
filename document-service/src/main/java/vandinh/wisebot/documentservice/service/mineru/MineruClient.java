@@ -1,12 +1,14 @@
 package vandinh.wisebot.documentservice.service.mineru;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -15,12 +17,8 @@ import vandinh.wisebot.documentservice.config.MineruProperties;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
-/**
- * REST client cho MinerU document parsing API.
- *
- * Flow: upload file → poll task → lấy Markdown kết quả
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -29,132 +27,99 @@ public class MineruClient {
 
     private final RestTemplate restTemplate;
     private final MineruProperties properties;
-    private final ObjectMapper objectMapper;
 
-    /**
-     * Upload và parse file, chờ kết quả.
-     * Trả về Markdown + metadata, hoặc null nếu thất bại.
-     */
     public MineruResult parse(byte[] fileContent, String filename) {
         if (!properties.isEnabled() || fileContent == null || fileContent.length == 0) {
             return null;
         }
 
         try {
-            String taskId = uploadFile(fileContent, filename);
-            if (taskId == null) {
-                log.warn("MinerU upload returned no task_id for: {}", filename);
-                return null;
-            }
-            log.info("MinerU task {} created for: {}", taskId, filename);
-
-            MineruResult result = pollTask(taskId);
+            MineruResult result = parseFile(fileContent, filename);
             if (result == null) {
-                log.warn("MinerU task {} did not complete", taskId);
+                log.warn("MinerU returned no parse result for: {}", filename);
                 return null;
             }
 
-            log.info("MinerU parse done for {} (task: {})", filename, taskId);
+            log.info("MinerU parse done for {}", filename);
             return result;
-
         } catch (Exception e) {
             log.error("MinerU parse failed for {}: {}", filename, e.getMessage());
             return null;
         }
     }
 
-    private String uploadFile(byte[] fileContent, String filename) {
-        String url = properties.getBaseUrl() + properties.getUploadPath();
+    private MineruResult parseFile(byte[] fileContent, String filename) {
+        String url = properties.getBaseUrl() + properties.getFileParsePath();
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("file", new ByteArrayResource(fileContent) {
+        body.add("files", new ByteArrayResource(fileContent) {
             @Override
             public String getFilename() {
                 return filename;
             }
         });
-        body.add("parse_type", "auto");
+        body.add("backend", properties.getBackend());
+        body.add("parse_method", properties.getParseMethod());
+        body.add("lang_list", properties.getLang());
+        body.add("return_md", "true");
+        body.add("return_middle_json", "false");
+        body.add("return_model_output", "false");
+        body.add("return_content_list", "false");
+        body.add("return_images", "false");
+        body.add("response_format_zip", "false");
+        body.add("return_original_file", "false");
+        body.add("image_analysis", "false");
 
         HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
 
         try {
             ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
-            if (resp.getBody() != null) {
-                Object rawId = resp.getBody().get("task_id");
-                return rawId != null ? rawId.toString() : null;
-            }
+            return resp.getBody() != null ? parseResult(resp.getBody()) : null;
         } catch (Exception e) {
-            log.error("MinerU upload request failed: {}", e.getMessage());
+            log.error("MinerU file_parse request failed: {}", e.getMessage());
         }
-        return null;
-    }
-
-    private MineruResult pollTask(String taskId) {
-        String url = properties.getBaseUrl() + properties.getTaskPath() + "/" + taskId;
-        long deadline = System.currentTimeMillis() + properties.getMaxPollTimeMs();
-
-        while (System.currentTimeMillis() < deadline) {
-            try {
-                ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
-                if (resp.getBody() == null) {
-                    Thread.sleep(properties.getPollIntervalMs());
-                    continue;
-                }
-
-                String status = (String) resp.getBody().getOrDefault("status", "");
-                log.debug("MinerU task {} status: {}", taskId, status);
-
-                if ("done".equalsIgnoreCase(status) || "success".equalsIgnoreCase(status)) {
-                    return parseResult(resp.getBody());
-                }
-                if ("failed".equalsIgnoreCase(status) || "error".equalsIgnoreCase(status)) {
-                    log.error("MinerU task {} failed: {}", taskId, resp.getBody().get("error"));
-                    return null;
-                }
-
-                Thread.sleep(properties.getPollIntervalMs());
-
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return null;
-            } catch (Exception e) {
-                log.warn("MinerU poll failed for task {}: {}", taskId, e.getMessage());
-                return null;
-            }
-        }
-
-        log.warn("MinerU task {} timed out", taskId);
         return null;
     }
 
     @SuppressWarnings("unchecked")
-    private MineruResult parseResult(Map<String, Object> taskResponse) {
+    private MineruResult parseResult(Map<String, Object> response) {
         MineruResult result = new MineruResult();
-        Object resultObj = taskResponse.get("result");
+        result.setMarkdown(findMarkdown(response).orElse(null));
 
-        if (resultObj instanceof Map<?, ?> rm) {
-            Object md = rm.get("markdown");
-            if (md instanceof String) {
-                result.setMarkdown((String) md);
-            } else if (rm.get("content") instanceof String) {
-                result.setMarkdown((String) rm.get("content"));
-            }
-            if (rm.get("metadata") instanceof Map<?, ?>) {
-                result.setMetadata((Map<String, Object>) rm.get("metadata"));
-            }
-            if (rm.get("pages") instanceof Number n) {
-                result.setPageCount(n.intValue());
-            }
-        }
-
-        if (result.getMarkdown() == null && taskResponse.containsKey("markdown")) {
-            result.setMarkdown((String) taskResponse.get("markdown"));
+        if (response.get("results") instanceof Map<?, ?> results) {
+            result.setMetadata((Map<String, Object>) results);
+            result.setPageCount(results.size());
         }
 
         return result;
+    }
+
+    private Optional<String> findMarkdown(Object value) {
+        if (value instanceof String text) {
+            return Optional.of(text).filter(s -> !s.isBlank());
+        }
+        if (!(value instanceof Map<?, ?> map)) {
+            return Optional.empty();
+        }
+
+        for (String key : new String[]{"md_content", "markdown", "content"}) {
+            Object candidate = map.get(key);
+            if (candidate instanceof String text && !text.isBlank()) {
+                return Optional.of(text);
+            }
+        }
+
+        for (Object child : map.values()) {
+            Optional<String> markdown = findMarkdown(child);
+            if (markdown.isPresent()) {
+                return markdown;
+            }
+        }
+
+        return Optional.empty();
     }
 
     @lombok.Data

@@ -74,6 +74,7 @@ type UploadItem = {
   color: string;
   previewContent: string | null;
   fileObject?: File;
+  isOptimistic?: boolean;
 };
 
 type UploadFilter = 'all' | 'Completed' | 'Processing' | 'Failed';
@@ -97,6 +98,7 @@ export default function KnowledgeBase() {
   const [isLoadingKb, setIsLoadingKb] = useState(false);
   const [isLoadingUploads, setIsLoadingUploads] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRealtimeSyncing, setIsRealtimeSyncing] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedUpload, setSelectedUpload] = useState<UploadItem | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
@@ -197,6 +199,24 @@ export default function KnowledgeBase() {
     return 'Processing';
   };
 
+  const mapDocumentToUpload = (doc: DocumentResponse, existing?: UploadItem): UploadItem => {
+    const type = mapDocumentType(doc.filename, doc.contentType);
+    return {
+      id: doc.id,
+      name: doc.filename,
+      type,
+      status: mapDocumentStatus(doc.status),
+      size: formatFileSize(doc.size),
+      date: doc.createdAt
+        ? new Date(doc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'N/A',
+      color: type === 'PDF' ? 'text-[#d7d9da]' : type === 'DOCX' ? 'text-[#9ed1ff]' : 'text-[#a1a4a5]',
+      previewContent: existing?.previewContent ?? null,
+      fileObject: existing?.fileObject,
+      isOptimistic: false,
+    };
+  };
+
   const loadKnowledgeBases = async () => {
     setIsLoadingKb(true);
     try {
@@ -240,40 +260,36 @@ export default function KnowledgeBase() {
     }
   };
 
-  const loadDocumentsByKb = async (knowledgeBaseId: string) => {
+  const loadDocumentsByKb = async (knowledgeBaseId: string, options?: { silent?: boolean }) => {
     if (!knowledgeBaseId) {
       setUploads([]);
       return;
     }
 
-    setIsLoadingUploads(true);
+    if (!options?.silent) {
+      setIsLoadingUploads(true);
+    }
     try {
       const documents = await listDocuments(knowledgeBaseId);
 
-      const mapped: UploadItem[] = (documents || []).map((doc) => {
-        const type = mapDocumentType(doc.filename, doc.contentType);
-        const status = mapDocumentStatus(doc.status);
-        return {
-          id: doc.id,
-          name: doc.filename,
-          type,
-          status,
-          size: formatFileSize(doc.size),
-          date: doc.createdAt
-            ? new Date(doc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-            : 'N/A',
-          color: type === 'PDF' ? 'text-[#d7d9da]' : type === 'DOCX' ? 'text-[#9ed1ff]' : 'text-[#a1a4a5]',
-          previewContent: null,
-        };
+      setUploads((current) => {
+        const currentById = new Map(current.map((item) => [item.id, item]));
+        const mapped = (documents || []).map((doc) => mapDocumentToUpload(doc, currentById.get(doc.id)));
+        const remoteIds = new Set(mapped.map((item) => item.id));
+        const stillUploading = current.filter((item) => item.isOptimistic && !remoteIds.has(item.id));
+        return [...stillUploading, ...mapped];
       });
-
-      setUploads(mapped);
     } catch (error) {
+      if (options?.silent) {
+        return;
+      }
       const message = error instanceof Error ? error.message : 'Không tải được danh sách tài liệu.';
       showToast(message, 'error');
       setUploads([]);
     } finally {
-      setIsLoadingUploads(false);
+      if (!options?.silent) {
+        setIsLoadingUploads(false);
+      }
     }
   };
 
@@ -323,6 +339,21 @@ export default function KnowledgeBase() {
   useEffect(() => {
     void loadDocumentsByKb(selectedKbForUpload);
   }, [selectedKbForUpload]);
+
+  useEffect(() => {
+    const hasProcessingUploads = uploads.some((file) => file.status === 'Processing');
+    setIsRealtimeSyncing(Boolean(selectedKbForUpload && hasProcessingUploads));
+
+    if (!selectedKbForUpload || !hasProcessingUploads) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void loadDocumentsByKb(selectedKbForUpload, { silent: true });
+    }, 2000);
+
+    return () => window.clearInterval(intervalId);
+  }, [selectedKbForUpload, uploads]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -482,9 +513,12 @@ export default function KnowledgeBase() {
 
   const handleResyncUpload = async (uploadId: string) => {
     try {
+      setUploads((current) => current.map((item) => (
+        item.id === uploadId ? { ...item, status: 'Processing' } : item
+      )));
       await reprocessDocument(uploadId);
-      await loadDocumentsByKb(selectedKbForUpload);
-      showToast(t('status.completed'), 'success');
+      await loadDocumentsByKb(selectedKbForUpload, { silent: true });
+      showToast(t('status.processing'), 'success');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Đồng bộ lại tài liệu thất bại.';
       showToast(message, 'error');
@@ -659,11 +693,42 @@ export default function KnowledgeBase() {
     }
 
     const file = files[0];
-    try {
-      await uploadDocument(selectedKbForUpload, file);
+    const optimisticId = `uploading-${Date.now()}`;
+    const type = mapDocumentType(file.name, file.type);
+    const optimisticUpload: UploadItem = {
+      id: optimisticId,
+      name: file.name,
+      type,
+      status: 'Processing',
+      size: formatFileSize(file.size),
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      color: type === 'PDF' ? 'text-[#d7d9da]' : type === 'DOCX' ? 'text-[#9ed1ff]' : 'text-[#a1a4a5]',
+      previewContent: null,
+      fileObject: file,
+      isOptimistic: true,
+    };
 
-      await loadDocumentsByKb(selectedKbForUpload);
-      await loadKnowledgeBases();
+    setUploads((current) => [optimisticUpload, ...current]);
+    setUploadFilter('all');
+    setCurrentPage(1);
+    try {
+      const uploaded = await uploadDocument(selectedKbForUpload, file).catch((error) => {
+        setUploads((current) => current.map((item) => (
+          item.id === optimisticId ? { ...item, status: 'Failed', isOptimistic: false } : item
+        )));
+        throw error;
+      });
+      const uploadedDocument = uploaded.document;
+
+      if (uploadedDocument) {
+        setUploads((current) => [
+          mapDocumentToUpload(uploadedDocument, optimisticUpload),
+          ...current.filter((item) => item.id !== optimisticId && item.id !== uploadedDocument.id),
+        ]);
+      }
+
+      await loadDocumentsByKb(selectedKbForUpload, { silent: true });
+      void loadKnowledgeBases();
       showToast(t('toast.file_uploaded') || 'Tải tệp lên thành công!', 'success');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Tải tệp lên thất bại.';
@@ -1039,6 +1104,12 @@ export default function KnowledgeBase() {
                 </button>
               </div>
             </div>
+            {isRealtimeSyncing ? (
+              <div className="mb-4 flex items-center gap-2 rounded-[14px] border border-[rgba(59,158,255,0.18)] bg-[rgba(59,158,255,0.06)] px-4 py-3 text-xs font-semibold text-[#b9dcff]">
+                <Loader2 size={14} className="animate-spin text-[#3b9eff]" />
+                <span>Auto-updating file processing status.</span>
+              </div>
+            ) : null}
             <div className="space-y-3 lg:hidden">
               {isLoadingUploads ? (
                 Array.from({ length: 3 }).map((_, idx) => (

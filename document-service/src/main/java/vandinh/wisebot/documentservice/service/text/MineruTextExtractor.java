@@ -3,7 +3,6 @@ package vandinh.wisebot.documentservice.service.text;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import vandinh.wisebot.documentservice.config.MineruProperties;
@@ -21,7 +20,6 @@ import java.io.InputStream;
  * Fallback về Tika nếu MinerU disabled hoặc thất bại.
  */
 @Slf4j
-@Primary
 @Service
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "mineru.enabled", havingValue = "true", matchIfMissing = false)
