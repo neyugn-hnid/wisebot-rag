@@ -1,62 +1,58 @@
 # Huong dan trien khai WiseBot voi Apache
 
-## 1. Kien truc trien khai
+## 1. Kien truc hien tai
 
-Apache chi nen lam 2 viec:
-
-- Serve frontend React/Vite tu `frontend/dist`
-- Reverse proxy API ve `api-gateway` o port `9000`
-
-Luon chay cac service backend rieng:
+Frontend khong chay trong Docker nua.
 
 ```txt
-user-service       : 8080
-document-service   : 8081
-chat-service       : 8082
-widget-service     : 8084
-billing-service    : 8085
-api-gateway        : 9000
+frontend source -> npm run build -> frontend/dist
+frontend/dist   -> C:\xampp\htdocs\wisebot
+Apache          -> serve http://localhost
+Cloudflare      -> https://wisebot.qzz.io
+Docker          -> chi chay backend/gateway/database/AI
 ```
 
-Frontend se goi API qua:
+Apache proxy API ve gateway:
 
 ```txt
-/api/...
+/api/... -> http://127.0.0.1:9000/api/...
+/ws/...  -> ws://127.0.0.1:9000/ws/...
 ```
 
-Apache chuyen `/api/...` ve:
-
-```txt
-http://127.0.0.1:9000/api/...
-```
-
-## 2. Build frontend
-
-Mo terminal tai thu muc du an:
+## 2. Build va copy frontend
 
 ```powershell
-cd "C:\Users\VanDinh\OneDrive\Máy tính\ĐATN\frontend"
+cd "C:\Users\Admin\Documents\wisebot-rag\frontend"
 npm install
 npm run build
+
+Remove-Item -Recurse -Force "C:\xampp\htdocs\wisebot" -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force -Path "C:\xampp\htdocs\wisebot"
+Copy-Item -Recurse -Force ".\dist\*" "C:\xampp\htdocs\wisebot\"
 ```
 
-Sau khi build xong, frontend nam o:
+## 3. Chay backend bang Docker
 
-```txt
-C:\Users\VanDinh\OneDrive\Máy tính\ĐATN\frontend\dist
+```powershell
+cd "C:\Users\Admin\Documents\wisebot-rag"
+docker compose up -d --build
 ```
 
-Trong do phai co:
+Kiem tra gateway:
 
-```txt
-index.html
-widget.js
-assets/
+```powershell
+curl http://localhost:9000/actuator/health
 ```
 
-## 3. Bat module Apache can thiet
+Ket qua dung:
 
-Trong `httpd.conf`, bo comment cac dong nay neu dang bi comment:
+```json
+{"status":"UP"}
+```
+
+## 4. Cau hinh Apache
+
+Trong `C:\xampp\apache\conf\httpd.conf`, dam bao cac module nay duoc bat:
 
 ```apache
 LoadModule proxy_module modules/mod_proxy.so
@@ -66,138 +62,60 @@ LoadModule rewrite_module modules/mod_rewrite.so
 LoadModule headers_module modules/mod_headers.so
 ```
 
-Neu dung VirtualHost, dam bao co:
+Dam bao co include vhost:
 
 ```apache
 Include conf/extra/httpd-vhosts.conf
 ```
 
-## 4. Them VirtualHost
-
-Da co file cau hinh mau:
+Copy noi dung `apache-wisebot.conf` vao:
 
 ```txt
-C:\Users\VanDinh\OneDrive\Máy tính\ĐATN\apache-wisebot.conf
+C:\xampp\apache\conf\extra\httpd-vhosts.conf
 ```
 
-Noi dung chinh:
+Kiem tra Apache:
 
-```apache
-DocumentRoot "C:/Users/VanDinh/OneDrive/Máy tính/ĐATN/frontend/dist"
-
-ProxyPass "/api/" "http://127.0.0.1:9000/api/"
-ProxyPassReverse "/api/" "http://127.0.0.1:9000/api/"
+```powershell
+C:\xampp\apache\bin\httpd.exe -t
 ```
 
-Copy noi dung file `apache-wisebot.conf` vao:
+## 5. Chay domain HTTPS
+
+Apache local chi can mo:
 
 ```txt
-conf/extra/httpd-vhosts.conf
+http://localhost
 ```
 
-Hoac include truc tiep file do trong `httpd.conf`.
+HTTPS public do Cloudflare Tunnel xu ly:
 
-## 5. Chay backend
+```powershell
+cd "C:\Users\Admin\Documents\wisebot-rag"
+.\START_WISEBOT_DOMAIN_TUNNEL.bat
+```
 
-Can chay toi thieu:
+Sau do mo:
 
 ```txt
-api-gateway
-user-service
-document-service
-chat-service
-widget-service
-billing-service
-ai-service
-embedding-service
+https://wisebot.qzz.io
 ```
 
-Neu gateway khong chay, frontend se loi khi goi `/api`.
+## 6. Luu y
 
-Kiem tra gateway:
+Khong them `127.0.0.1 wisebot.qzz.io` vao file hosts khi dung Cloudflare Tunnel.
 
-```txt
-http://localhost:9000/actuator/health
+Neu sua code frontend, phai build va copy lai vao `C:\xampp\htdocs\wisebot`.
+
+Neu API loi, kiem tra:
+
+```powershell
+docker compose ps
+curl http://localhost:9000/actuator/health
 ```
 
-## 6. Restart Apache
-
-Sau khi sua config:
-
-- Restart Apache trong XAMPP/WAMP, hoac
-- Restart service Apache tren Windows
-
-Mo:
-
-```txt
-http://wisebot.qzz.io
-```
-
-Neu test local bang domain, them vao file hosts:
-
-```txt
-127.0.0.1 wisebot.qzz.io
-```
-
-File hosts Windows:
-
-```txt
-C:\Windows\System32\drivers\etc\hosts
-```
-
-## 7. Luu y voi Widget
-
-Widget nhung se load:
-
-```txt
-https://wisebot.qzz.io/widget.js
-```
-
-Va goi:
-
-```txt
-/api/widget/public/widgets/code/{widgetCode}
-```
-
-Vi vay Apache phai proxy `/api` ve `api-gateway`.
-
-Neu widget khong hien, kiem tra:
-
-- Domain hien tai da them trong Allowed domains chua
-- `widget-service` co chay port `8084` khong
-- `api-gateway` co chay port `9000` khong
-- Apache da proxy `/api` dung chua
-
-## 8. Loi hay gap
-
-### Refresh trang con bi 404
-
-Can co rewrite ve `index.html`. File `apache-wisebot.conf` da co:
-
-```apache
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
-RewriteRule ^ index.html [L]
-```
-
-### API loi 500 connection refused
-
-Thuong la service backend chua chay hoac gateway tro sai port.
-
-Kiem tra:
-
-```txt
-http://localhost:9000/actuator/health
-```
-
-### Widget bi chan domain
-
-Them domain dang mo web vao Allowed domains, vi du:
-
-```txt
-wisebot.qzz.io
-localhost
-```
-
+cd "C:\Users\Admin\Documents\wisebot-rag\frontend"
+npm run build
+Remove-Item -Recurse -Force "C:\xampp\htdocs\wisebot"
+New-Item -ItemType Directory -Force -Path "C:\xampp\htdocs\wisebot"
+Copy-Item -Recurse -Force ".\dist\*" "C:\xampp\htdocs\wisebot\"

@@ -30,6 +30,10 @@ def upgrade() -> None:
             max_tokens INTEGER,
             status VARCHAR(32) NOT NULL,
             error_message TEXT,
+            judge_faithfulness DOUBLE PRECISION,
+            judge_answer_relevance DOUBLE PRECISION,
+            judge_context_relevance DOUBLE PRECISION,
+            judge_brief TEXT,
             created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
             started_at TIMESTAMPTZ,
             finished_at TIMESTAMPTZ

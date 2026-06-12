@@ -58,3 +58,18 @@ class ProviderConfigResponse(BaseModel):
 
 class ProviderModeUpdateRequest(BaseModel):
     mode: str = Field(min_length=1)
+
+
+class FeedbackRequest(BaseModel):
+    request_id: UUID
+    tenant_id: UUID
+    session_id: UUID | None = None
+    rating: bool = Field(..., description="true = thumbs up, false = thumbs down")
+    comment: str | None = Field(default=None, max_length=500)
+
+
+class FeedbackResponse(BaseModel):
+    id: int
+    request_id: UUID
+    rating: bool
+    message: str = "Feedback recorded"

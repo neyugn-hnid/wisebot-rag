@@ -24,6 +24,7 @@ import vandinh.wisebot.chatservice.service.ChatService;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping
@@ -77,24 +78,33 @@ public class ChatController {
     public SseEmitter askStream(@PathVariable UUID sessionId, @Valid @RequestBody AskRequest request) {
         SseEmitter emitter = new SseEmitter(300_000L);
 
-        chatService.askStreaming(sessionId, request, token -> {
+        CompletableFuture.runAsync(() -> {
             try {
+                var response = chatService.askStreaming(sessionId, request, token -> {
+                    try {
+                        emitter.send(SseEmitter.event()
+                                .name("token")
+                                .data(Map.of("token", token)));
+                    } catch (IOException e) {
+                        throw new RuntimeException("SSE send failed", e);
+                    }
+                });
+
                 emitter.send(SseEmitter.event()
-                        .name("token")
-                        .data(Map.of("token", token)));
-            } catch (IOException e) {
-                throw new RuntimeException("SSE send failed", e);
+                        .name("done")
+                        .data(response));
+                emitter.complete();
+            } catch (Exception e) {
+                try {
+                    emitter.send(SseEmitter.event()
+                            .name("error")
+                            .data(Map.of("message", e.getMessage() == null ? "Stream failed" : e.getMessage())));
+                } catch (IOException ignored) {
+                    // The client may have disconnected.
+                }
+                emitter.complete();
             }
         });
-
-        try {
-            emitter.send(SseEmitter.event()
-                    .name("done")
-                    .data(Map.of("status", "completed")));
-            emitter.complete();
-        } catch (IOException e) {
-            emitter.completeWithError(e);
-        }
 
         return emitter;
     }
@@ -140,7 +150,7 @@ public class ChatController {
     }
 
     @DeleteMapping("/sessions/{sessionId}")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','AGENT')")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','AGENT','USER')")
     public ApiResponse closeSession(@PathVariable UUID sessionId) {
         chatService.closeSession(sessionId);
         return ApiResponse.builder()

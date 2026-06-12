@@ -1,7 +1,13 @@
 tunnel: 2e79cff1-41bf-4677-bfb6-e0f14da25f12
-credentials-file: C:/Users/VanDinh/.cloudflared/2e79cff1-41bf-4677-bfb6-e0f14da25f12.json
+credentials-file: C:/Users/Admin/.cloudflared/2e79cff1-41bf-4677-bfb6-e0f14da25f12.json
 
 ingress:
   - hostname: wisebot.qzz.io
-    service: http://localhost
+    path: /api/*
+    service: http://127.0.0.1:9000
+  - hostname: wisebot.qzz.io
+    path: /ws/*
+    service: http://127.0.0.1:9000
+  - hostname: wisebot.qzz.io
+    service: http://127.0.0.1
   - service: http_status:404

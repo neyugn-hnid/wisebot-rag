@@ -151,27 +151,51 @@ public class TextChunker {
     }
 
     private List<String> splitLongSection(String text, int maxSize, int minSize) {
-        String[] sentences = SENTENCE_PATTERN.split(text);
+        // Ưu tiên split theo dòng mới (Markdown list, table, paragraph)
+        String[] lines = text.split("\n");
         List<String> result = new ArrayList<>();
         StringBuilder buffer = new StringBuilder();
 
-        for (String sentence : sentences) {
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) continue;
+
             if (buffer.isEmpty()) {
-                buffer.append(sentence.trim());
-            } else if (buffer.length() + sentence.length() + 1 <= maxSize) {
-                buffer.append(" ").append(sentence.trim());
+                buffer.append(trimmed);
+            } else if (buffer.length() + trimmed.length() + 1 <= maxSize) {
+                buffer.append("\n").append(trimmed);
             } else {
                 if (buffer.length() >= minSize) {
                     result.add(buffer.toString());
                 } else if (!result.isEmpty()) {
-                    result.set(result.size() - 1, result.get(result.size() - 1) + " " + buffer);
+                    result.set(result.size() - 1, result.get(result.size() - 1) + "\n" + buffer);
                 }
-                buffer = new StringBuilder(sentence.trim());
+                buffer = new StringBuilder(trimmed);
             }
         }
         if (!buffer.isEmpty()) {
             result.add(buffer.toString());
         }
-        return result;
+
+        // Nếu vẫn còn dòng quá dài, cắt cứng theo ký tự
+        List<String> finalResult = new ArrayList<>();
+        for (String chunk : result) {
+            if (chunk.length() > maxSize) {
+                int start = 0;
+                while (start < chunk.length()) {
+                    int end = Math.min(start + maxSize, chunk.length());
+                    // Lùi về khoảng trắng gần nhất
+                    if (end < chunk.length()) {
+                        int space = chunk.lastIndexOf(' ', end);
+                        if (space > start) end = space;
+                    }
+                    finalResult.add(chunk.substring(start, end).trim());
+                    start = end;
+                }
+            } else {
+                finalResult.add(chunk);
+            }
+        }
+        return finalResult;
     }
 }

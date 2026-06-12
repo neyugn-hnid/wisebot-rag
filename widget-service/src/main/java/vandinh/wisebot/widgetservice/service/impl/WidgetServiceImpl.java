@@ -91,9 +91,9 @@ public class WidgetServiceImpl implements WidgetService {
 
     @Override
     @Transactional(readOnly = true)
-    public PublicWidgetResponse getPublicWidgetByCode(String code, String origin, String referer) {
+    public PublicWidgetResponse getPublicWidgetByCode(String code, String origin, String referer, String sourceUrl) {
         Widget widget = findWidgetByCode(code);
-        assertWidgetOriginAllowed(widget, origin, referer, null);
+        assertWidgetOriginAllowed(widget, origin, referer, sourceUrl);
         return PublicWidgetResponse.builder()
                 .id(widget.getId())
                 .tenantId(widget.getTenantId())
@@ -106,17 +106,17 @@ public class WidgetServiceImpl implements WidgetService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public WidgetSessionResponse createPublicSession(String code, CreateWidgetSessionRequest request, String origin, String referer) {
+    public WidgetSessionResponse createPublicSession(String code, CreateWidgetSessionRequest request, String origin, String referer, String sourceUrl) {
         Widget widget = findWidgetByCode(code);
-        assertWidgetOriginAllowed(widget, origin, referer, request.getSourceUrl());
+        assertWidgetOriginAllowed(widget, origin, referer, sourceUrl);
         return createSession(widget.getId(), request);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public WidgetEventResponse trackPublicEvent(String code, TrackEventRequest request, String origin, String referer) {
+    public WidgetEventResponse trackPublicEvent(String code, TrackEventRequest request, String origin, String referer, String sourceUrl) {
         Widget widget = findWidgetByCode(code);
-        assertWidgetOriginAllowed(widget, origin, referer, null);
+        assertWidgetOriginAllowed(widget, origin, referer, sourceUrl);
         return trackEvent(widget.getId(), request);
     }
 
@@ -164,12 +164,16 @@ public class WidgetServiceImpl implements WidgetService {
 
         @Override
         @Transactional(rollbackFor = Exception.class)
-        public DomainResponse addDomain(UUID widgetId, AddDomainRequest request) {
+    public DomainResponse addDomain(UUID widgetId, AddDomainRequest request) {
         Widget widget = widgetRepository.findById(widgetId)
             .orElseThrow(() -> new ResourceNotFoundException("Widget not found: " + widgetId));
+        String normalizedDomain = normalizeDomain(request.getDomain());
+        if (normalizedDomain.isBlank()) {
+            throw new InvalidDataException("Domain is required");
+        }
         WidgetAllowedDomain domain = WidgetAllowedDomain.builder()
             .widget(widget)
-            .domain(request.getDomain())
+            .domain(normalizedDomain)
             .allowSubdomains(request.isAllowSubdomains())
             .build();
         return mapDomain(domainRepository.save(domain));
@@ -375,7 +379,11 @@ public class WidgetServiceImpl implements WidgetService {
         String trimmed = value.trim();
         try {
             URI uri = URI.create(trimmed.contains("://") ? trimmed : "https://" + trimmed);
-            return uri.getHost();
+            if ("file".equalsIgnoreCase(uri.getScheme()) || "null".equalsIgnoreCase(trimmed)) {
+                return "localhost";
+            }
+            String host = uri.getHost();
+            return host == null ? null : stripIpv6Brackets(host);
         } catch (IllegalArgumentException ignored) {
             return trimmed;
         }
@@ -383,18 +391,42 @@ public class WidgetServiceImpl implements WidgetService {
 
     private boolean domainMatches(String requestHost, WidgetAllowedDomain domain) {
         String allowedDomain = normalizeDomain(domain.getDomain());
-        if (requestHost.equals(allowedDomain)) {
+        if (requestHost.isBlank() || allowedDomain.isBlank()) {
+            return false;
+        }
+        if (requestHost.equals(allowedDomain) || isSameLoopbackHost(requestHost, allowedDomain)) {
             return true;
         }
         return domain.isAllowSubdomains() && requestHost.endsWith("." + allowedDomain);
     }
 
     private String normalizeDomain(String domain) {
-        String normalized = domain == null ? "" : domain.trim().toLowerCase(Locale.ROOT);
+        String normalized = extractHost(domain);
+        normalized = normalized == null ? "" : normalized.trim().toLowerCase(Locale.ROOT);
+        normalized = stripIpv6Brackets(normalized);
+        int portSeparator = normalized.lastIndexOf(':');
+        if (portSeparator > -1 && normalized.indexOf(':') == portSeparator) {
+            normalized = normalized.substring(0, portSeparator);
+        }
         if (normalized.startsWith("www.")) {
             return normalized.substring(4);
         }
         return normalized;
+    }
+
+    private String stripIpv6Brackets(String host) {
+        if (host != null && host.startsWith("[") && host.endsWith("]")) {
+            return host.substring(1, host.length() - 1);
+        }
+        return host;
+    }
+
+    private boolean isSameLoopbackHost(String requestHost, String allowedDomain) {
+        return isLoopbackHost(requestHost) && isLoopbackHost(allowedDomain);
+    }
+
+    private boolean isLoopbackHost(String host) {
+        return "localhost".equals(host) || "127.0.0.1".equals(host) || "::1".equals(host);
     }
 
     private Widget getOrCreateDeveloperApiWidget(UUID tenantId) {

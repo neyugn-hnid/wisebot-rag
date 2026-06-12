@@ -62,7 +62,7 @@ function Button({
     <button
       onClick={onClick}
       className={cn(
-        'relative inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-6 text-sm font-semibold transition-all duration-300 active:scale-[0.97] group overflow-hidden',
+        'relative inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-lg px-4 sm:px-6 text-center text-sm font-semibold transition-all duration-300 active:scale-[0.97] group overflow-hidden',
         variant === 'primary' && 'bg-emerald-500 text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:bg-emerald-400 hover:shadow-[0_0_30px_rgba(16,185,129,0.45)]',
         variant === 'secondary' && 'border border-slate-700 bg-slate-900/80 text-slate-200 hover:border-slate-500 hover:bg-slate-800 hover:text-white',
         variant === 'ghost' && 'text-slate-400 hover:bg-slate-800/50 hover:text-white',
@@ -73,7 +73,7 @@ function Button({
       {variant === 'primary' && (
         <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
       )}
-      <span className="relative z-10 flex items-center gap-2">{children}</span>
+      <span className="relative z-10 flex min-w-0 items-center justify-center gap-2">{children}</span>
     </button>
   );
 }
@@ -177,7 +177,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 selection:bg-emerald-400 selection:text-slate-950 overflow-hidden font-sans relative">
+    <div className="min-h-screen bg-[#030712] text-slate-100 selection:bg-emerald-400 selection:text-slate-950 overflow-x-hidden font-sans relative">
       {/* Global CSS Style tag for Custom advanced animations */}
       <style dangerouslySetInnerHTML={{
         __html: `
@@ -280,9 +280,9 @@ export default function LandingPage() {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
 
       {/* Floating neon light blobs (Aurora slow floats) */}
-      <div className="absolute top-[10%] left-[-10%] w-[380px] h-[380px] bg-indigo-600/10 rounded-full blur-[110px] animate-float-slow pointer-events-none" />
-      <div className="absolute top-[45%] right-[-10%] w-[420px] h-[420px] bg-emerald-500/6 rounded-full blur-[120px] animate-float-medium pointer-events-none" />
-      <div className="absolute top-[75%] left-[10%] w-[340px] h-[340px] bg-cyan-500/8 rounded-full blur-[100px] animate-float-fast pointer-events-none" />
+      <div className="absolute top-[10%] left-[-35%] h-[220px] w-[220px] rounded-full bg-indigo-600/10 blur-[80px] animate-float-slow pointer-events-none sm:left-[-10%] sm:h-[380px] sm:w-[380px] sm:blur-[110px]" />
+      <div className="absolute top-[45%] right-[-35%] h-[240px] w-[240px] rounded-full bg-emerald-500/6 blur-[90px] animate-float-medium pointer-events-none sm:right-[-10%] sm:h-[420px] sm:w-[420px] sm:blur-[120px]" />
+      <div className="absolute top-[75%] left-[10%] h-[220px] w-[220px] rounded-full bg-cyan-500/8 blur-[80px] animate-float-fast pointer-events-none sm:h-[340px] sm:w-[340px] sm:blur-[100px]" />
 
       {/* Header */}
       <header className={cn(
@@ -395,23 +395,23 @@ export default function LandingPage() {
                 {t('landing.showcase.hero_badge')}
               </div>
 
-              <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl leading-none">
+              <h1 className="break-words text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
                 <span className="block">{t('landing.showcase.hero_title_1')}</span>
                 <span className="block mt-1 bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400 bg-clip-text text-transparent animate-gradient-text">
                   {t('landing.showcase.hero_title_2')}
                 </span>
               </h1>
 
-              <p className="max-w-xl text-lg md:text-xl text-slate-400 leading-relaxed font-light">
+              <p className="max-w-xl text-base leading-relaxed text-slate-400 font-light md:text-xl">
                 {t('landing.showcase.hero_subtitle')}
               </p>
 
-              <div className="flex flex-col gap-3 sm:flex-row pt-2">
-                <Button onClick={goRegister} className="h-12 text-base px-8">
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+                <Button onClick={goRegister} className="h-12 w-full text-base sm:w-auto sm:px-8">
                   {t('landing.showcase.cta_primary')}
                   <ArrowRight size={17} />
                 </Button>
-                <Button variant="secondary" className="h-12 text-base px-6" onClick={() => navigate('/docs')}>
+                <Button variant="secondary" className="h-12 w-full text-base sm:w-auto sm:px-6" onClick={() => navigate('/docs')}>
                   {t('landing.showcase.cta_secondary')}
                 </Button>
               </div>
@@ -427,19 +427,19 @@ export default function LandingPage() {
               <div className="rounded-2xl border border-slate-800 bg-slate-950/80 shadow-[0_30px_70px_rgba(0,0,0,0.8)] overflow-hidden animate-border-glow">
 
                 {/* Window header */}
-                <div className="flex h-12 items-center justify-between border-b border-slate-900 bg-slate-900/40 px-5">
-                  <div className="flex gap-2">
+                <div className="grid min-h-12 grid-cols-[auto_1fr_auto] items-center gap-2 border-b border-slate-900 bg-slate-900/40 px-3 py-2 sm:px-5">
+                  <div className="hidden gap-2 sm:flex">
                     <span className="h-3 w-3 rounded-full bg-red-500/60" />
                     <span className="h-3 w-3 rounded-full bg-yellow-500/60" />
                     <span className="h-3 w-3 rounded-full bg-green-500/60" />
                   </div>
-                  <div className="flex items-center gap-1.5 rounded-md border border-slate-800 bg-slate-950/60 px-3 py-1 text-xs font-semibold text-slate-400 tracking-wide">
+                  <div className="flex min-w-0 items-center justify-center gap-1.5 rounded-md border border-slate-800 bg-slate-950/60 px-2 py-1 text-[10px] font-semibold tracking-wide text-slate-400 sm:px-3 sm:text-xs">
                     <Terminal size={12} className="text-slate-500" />
-                    {t('landing.showcase.sandbox_title')}
+                    <span className="truncate">{t('landing.showcase.sandbox_title')}</span>
                   </div>
                   <button
                     onClick={handleResetSandbox}
-                    className="text-xs text-slate-500 hover:text-slate-300 underline font-medium transition"
+                    className="text-[10px] font-medium text-slate-500 underline transition hover:text-slate-300 sm:text-xs"
                   >
                     {t('landing.showcase.reset_sim')}
                   </button>
@@ -456,7 +456,7 @@ export default function LandingPage() {
                       key={tab.step}
                       onClick={() => setSandboxStep(tab.step as 0 | 1 | 2)}
                       className={cn(
-                        'py-3 text-xs font-bold transition-all border-b-2',
+                        'min-h-11 px-1 py-2 text-[10px] font-bold transition-all border-b-2 sm:py-3 sm:text-xs',
                         sandboxStep === tab.step
                           ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5'
                           : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-900/20'
@@ -468,7 +468,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Sandbox content area */}
-                <div className="p-6 min-h-[310px] flex flex-col justify-between">
+                <div className="flex min-h-[280px] flex-col justify-between p-4 sm:min-h-[310px] sm:p-6">
 
                   {/* STEP 1: Ingest Simulation */}
                   {sandboxStep === 0 && (
@@ -476,14 +476,14 @@ export default function LandingPage() {
                       <p className="text-xs text-slate-400">{t('landing.showcase.sandbox_desc')}</p>
 
                       {/* Document icon representing raw content */}
-                      <div className="flex items-center justify-center gap-6 p-6 rounded-xl border border-dashed border-slate-800 bg-slate-900/20 relative overflow-hidden">
+                      <div className="relative flex flex-col items-stretch justify-center gap-4 overflow-hidden rounded-xl border border-dashed border-slate-800 bg-slate-900/20 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
 
-                        <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 z-10 relative">
+                        <div className="relative z-10 flex flex-col items-center justify-center rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-4 text-indigo-400">
                           <FileText size={32} className={cn(isIngesting && 'animate-pulse')} />
                           <span className="mt-2 text-[10px] font-mono">warranty.pdf</span>
                         </div>
 
-                        <div className="flex flex-col items-center justify-center flex-1 relative min-w-[80px]">
+                        <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center">
                           <span className="text-xs text-slate-500 font-mono mb-2 z-10">Parser & Embed</span>
 
                           {/* Animated particle flow line */}
@@ -504,14 +504,14 @@ export default function LandingPage() {
                         </div>
 
                         {/* Database target representing Qdrant Vector Store */}
-                        <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 z-10 relative">
+                        <div className="relative z-10 flex flex-col items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-400">
                           <Database size={32} className={cn(isIngesting && 'animate-bounce')} />
                           <span className="mt-2 text-[10px] font-mono">Qdrant DB</span>
                         </div>
                       </div>
 
                       {/* Log Console Output */}
-                      <div className="rounded-lg bg-slate-950 p-4 border border-slate-900 font-mono text-xs text-slate-400">
+                      <div className="rounded-lg border border-slate-900 bg-slate-950 p-4 font-mono text-xs text-slate-400">
                         {isIngesting ? (
                           <div className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-yellow-400 animate-ping" />
@@ -523,7 +523,7 @@ export default function LandingPage() {
                               <CheckCircle2 size={13} />
                               <span>{t('landing.showcase.ingest_success')}</span>
                             </div>
-                            <div className="text-slate-600 pl-5">
+                            <div className="pl-5 text-slate-600">
                               - Chunk #1: Warranty period (12 months)<br />
                               - Chunk #2: Invoicing details<br />
                               - Chunk #3: Exclusions (liquid damage)<br />
@@ -550,7 +550,7 @@ export default function LandingPage() {
                   {sandboxStep === 1 && (
                     <div className="space-y-4">
                       {/* Search box simulation */}
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <div className="relative flex-1">
                           <Search className="absolute left-3.5 top-3.5 text-slate-500" size={16} />
                           <input
@@ -561,13 +561,13 @@ export default function LandingPage() {
                             placeholder={t('landing.showcase.retrieve_placeholder')}
                           />
                         </div>
-                        <Button onClick={handleRunSearch} className="px-5">
+                        <Button onClick={handleRunSearch} className="w-full px-5 sm:w-auto">
                           {t('landing.showcase.run_sim')}
                         </Button>
                       </div>
 
                       {/* Matching vector database nodes */}
-                      <div className="grid grid-cols-2 gap-3 relative">
+                      <div className="relative grid gap-3 sm:grid-cols-2">
                         {isSearching && (
                           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.15),transparent_80%)] animate-pulse pointer-events-none" />
                         )}
@@ -589,13 +589,13 @@ export default function LandingPage() {
                                   : 'border-slate-900 bg-slate-950/40 opacity-50'
                               )}
                             >
-                              <div className="flex justify-between items-center mb-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{chunk.title}</span>
+                              <div className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                <span className="break-words text-[10px] font-bold uppercase tracking-wider text-slate-400">{chunk.title}</span>
                                 {isMatch && (
                                   <span className="text-[10px] font-mono text-emerald-400 font-bold">score: {chunk.score}</span>
                                 )}
                               </div>
-                              <p className="text-xs text-slate-300 font-medium truncate">{chunk.desc}</p>
+                              <p className="break-words text-xs font-medium text-slate-300">{chunk.desc}</p>
                             </div>
                           );
                         })}
@@ -623,17 +623,17 @@ export default function LandingPage() {
                       {/* Chat dialog bubble */}
                       <div className="space-y-3">
                         <div className="flex gap-2.5 items-start">
-                          <div className="h-7 w-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">U</div>
-                          <div className="bg-slate-900 px-3.5 py-2.5 rounded-2xl rounded-tl-none text-xs max-w-[85%] text-slate-300">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-xs font-bold text-slate-300">U</div>
+                          <div className="max-w-[calc(100%-2.75rem)] break-words rounded-2xl rounded-tl-none bg-slate-900 px-3.5 py-2.5 text-xs text-slate-300 sm:max-w-[85%]">
                             {searchQuery}
                           </div>
                         </div>
 
                         <div className="flex gap-2.5 items-start">
-                          <div className="h-7 w-7 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-xs font-bold text-emerald-400">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/20 text-xs font-bold text-emerald-400">
                             <Bot size={13} />
                           </div>
-                          <div className="bg-emerald-950/20 border border-emerald-500/20 px-3.5 py-2.5 rounded-2xl rounded-tl-none text-xs max-w-[85%] text-slate-200 leading-relaxed relative">
+                          <div className="relative max-w-[calc(100%-2.75rem)] break-words rounded-2xl rounded-tl-none border border-emerald-500/20 bg-emerald-950/20 px-3.5 py-2.5 text-xs leading-relaxed text-slate-200 sm:max-w-[85%]">
                             {answerOutput || <span className="text-slate-600">...</span>}
                             {isTypingAnswer && (
                               <span className="inline-block w-1.5 h-3.5 ml-1 bg-emerald-400 animate-pulse align-middle" />
@@ -673,7 +673,7 @@ export default function LandingPage() {
                   )}
 
                   {/* Sandbox helper footer */}
-                  <div className="mt-2 text-[10px] text-slate-600 font-mono flex items-center justify-between">
+                  <div className="mt-2 flex flex-col gap-1 text-[10px] font-mono text-slate-600 sm:flex-row sm:items-center sm:justify-between">
                     <span>{t('landing.showcase.status_ready')}</span>
                     <span>{t('landing.showcase.engine_label')}</span>
                   </div>
@@ -732,7 +732,7 @@ export default function LandingPage() {
           </div>
 
           {/* Detailed Preview block for the selected pipeline step */}
-          <div className="mt-8 rounded-xl border border-slate-800 bg-slate-950 p-6 animate-border-glow">
+          <div className="mt-8 rounded-xl border border-slate-800 bg-slate-950 p-4 animate-border-glow sm:p-6">
             {activePipelineTab === 0 && (
               <div className="grid md:grid-cols-2 gap-6 items-center">
                 <div>
@@ -740,24 +740,24 @@ export default function LandingPage() {
                   <p className="text-xs text-slate-400 leading-relaxed mb-4">
                     {t('landing.showcase.pipeline_doc_desc')}
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <span className="rounded bg-slate-900 border border-slate-800 px-3 py-1 text-xs text-slate-300">.pdf</span>
                     <span className="rounded bg-slate-900 border border-slate-800 px-3 py-1 text-xs text-slate-300">.docx</span>
                     <span className="rounded bg-slate-900 border border-slate-800 px-3 py-1 text-xs text-slate-300">.txt</span>
                     <span className="rounded bg-slate-900 border border-slate-800 px-3 py-1 text-xs text-slate-300">.xlsx</span>
                   </div>
                 </div>
-                <div className="rounded-lg bg-slate-900/60 p-4 border border-slate-800 text-xs font-mono text-slate-400 space-y-2">
-                  <div className="flex justify-between items-center text-[10px] text-slate-500 border-b border-slate-800 pb-2">
+                <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/60 p-4 font-mono text-xs text-slate-400">
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2 text-[10px] text-slate-500">
                     <span>{t('landing.showcase.active_sources')}</span>
                     <span className="text-emerald-400 font-bold">{t('landing.showcase.online')}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>📄 user_manual_v3.pdf</span>
+                  <div className="flex min-w-0 justify-between gap-3">
+                    <span className="min-w-0 truncate">📄 user_manual_v3.pdf</span>
                     <span className="text-slate-500">1.2 MB</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>📊 sales_data.xlsx</span>
+                  <div className="flex min-w-0 justify-between gap-3">
+                    <span className="min-w-0 truncate">📊 sales_data.xlsx</span>
                     <span className="text-slate-500">2.5 MB</span>
                   </div>
                 </div>
@@ -791,9 +791,9 @@ export default function LandingPage() {
                     {t('landing.showcase.pipeline_embed_desc')}
                   </p>
                 </div>
-                <div className="rounded-lg bg-slate-900/60 p-4 border border-slate-800 text-xs font-mono text-slate-300 space-y-2">
+                <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/60 p-4 font-mono text-xs text-slate-300">
                   <div className="text-[10px] text-slate-500 uppercase">{t('landing.showcase.input_vector')}</div>
-                  <div className="bg-slate-950 p-2 rounded border border-slate-800/80 text-[11px]">
+                  <div className="overflow-x-auto rounded border border-slate-800/80 bg-slate-950 p-2 text-[11px]">
                     <span className="text-slate-400">&quot;bảo hành 12 tháng&quot;</span> ➜ <span className="text-emerald-400">[0.012, -0.491, 0.887, 0.124, -0.098, ...]</span>
                   </div>
                 </div>
@@ -807,7 +807,7 @@ export default function LandingPage() {
                     {t('landing.showcase.pipeline_db_desc')}
                   </p>
                 </div>
-                <div className="rounded-lg bg-slate-900/60 p-4 border border-slate-800 text-xs font-mono text-slate-400 space-y-2">
+                <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/60 p-4 font-mono text-xs text-slate-400">
                   <div className="text-[10px] text-slate-500 uppercase border-b border-slate-800 pb-1">{t('landing.showcase.qdrant_request')}</div>
                   <pre className="text-[10px] text-slate-300 whitespace-pre overflow-x-auto">
                     {`client.search(
@@ -828,9 +828,9 @@ export default function LandingPage() {
                     {t('landing.showcase.pipeline_output_desc')}
                   </p>
                 </div>
-                <div className="rounded-lg bg-slate-900/60 p-4 border border-slate-800 text-xs font-mono text-slate-400 space-y-2">
+                <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/60 p-4 font-mono text-xs text-slate-400">
                   <div className="text-[10px] text-slate-500 uppercase">{t('landing.showcase.prompt_segment')}</div>
-                  <div className="bg-slate-950 p-2.5 rounded border border-slate-800/80 text-[10px] text-slate-300">
+                  <div className="break-words rounded border border-slate-800/80 bg-slate-950 p-2.5 text-[10px] text-slate-300">
                     <span className="text-emerald-500">CONTEXT:</span> &quot;[Source 1]: warranty lasts 12 months...&quot;<br />
                     <span className="text-emerald-500">USER:</span> &quot;Warranty period?&quot;<br />
                     <span className="text-indigo-400">INSTRUCTION:</span> Answer the user using ONLY the context above. Citations are mandatory.
@@ -848,7 +848,7 @@ export default function LandingPage() {
             {/* Heading */}
             <div className="max-w-3xl mb-16 space-y-4">
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">{t('landing.nav.features')}</span>
-              <h2 className="text-4xl font-extrabold text-white leading-tight">{t('landing.features.reliable_title')}</h2>
+              <h2 className="break-words text-3xl font-extrabold leading-tight text-white sm:text-4xl">{t('landing.features.reliable_title')}</h2>
               <p className="text-slate-400 text-base max-w-xl font-light">{t('landing.features.reliable_subtitle')}</p>
             </div>
 
@@ -868,29 +868,29 @@ export default function LandingPage() {
                   </div>
 
                   {/* Folder Structure Preview */}
-                  <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-[11px] text-slate-400 space-y-2">
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 border-b border-slate-800 pb-2">
+                  <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-[11px] text-slate-400">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2 text-[10px] text-slate-500">
                       <span>{t('landing.showcase.documents_system')}</span>
                       <span className="text-emerald-400 font-bold">{t('landing.showcase.auto_synced')}</span>
                     </div>
                     <div className="space-y-1.5 text-left">
-                      <div className="flex items-center gap-2 text-slate-300">
-                        <span className="text-slate-600">📁</span> <span>workspace / product_kb</span>
+                      <div className="flex min-w-0 items-center gap-2 text-slate-300">
+                        <span className="text-slate-600">📁</span> <span className="min-w-0 truncate">workspace / product_kb</span>
                       </div>
-                      <div className="flex items-center justify-between pl-4 text-emerald-400">
-                        <div className="flex items-center gap-2">
-                          <span>📄</span> <span>faq-san-pham.pdf</span>
+                      <div className="flex min-w-0 items-center justify-between gap-3 pl-4 text-emerald-400">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span>📄</span> <span className="min-w-0 truncate">faq-san-pham.pdf</span>
                         </div>
-                        <span className="text-[10px] bg-emerald-500/10 px-1.5 py-0.5 rounded text-emerald-400">{t('landing.showcase.synced')}</span>
+                        <span className="shrink-0 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400">{t('landing.showcase.synced')}</span>
                       </div>
-                      <div className="flex items-center justify-between pl-4 text-slate-400">
-                        <div className="flex items-center gap-2">
-                          <span>📄</span> <span>huong-dan-su-dung.txt</span>
+                      <div className="flex min-w-0 items-center justify-between gap-3 pl-4 text-slate-400">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span>📄</span> <span className="min-w-0 truncate">huong-dan-su-dung.txt</span>
                         </div>
-                        <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">{t('landing.showcase.synced')}</span>
+                        <span className="shrink-0 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{t('landing.showcase.synced')}</span>
                       </div>
-                      <div className="flex items-center gap-2 pl-4 text-slate-500">
-                        <span>🔗</span> <span>wisebot.vn/docs/widget</span>
+                      <div className="flex min-w-0 items-center gap-2 pl-4 text-slate-500">
+                        <span>🔗</span> <span className="min-w-0 truncate">wisebot.vn/docs/widget</span>
                       </div>
                     </div>
                   </div>
@@ -947,12 +947,12 @@ export default function LandingPage() {
                         {t('landing.showcase.widget_answer')}
                       </div>
                     </div>
-                    <div className="p-3 border-t border-slate-900 flex gap-2">
+                    <div className="flex gap-2 border-t border-slate-900 p-3">
                       <input
                         type="text"
                         disabled
                         placeholder={t('landing.showcase.widget_placeholder')}
-                        className="bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-slate-500 flex-1 outline-none"
+                        className="min-w-0 flex-1 rounded border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-[10px] text-slate-500 outline-none"
                       />
                       <button className={cn(
                         'rounded px-3 py-1.5 text-[10px] font-bold text-slate-950 transition-colors duration-300',
@@ -1050,7 +1050,7 @@ export default function LandingPage() {
 
               <div className="space-y-5">
                 <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">{t('landing.use_cases.label')}</span>
-                <h2 className="text-4xl font-extrabold text-white leading-tight">{t('landing.use_cases.title')}</h2>
+                <h2 className="break-words text-3xl font-extrabold leading-tight text-white sm:text-4xl">{t('landing.use_cases.title')}</h2>
                 <p className="text-slate-400 text-sm leading-relaxed max-w-lg font-light">{t('landing.use_cases.subtitle')}</p>
               </div>
 
@@ -1098,7 +1098,7 @@ export default function LandingPage() {
                 {t('landing.showcase.footer_slogan')}
               </p>
               <div className="pt-4 flex justify-center">
-                <Button onClick={goRegister} className="h-12 px-8 text-base">
+                <Button onClick={goRegister} className="h-12 w-full text-base sm:w-auto sm:px-8">
                   {t('landing.showcase.cta_primary')}
                   <ArrowRight size={17} />
                 </Button>
@@ -1167,7 +1167,7 @@ export default function LandingPage() {
 
           <div className="flex flex-col gap-4 border-t border-slate-900 pt-8 text-xs sm:flex-row sm:items-center sm:justify-between font-light">
             <p>{t('landing.footer.rights')}</p>
-            <p className="flex items-center gap-1 justify-center">
+            <p className="flex flex-wrap items-center justify-center gap-1">
               <span>{t('landing.footer.made_with')}</span>
               <span className="text-red-500 animate-pulse">❤️</span>
               <span>{t('landing.footer.by_team')} WiseBot Team</span>

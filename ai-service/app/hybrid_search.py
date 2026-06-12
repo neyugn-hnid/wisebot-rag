@@ -167,7 +167,9 @@ class HybridSearcher:
         fused: list[dict] = []
         for key in sorted_keys[:top_k]:
             chunk = dict(chunk_map[key])
-            chunk["score"] = round(rrf_scores[key], 6)
+            # Giữ nguyên score gốc từ Qdrant (cosine similarity) cho threshold check,
+            # lưu RRF score riêng để minh bạch trong ranking
+            chunk["rrf_score"] = round(rrf_scores[key], 6)
             fused.append(chunk)
 
         return fused

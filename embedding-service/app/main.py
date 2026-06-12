@@ -402,6 +402,18 @@ async def index_file(
         raise HTTPException(status_code=500, detail=f"Failed to index file: {exc}") from exc
 
 
+@app.get("/v1/collections/resolve")
+async def resolve_collection(
+    tenant_id: uuid.UUID,
+    knowledge_base_id: uuid.UUID,
+    _: dict[str, Any] = Depends(require_service_auth),
+) -> dict:
+    collection = await _resolve_collection_by_kb(tenant_id, knowledge_base_id)
+    if not collection:
+        raise HTTPException(status_code=404, detail="No active collection found for this knowledge base")
+    return {"id": str(collection["id"]), "dimension": collection["dimension"]}
+
+
 @app.post("/v1/search", response_model=SearchResponse)
 async def semantic_search(
     payload: SearchRequest,

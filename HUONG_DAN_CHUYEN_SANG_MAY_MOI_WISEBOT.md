@@ -33,9 +33,9 @@ cloudflared.exe
 Mo PowerShell:
 
 ```powershell
-cd "C:\Users\VanDinh\OneDrive\Máy tính"
-git clone <link-github-cua-du-an> DATN
-cd "C:\Users\VanDinh\OneDrive\Máy tính\DATN"
+cd "C:\Users\Admin\Documents"
+git clone <link-github-cua-du-an> wisebot-rag
+cd "C:\Users\Admin\Documents\wisebot-rag"
 ```
 
 Neu source da copy bang USB/ZIP thi chi can giai nen vao thu muc mong muon.
@@ -43,7 +43,7 @@ Neu source da copy bang USB/ZIP thi chi can giai nen vao thu muc mong muon.
 ## 3. Build frontend
 
 ```powershell
-cd "C:\Users\VanDinh\OneDrive\Máy tính\DATN\frontend"
+cd "C:\Users\Admin\Documents\wisebot-rag\frontend"
 npm install
 npm run build
 ```
@@ -162,7 +162,7 @@ Neu frontend mo duoc nhung API loi thi thuong la do gateway/backend chua chay.
 Tai portable cloudflared vao source:
 
 ```powershell
-cd "C:\Users\VanDinh\OneDrive\Máy tính\DATN"
+cd "C:\Users\Admin\Documents\wisebot-rag"
 New-Item -ItemType Directory -Force -Path ".\tools"
 Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile ".\tools\cloudflared.exe"
 ```
@@ -195,7 +195,7 @@ Sua file `cloudflared-wisebot.yml` theo tunnel id moi:
 
 ```yaml
 tunnel: TUNNEL_ID_MOI
-credentials-file: C:/Users/VanDinh/.cloudflared/TUNNEL_ID_MOI.json
+credentials-file: C:/Users/Admin/.cloudflared/TUNNEL_ID_MOI.json
 
 ingress:
   - hostname: wisebot.qzz.io
@@ -203,7 +203,7 @@ ingress:
   - service: http_status:404
 ```
 
-Neu user Windows tren may moi khac `VanDinh`, sua lai duong dan `credentials-file`.
+Neu user Windows tren may moi khac `Admin`, sua lai duong dan `credentials-file`.
 
 ## 10. Tro domain ve tunnel moi
 
@@ -236,7 +236,7 @@ https://wisebot.qzz.io
 Co the copy file credentials tu may cu sang may moi:
 
 ```txt
-C:\Users\VanDinh\.cloudflared\2e79cff1-41bf-4677-bfb6-e0f14da25f12.json
+C:\Users\Admin\.cloudflared\2e79cff1-41bf-4677-bfb6-e0f14da25f12.json
 ```
 
 Sau do giu nguyen file:

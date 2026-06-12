@@ -97,12 +97,33 @@ public class MineruClient {
         return result;
     }
 
+    private static final java.util.regex.Pattern UUID_PATTERN =
+            java.util.regex.Pattern.compile(
+                    "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            );
+
     private Optional<String> findMarkdown(Object value) {
         if (value instanceof String text) {
-            return Optional.of(text).filter(s -> !s.isBlank());
+            String trimmed = text.trim();
+            if (trimmed.isBlank()) return Optional.empty();
+            // Loại bỏ UUID, ID ngắn, status, timestamp → không phải nội dung thật
+            if (UUID_PATTERN.matcher(trimmed).matches()) return Optional.empty();
+            if (trimmed.length() < 20) return Optional.empty();
+            return Optional.of(text);
         }
         if (!(value instanceof Map<?, ?> map)) {
             return Optional.empty();
+        }
+
+        // Ưu tiên tìm trong results object trước
+        Object results = map.get("results");
+        if (results instanceof Map<?, ?> resultMap) {
+            for (String key : new String[]{"md_content", "markdown", "content"}) {
+                Object candidate = resultMap.get(key);
+                if (candidate instanceof String text && !text.isBlank()) {
+                    return Optional.of(text);
+                }
+            }
         }
 
         for (String key : new String[]{"md_content", "markdown", "content"}) {
@@ -112,10 +133,13 @@ public class MineruClient {
             }
         }
 
-        for (Object child : map.values()) {
-            Optional<String> markdown = findMarkdown(child);
-            if (markdown.isPresent()) {
-                return markdown;
+        // Chỉ tìm đệ quy vào object results, không vào task_id, status, v.v.
+        if (results instanceof Map<?, ?> resultMap) {
+            for (Object child : resultMap.values()) {
+                Optional<String> markdown = findMarkdown(child);
+                if (markdown.isPresent()) {
+                    return markdown;
+                }
             }
         }
 

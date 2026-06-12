@@ -37,6 +37,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class DocumentServiceImpl implements DocumentService {
+    private static final int PREVIEW_MAX_CHARS = 120_000;
 
     private final DocumentRepository documentRepository;
     private final DocumentChunkRepository documentChunkRepository;
@@ -194,12 +195,35 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         StringBuilder builder = new StringBuilder();
-        int max = Math.min(chunks.size(), 3);
-        for (int i = 0; i < max; i++) {
-            if (i > 0) {
+        boolean truncated = false;
+
+        for (DocumentChunk chunk : chunks) {
+            String content = chunk.getContent();
+            if (content == null || content.isBlank()) {
+                continue;
+            }
+
+            if (builder.length() > 0) {
                 builder.append("\n\n");
             }
-            builder.append(chunks.get(i).getContent());
+
+            int remaining = PREVIEW_MAX_CHARS - builder.length();
+            if (remaining <= 0) {
+                truncated = true;
+                break;
+            }
+
+            if (content.length() > remaining) {
+                builder.append(content, 0, remaining);
+                truncated = true;
+                break;
+            }
+
+            builder.append(content);
+        }
+
+        if (truncated) {
+            builder.append("\n\n... (preview truncated)");
         }
         return builder.toString();
     }

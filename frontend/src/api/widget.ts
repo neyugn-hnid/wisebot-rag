@@ -11,6 +11,7 @@ export interface WidgetAppearanceConfig {
   knowledgeBaseId?: string | null;
   topK?: number;
   temperature?: number;
+  suggestedQuestions?: string[];
 }
 
 export interface WidgetResponse {

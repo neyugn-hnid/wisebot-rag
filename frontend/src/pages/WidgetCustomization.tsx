@@ -61,7 +61,7 @@ interface WidgetSettings extends WidgetAppearanceConfig {
 }
 
 const WIDGET_SETTINGS_STORAGE_KEY = 'wisebot_widget_settings';
-const WIDGET_SCRIPT_VERSION = '20260607-session-ttl';
+const WIDGET_SCRIPT_VERSION = '20260612-rich-stream';
 
 export default function WidgetCustomization() {
   const { t } = useLanguage();
@@ -81,6 +81,7 @@ export default function WidgetCustomization() {
   const [knowledgeBaseId, setKnowledgeBaseId] = useState('');
   const [topK, setTopK] = useState(5);
   const [temperature, setTemperature] = useState(0.2);
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>(['']);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [widget, setWidget] = useState<WidgetResponse | null>(null);
@@ -298,6 +299,10 @@ export default function WidgetCustomization() {
             if (typeof existingWidget.appearanceConfig?.temperature === 'number') {
               setTemperature(existingWidget.appearanceConfig.temperature);
             }
+            if (Array.isArray(existingWidget.appearanceConfig?.suggestedQuestions)) {
+              const sq = existingWidget.appearanceConfig.suggestedQuestions.filter(Boolean);
+              setSuggestedQuestions(sq.length > 0 ? sq : ['']);
+            }
           }
         }
       } catch (error) {
@@ -389,6 +394,7 @@ export default function WidgetCustomization() {
       knowledgeBaseId: knowledgeBaseId || null,
       topK,
       temperature,
+      suggestedQuestions: suggestedQuestions.filter(q => q.trim().length > 0),
     };
 
     let activeWidget = widget;
@@ -441,7 +447,18 @@ export default function WidgetCustomization() {
 
     setIsSavingDomain(true);
     try {
-      const activeWidget = widget?.id ? widget : await saveWidgetSettings();
+      let activeWidget = widget?.id ? widget : null;
+      if (!activeWidget) {
+        // Load widget từ API trước khi tạo mới
+        const tenantId = resolveTenantIdFromToken();
+        if (tenantId) {
+          const widgets = await listWidgets(tenantId);
+          activeWidget = widgets[0] || null;
+        }
+      }
+      if (!activeWidget) {
+        activeWidget = await saveWidgetSettings();
+      }
       const created = await addWidgetDomain(activeWidget.id, { domain, allowSubdomains });
       setAllowedDomains((prev) => [...prev, created]);
       setDomainInput('');
@@ -584,6 +601,37 @@ export default function WidgetCustomization() {
                   rows={2}
                   className={cn(fieldClass, "resize-none")}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.suggested_questions') || 'Câu hỏi gợi ý'}</label>
+                {suggestedQuestions.map((q, i) => (
+                  <div key={i} className="flex gap-2">
+                    <input
+                      value={q}
+                      onChange={(e) => {
+                        const next = [...suggestedQuestions];
+                        next[i] = e.target.value;
+                        setSuggestedQuestions(next);
+                      }}
+                      placeholder={t('widget.suggested_placeholder') || 'VD: Chính sách bảo hành thế nào?'}
+                      className={fieldClass}
+                    />
+                    {suggestedQuestions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setSuggestedQuestions(suggestedQuestions.filter((_, j) => j !== i))}
+                        className="text-red-400 hover:text-red-300 text-lg px-2"
+                      >×</button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setSuggestedQuestions([...suggestedQuestions, ''])}
+                  className="text-xs text-blue-400 hover:text-blue-300 mt-1"
+                >
+                  + {t('widget.add_question') || 'Thêm câu hỏi'}
+                </button>
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[#f0f0f0]">{t('widget.kb_label')}</label>

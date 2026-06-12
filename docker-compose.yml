@@ -51,8 +51,8 @@ services:
       INTERNAL_CONFIG_API_KEY: ${INTERNAL_CONFIG_API_KEY:?INTERNAL_CONFIG_API_KEY required}
       JWT_ACCESS_KEY: ${JWT_ACCESS_KEY:?JWT_ACCESS_KEY required}
       JWT_REFRESH_KEY: ${JWT_REFRESH_KEY:?JWT_REFRESH_KEY required}
-      SENDGRID_VERIFICATION_LINK: ${SENDGRID_VERIFICATION_LINK:-http://localhost:3000/verify-email?token={token}}
-      SENDGRID_RESET_PASSWORD_LINK: ${SENDGRID_RESET_PASSWORD_LINK:-http://localhost:3000/reset-password?token={token}}
+      SENDGRID_VERIFICATION_LINK: ${SENDGRID_VERIFICATION_LINK:-https://wisebot.qzz.io/verify-email?token={token}}
+      SENDGRID_RESET_PASSWORD_LINK: ${SENDGRID_RESET_PASSWORD_LINK:-https://wisebot.qzz.io/reset-password?token={token}}
       AVATAR_UPLOAD_DIR: /app/data/avatars
     volumes:
       - avatar_data:/app/data/avatars
@@ -118,6 +118,7 @@ services:
       SERVICE_JWT_AUDIENCE: ${SERVICE_JWT_AUDIENCE:-}
       BILLING_BASE_URL: http://billing-service:8085
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY required}
+      WIDGET_BASE_URL: http://widget-service:8084
       EMBEDDING_BASE_URL: http://embedding-service:8001
       AI_BASE_URL: http://ai-service:8002
       DOCUMENT_BASE_URL: http://document-service:8081
@@ -162,7 +163,7 @@ services:
       VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:?VNPAY_TMN_CODE required}
       VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:?VNPAY_HASH_SECRET required}
       VNPAY_URL: ${VNPAY_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
-      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:3000/billing?vnpay_return=true}
+      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-https://wisebot.qzz.io/billing?vnpay_return=true}
     depends_on:
       - postgres
     ports:
@@ -182,6 +183,12 @@ services:
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      EMBEDDING_PROVIDER_MODE: ${EMBEDDING_PROVIDER_MODE:-ollama}
+      DEFAULT_CHUNK_SIZE: ${DEFAULT_CHUNK_SIZE:-800}
+      DEFAULT_CHUNK_OVERLAP: ${DEFAULT_CHUNK_OVERLAP:-150}
+      MIN_SIMILARITY_SCORE: ${MIN_SIMILARITY_SCORE:-0.25}
+      SEARCH_MAX_CHUNK_CHARS: ${SEARCH_MAX_CHUNK_CHARS:-800}
+      SERVICE_JWT_AUDIENCE: ${SERVICE_JWT_AUDIENCE:-}
       AUTH_ENABLED: "true"
       SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET required}
       SERVICE_JWT_ALGORITHM: HS256
@@ -248,13 +255,13 @@ services:
       AI_PROVIDER_NAME: ${AI_PROVIDER_NAME:-Ollama Local}
       OLLAMA_PROVIDER_NAME: ${OLLAMA_PROVIDER_NAME:-Ollama Local}
       OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_LLM_MODEL: ${OLLAMA_LLM_MODEL:-llama3:latest}
+      OLLAMA_LLM_MODEL: ${OLLAMA_LLM_MODEL:-qwen2.5:latest}
       OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
       THIRD_PARTY_API_KEY: ${THIRD_PARTY_API_KEY:-}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
       DEFAULT_TOP_K: 5
       DEFAULT_TEMPERATURE: 0.2
-      MIN_SIMILARITY_SCORE: 0.35
+      MIN_SIMILARITY_SCORE: 0.25
       MAX_TOKENS: 1024
       AUTH_ENABLED: "true"
       SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET required}
@@ -291,19 +298,6 @@ services:
       - billing-service
     ports:
       - "9000:9000"
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_BASE_URL: http://api-gateway:9000
-    environment:
-      VITE_API_BASE_URL: http://api-gateway:9000
-    depends_on:
-      - api-gateway
-    ports:
-      - "3000:3000"
 
 volumes:
   postgres_data:

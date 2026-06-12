@@ -9,7 +9,6 @@ import {
   ChevronDown,
   FileText, 
   Link as LinkIcon, 
-  Settings as SettingsIcon,
   ChevronLeft,
   PanelLeft,
   MessageSquare,
@@ -26,8 +25,7 @@ import {
   listMessages,
   deleteSession,
   ask,
-  getUserPreference,
-  saveUserPreference,
+  askStream,
   getCitations,
   type ChatSessionResponse,
   type ChatMessageResponse,
@@ -81,9 +79,9 @@ export default function ChatbotPlayground() {
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
   const [isSettingsCollapsed, setIsSettingsCollapsed] = useState(false);
-  const [hasLoadedPreferences, setHasLoadedPreferences] = useState(false);
-  const [deletingSessionId, setDeletingSessionId] = useState('');
   const [isKnowledgeBaseDropdownOpen, setIsKnowledgeBaseDropdownOpen] = useState(false);
+  const [deletingSessionId, setDeletingSessionId] = useState('');
+  const [streamingMessageId, setStreamingMessageId] = useState('');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -349,45 +347,20 @@ export default function ChatbotPlayground() {
     }
   };
 
-  const loadUserPreference = async (resolvedTenantId: string) => {
-    if (hasLoadedPreferences) return;
-    try {
-      const pref = await getUserPreference(resolvedTenantId);
-      if (pref?.knowledgeBaseId) {
-        setKnowledgeBaseId(pref.knowledgeBaseId);
-        window.localStorage.setItem('wisebot_kb_id', pref.knowledgeBaseId);
-      }
-      if (typeof pref?.topK === 'number') {
-        setTopK(pref.topK);
-      }
-      if (typeof pref?.temperature === 'number') {
-        setTemperature(pref.temperature);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t('playground.settings_save_failed');
-      showToast(message, 'error');
-    } finally {
-      setHasLoadedPreferences(true);
-    }
-  };
-
   useEffect(() => {
     const resolvedTenantId = resolveTenantIdFromToken();
     if (!resolvedTenantId) {
       setKnowledgeBases([]);
       setChatHistories([]);
-      setHasLoadedPreferences(false);
       return;
     }
     if (tenantId !== resolvedTenantId) {
       setTenantId(resolvedTenantId);
       window.localStorage.setItem('wisebot_tenant_id', resolvedTenantId);
-      setHasLoadedPreferences(false);
       return;
     }
     void loadKnowledgeBases();
     void loadChatHistories(resolvedTenantId, sessionId || undefined);
-    void loadUserPreference(resolvedTenantId);
   }, [tenantId]);
 
   const handleStartNewChat = () => {
@@ -405,17 +378,9 @@ export default function ChatbotPlayground() {
     }
 
     try {
-      const payload = {
-        tenantId: resolvedTenantId,
-        knowledgeBaseId: knowledgeBaseId.trim() ? knowledgeBaseId.trim() : null,
-        topK,
-        temperature,
-      };
-
-      await saveUserPreference(payload);
       window.localStorage.setItem('wisebot_tenant_id', resolvedTenantId);
-      if (payload.knowledgeBaseId) {
-        window.localStorage.setItem('wisebot_kb_id', payload.knowledgeBaseId);
+      if (knowledgeBaseId.trim()) {
+        window.localStorage.setItem('wisebot_kb_id', knowledgeBaseId.trim());
       } else {
         window.localStorage.removeItem('wisebot_kb_id');
       }
@@ -491,23 +456,97 @@ export default function ChatbotPlayground() {
     try {
       const activeSessionId = sessionId.trim() || (await createSessionAndStore(resolvedTenantId));
 
-      const responseData = await ask(activeSessionId, {
+      const requestPayload = {
         question: userMessage.content,
         topK,
         temperature,
         knowledgeBaseId: knowledgeBaseId.trim() || undefined,
-      });
+      };
 
+      const assistantMessageId = `temp-assistant-${Date.now() + 1}`;
+      let receivedStreamToken = false;
+      const queuedTokens: string[] = [];
+      let drainPromise: Promise<void> | null = null;
+
+      const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+      const appendAssistantToken = (token: string) => {
+        setMessages((currentMessages) => currentMessages.map((message) => (
+          message.id === assistantMessageId
+            ? { ...message, content: `${message.content}${token}` }
+            : message
+        )));
+      };
+      const drainQueuedTokens = async () => {
+        while (queuedTokens.length > 0) {
+          const token = queuedTokens.shift() || '';
+          appendAssistantToken(token);
+          await wait(18);
+        }
+      };
+      const enqueueAssistantToken = (token: string) => {
+        queuedTokens.push(token);
+        if (!drainPromise) {
+          drainPromise = drainQueuedTokens().finally(() => {
+            drainPromise = null;
+          });
+        }
+      };
+      const waitForQueuedTokens = async () => {
+        while (drainPromise || queuedTokens.length > 0) {
+          await (drainPromise || wait(18));
+        }
+      };
+
+      setMessages([...nextUserMessages, {
+        id: assistantMessageId,
+        role: 'assistant',
+        content: '',
+      }]);
+      setStreamingMessageId(assistantMessageId);
+      setSessionId(activeSessionId);
+      window.localStorage.setItem(CHAT_SESSION_STORAGE_KEY, activeSessionId);
+
+      try {
+        await askStream(activeSessionId, requestPayload, (token) => {
+          receivedStreamToken = true;
+          enqueueAssistantToken(token);
+        });
+        await waitForQueuedTokens();
+
+        try {
+          const syncedMessages = await fetchSessionMessages(activeSessionId);
+          setMessages(syncedMessages.length > 0 ? syncedMessages : [...nextUserMessages]);
+        } catch {
+          // Keep the streamed temporary answer visible if message refresh fails.
+        }
+
+        void loadChatHistories(resolvedTenantId, activeSessionId);
+        return;
+      } catch (streamError) {
+        if (receivedStreamToken) {
+          await waitForQueuedTokens();
+          try {
+            const syncedMessages = await fetchSessionMessages(activeSessionId);
+            setMessages(syncedMessages.length > 0 ? syncedMessages : [...nextUserMessages]);
+          } catch {
+            // The streamed answer is already visible; avoid showing a noisy network toast.
+          }
+          void loadChatHistories(resolvedTenantId, activeSessionId);
+          return;
+        }
+      }
+
+      const responseData = await ask(activeSessionId, requestPayload);
       const rawAnswer = responseData?.answer;
       const answer = typeof rawAnswer === 'string' && rawAnswer.trim()
         ? rawAnswer
         : t('playground.no_answer');
       const userMessageId = typeof responseData?.userMessageId === 'string' ? responseData.userMessageId : userMessage.id;
-      const assistantMessageId = typeof responseData?.assistantMessageId === 'string' ? responseData.assistantMessageId : `temp-assistant-${Date.now() + 1}`;
+      const persistedAssistantMessageId = typeof responseData?.assistantMessageId === 'string' ? responseData.assistantMessageId : assistantMessageId;
       const sources = mapCitationSources(responseData?.citations);
 
       const assistantMessage: Message = {
-        id: assistantMessageId,
+        id: persistedAssistantMessageId,
         role: 'assistant',
         content: answer,
         sources: sources.length > 0 ? sources : undefined,
@@ -526,6 +565,7 @@ export default function ChatbotPlayground() {
       const message = error instanceof Error ? error.message : 'Không thể kết nối đến máy chủ.';
       showToast(message, 'error');
     } finally {
+      setStreamingMessageId('');
       setIsTyping(false);
     }
   };
@@ -545,6 +585,95 @@ export default function ChatbotPlayground() {
     : knowledgeBases.length === 0
       ? t('playground.kb.none')
       : selectedKnowledgeBase?.name || t('playground.kb.select');
+
+  const renderInlineText = (text: string) => {
+    return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={index} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
+      }
+      return <React.Fragment key={index}>{part}</React.Fragment>;
+    });
+  };
+
+  const renderFormattedContent = (content: string) => {
+    const lines = content.trim().split(/\r?\n/);
+    const blocks: React.ReactNode[] = [];
+    let paragraph: string[] = [];
+    let listItems: string[] = [];
+    let listType: 'ul' | 'ol' | null = null;
+
+    const flushParagraph = () => {
+      if (paragraph.length === 0) return;
+      const text = paragraph.join(' ').replace(/\s+/g, ' ').trim();
+      if (text) {
+        blocks.push(
+          <p key={`p-${blocks.length}`} className="leading-6">
+            {renderInlineText(text)}
+          </p>
+        );
+      }
+      paragraph = [];
+    };
+
+    const flushList = () => {
+      if (!listType || listItems.length === 0) return;
+      const ListTag = listType;
+      blocks.push(
+        <ListTag key={`list-${blocks.length}`} className={cn(
+          "space-y-1.5 pl-5 leading-6",
+          listType === 'ul' ? "list-disc" : "list-decimal"
+        )}>
+          {listItems.map((item, index) => (
+            <li key={index}>{renderInlineText(item)}</li>
+          ))}
+        </ListTag>
+      );
+      listItems = [];
+      listType = null;
+    };
+
+    lines.forEach((rawLine) => {
+      const line = rawLine.trim();
+      if (!line) {
+        flushParagraph();
+        flushList();
+        return;
+      }
+
+      const heading = line.match(/^#{1,3}\s+(.+)$/);
+      if (heading) {
+        flushParagraph();
+        flushList();
+        blocks.push(
+          <h4 key={`h-${blocks.length}`} className="text-[15px] font-semibold text-white leading-6">
+            {renderInlineText(heading[1])}
+          </h4>
+        );
+        return;
+      }
+
+      const bullet = line.match(/^[-*]\s+(.+)$/);
+      const numbered = line.match(/^\d+[.)]\s+(.+)$/);
+      if (bullet || numbered) {
+        flushParagraph();
+        const nextType = bullet ? 'ul' : 'ol';
+        if (listType && listType !== nextType) {
+          flushList();
+        }
+        listType = nextType;
+        listItems.push((bullet?.[1] || numbered?.[1] || '').trim());
+        return;
+      }
+
+      flushList();
+      paragraph.push(line);
+    });
+
+    flushParagraph();
+    flushList();
+
+    return <div className="space-y-3">{blocks}</div>;
+  };
 
   return (
     <div className="-m-4 lg:-m-8 h-screen flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top,rgba(59,158,255,0.08),transparent_28%),#050505] relative w-[calc(100%+32px)] lg:w-[calc(100%+64px)]">
@@ -670,73 +799,107 @@ export default function ChatbotPlayground() {
                 </button>
                 <div>
                   <p className="text-sm font-semibold text-[#f5f5f5]">{t('playground.page_title')}</p>
-                  <p className="text-xs text-[#8b8f91]">
-                    {selectedKnowledgeBase?.name || t('playground.kb.unselected')}
-                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {isSettingsCollapsed ? (
+                <div ref={knowledgeBaseDropdownRef} className="relative">
                   <button
                     type="button"
-                    onClick={() => setIsSettingsCollapsed(false)}
-                    className="hidden h-10 w-10 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] text-[#d7d9da] transition-colors hover:bg-[rgba(255,255,255,0.06)] lg:inline-flex"
+                    onClick={() => setIsKnowledgeBaseDropdownOpen((prev) => !prev)}
+                    className="flex items-center gap-2 rounded-[12px] border border-[#ffffff] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-xs text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-[rgba(59,158,255,0.24)] w-[200px]"
                   >
-                    <SettingsIcon size={16} />
+                    <span className="truncate flex-1 text-left">{knowledgeBaseDropdownLabel}</span>
+                    <ChevronDown
+                      size={14}
+                      className={cn(
+                        "shrink-0 text-[#8d9295] transition-transform",
+                        isKnowledgeBaseDropdownOpen ? "rotate-180" : ""
+                      )}
+                    />
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => setShowSettings(true)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] text-[#d7d9da] transition-colors hover:bg-[rgba(255,255,255,0.06)] lg:hidden"
-                >
-                  <SettingsIcon size={16} />
-                </button>
+
+                  {isKnowledgeBaseDropdownOpen ? (
+                    <div className="absolute left-0 top-[calc(100%+4px)] z-30 w-[200px] overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.12)] bg-[#0b0b0c] p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.42)]">
+                      {knowledgeBases.map((kb) => {
+                        const isSelected = kb.id === knowledgeBaseId;
+                        return (
+                          <button
+                            key={kb.id}
+                            type="button"
+                            onClick={() => {
+                              setKnowledgeBaseId(kb.id);
+                              setIsKnowledgeBaseDropdownOpen(false);
+                            }}
+                            className={cn(
+                              "flex w-full items-center justify-between gap-3 rounded-[10px] px-3 py-2 text-left text-xs transition-colors",
+                              isSelected
+                                ? "bg-[rgba(59,158,255,0.10)] text-[#f0f0f0]"
+                                : "text-[#c9cdcf] hover:bg-[rgba(255,255,255,0.05)]"
+                            )}
+                          >
+                            <span className="truncate">{kb.name}</span>
+                            {isSelected ? <Check size={14} className="shrink-0 text-[#3b9eff]" /> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide" ref={chatContainerRef}>
-            {messages.map((msg) => (
-              <div 
-                key={msg.id} 
-                className={cn(
-                  "flex items-start gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300",
-                  msg.role === 'user' ? "flex-row-reverse" : ""
-                )}
-              >
-                <div className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-md shadow-black/40",
-                  msg.role === 'assistant' ? "bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.12)]" : "bg-[rgba(255,255,255,0.88)]"
-                )}>
-                  {msg.role === 'assistant' ? <Logo iconOnly size="sm" className="scale-75" /> : <User size={16} className="text-[#a1a4a5]" />}
-                </div>
-                <div className={cn(
-                  "space-y-1 max-w-[85%] sm:max-w-2xl",
-                  msg.role === 'user' ? "text-right" : ""
-                )}>
+            {messages.map((msg) => {
+              const isPendingAssistant = msg.role === 'assistant' && msg.id === streamingMessageId && !msg.content;
+
+              return (
+                <div 
+                  key={msg.id} 
+                  className={cn(
+                    "flex items-start gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300",
+                    msg.role === 'user' ? "flex-row-reverse" : ""
+                  )}
+                >
                   <div className={cn(
-                    "p-4 rounded-[16px] text-[14px] leading-relaxed whitespace-pre-wrap shadow-md shadow-black/40 font-messenger font-medium",
-                    msg.role === 'assistant' 
-                      ? "bg-[rgba(255,255,255,0.04)] text-[#f0f0f0] rounded-tl-none border border-[rgba(255,255,255,0.12)]" 
-                      : "bg-[rgba(255,255,255,0.92)] text-[#111111] rounded-tr-none text-left"
+                    "w-8 h-8 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-md shadow-black/40",
+                    msg.role === 'assistant' ? "bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.12)]" : "bg-[rgba(255,255,255,0.88)]"
                   )}>
-                    {msg.content}
+                    {msg.role === 'assistant' ? <Logo iconOnly size="sm" className="scale-75" /> : <User size={16} className="text-[#a1a4a5]" />}
+                  </div>
+                  <div className={cn(
+                    isPendingAssistant ? "flex items-center gap-1 px-0.5 py-1.5" : "space-y-1 max-w-[85%] sm:max-w-2xl",
+                    msg.role === 'user' ? "text-right" : ""
+                  )}>
+                    {isPendingAssistant ? (
+                      <>
+                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                      </>
+                    ) : (
+                      <div className={cn(
+                        "p-4 rounded-[16px] text-[14px] leading-relaxed shadow-md shadow-black/40 font-messenger font-medium",
+                        msg.role === 'assistant'
+                          ? "bg-[rgba(255,255,255,0.04)] text-[#f0f0f0] rounded-tl-none border border-[rgba(255,255,255,0.12)]"
+                          : "bg-[rgba(255,255,255,0.92)] text-[#111111] rounded-tr-none text-left whitespace-pre-wrap"
+                      )}>
+                        {msg.role === 'assistant' ? renderFormattedContent(msg.content) : msg.content}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            ))}
-            {isTyping && (
+              );
+            })}
+            {isTyping && !streamingMessageId && (
               <div className="flex items-start gap-4 animate-in fade-in duration-300">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.12)] shadow-md shadow-black/40 shrink-0 overflow-hidden">
                   <Logo iconOnly size="sm" className="scale-75" />
                 </div>
-                <div className="space-y-1">
-                  <div className="bg-[rgba(255,255,255,0.04)] p-4 rounded-[16px] rounded-tl-none border border-[rgba(255,255,255,0.12)] flex gap-1">
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-                  </div>
+                <div className="flex items-center gap-1 px-0.5 py-1.5">
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
                 </div>
               </div>
             )}
@@ -820,126 +983,6 @@ export default function ChatbotPlayground() {
                   </p>
                 </div>
               )}
-            </div>
-          </div>
-
-          {/* Model Settings */}
-          <div className="space-y-6 bg-[rgba(255,255,255,0.02)] p-6">
-            <div className="font-semibold text-xs text-[#a1a4a5] flex items-center gap-2">
-              <SettingsIcon size={14} />
-              {t('playground.settings')}
-            </div>
-            
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <label className="text-xs font-semibold text-[#f0f0f0]">{t('playground.kb.label')}</label>
-                <div ref={knowledgeBaseDropdownRef} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (canChooseKnowledgeBase) {
-                        setIsKnowledgeBaseDropdownOpen((prev) => !prev);
-                      }
-                    }}
-                    disabled={!canChooseKnowledgeBase}
-                    className="flex w-full items-center justify-between gap-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-left text-sm text-[#f0f0f0] transition-colors hover:bg-[rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-[rgba(59,158,255,0.24)] disabled:cursor-not-allowed disabled:text-[#a1a4a5] disabled:opacity-70"
-                  >
-                    <span className="min-w-0 truncate">{knowledgeBaseDropdownLabel}</span>
-                    <ChevronDown
-                      size={16}
-                      className={cn(
-                        "shrink-0 text-[#8d9295] transition-transform",
-                        isKnowledgeBaseDropdownOpen ? "rotate-180" : ""
-                      )}
-                    />
-                  </button>
-
-                  {isKnowledgeBaseDropdownOpen && canChooseKnowledgeBase ? (
-                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[#0b0b0c] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.42)]">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setKnowledgeBaseId('');
-                          setIsKnowledgeBaseDropdownOpen(false);
-                        }}
-                        className={cn(
-                          "flex w-full items-center justify-between gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm transition-colors",
-                          !knowledgeBaseId
-                            ? "bg-[rgba(59,158,255,0.10)] text-[#f0f0f0]"
-                            : "text-[#c9cdcf] hover:bg-[rgba(255,255,255,0.05)]"
-                        )}
-                      >
-                        <span className="truncate">{t('playground.kb.select')}</span>
-                        {!knowledgeBaseId ? <Check size={15} className="text-[#3b9eff]" /> : null}
-                      </button>
-                      <div className="mt-1 space-y-1">
-                        {knowledgeBases.map((kb) => {
-                          const isSelected = kb.id === knowledgeBaseId;
-                          return (
-                            <button
-                              key={kb.id}
-                              type="button"
-                              onClick={() => {
-                                setKnowledgeBaseId(kb.id);
-                                setIsKnowledgeBaseDropdownOpen(false);
-                              }}
-                              className={cn(
-                                "flex w-full items-center justify-between gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm transition-colors",
-                                isSelected
-                                  ? "bg-[rgba(59,158,255,0.10)] text-[#f0f0f0]"
-                                  : "text-[#c9cdcf] hover:bg-[rgba(255,255,255,0.05)]"
-                              )}
-                            >
-                              <span className="truncate">{kb.name}</span>
-                              {isSelected ? <Check size={15} className="text-[#3b9eff]" /> : null}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-semibold text-[#f0f0f0]">{t('playground.temp')}</label>
-                  <span className="text-xs font-semibold text-[#3b9eff]">{temperature}</span>
-                </div>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="1" 
-                  step="0.1"
-                  value={temperature}
-                  onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-slate-200 rounded-[12px] appearance-none cursor-pointer accent-primary"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-semibold text-[#f0f0f0]">{t('playground.topk')}</label>
-                  <span className="text-xs font-semibold text-[#3b9eff]">{topK}</span>
-                </div>
-                <input 
-                  type="range" 
-                  min="1" 
-                  max="20" 
-                  value={topK}
-                  onChange={(e) => setTopK(parseInt(e.target.value))}
-                  className="w-full h-1.5 bg-slate-200 rounded-[12px] appearance-none cursor-pointer accent-primary"
-                />
-              </div>
-
-              <button 
-                onClick={() => {
-                  void handleSaveSettings();
-                }}
-                className="w-full py-2.5 bg-[#ffffff] text-[#000000] text-xs font-bold rounded-[12px] hover:bg-gray-200 transition-colors"
-              >
-                {t('playground.save')}
-              </button>
             </div>
           </div>
         </div>

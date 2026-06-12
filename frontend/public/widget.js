@@ -74,11 +74,19 @@
     '.wisebot-status-dot{width:6px;height:6px;border-radius:999px;background:#6ee7b7;display:inline-block;}',
     '.wisebot-close{border:none;background:transparent;color:inherit;font-size:22px;cursor:pointer;line-height:1;border-radius:10px;padding:7px 9px;transition:background .15s ease;}',
     '.wisebot-close:hover{background:rgba(255,255,255,.12);}',
-    '.wisebot-body{flex:1;padding:16px;background:#f6f7f9;overflow:auto;display:flex;flex-direction:column;gap:12px;}',
+    '.wisebot-body{flex:1;padding:16px;background:#f6f7f9;overflow:auto;display:flex;flex-direction:column;gap:12px;scrollbar-width:none;-ms-overflow-style:none;}',
+    '.wisebot-body::-webkit-scrollbar{display:none;}',
     '.wisebot-day{align-self:center;border-radius:999px;background:#fff;color:#94a3b8;font-size:10px;font-weight:700;padding:4px 12px;border:1px solid rgba(226,232,240,.85);box-shadow:0 1px 2px rgba(15,23,42,.04);}',
-    '.wisebot-msg{max-width:85%;padding:12px 14px;border-radius:16px;font-size:14px;line-height:1.45;white-space:pre-wrap;overflow-wrap:break-word;word-break:normal;box-sizing:border-box;box-shadow:0 1px 2px rgba(15,23,42,.05);}',
+    '.wisebot-msg{max-width:85%;padding:12px 14px;border-radius:16px;font-size:14px;line-height:1.45;overflow-wrap:break-word;word-break:normal;box-sizing:border-box;box-shadow:0 1px 2px rgba(15,23,42,.05);}',
     '.wisebot-msg.bot{background:#fff;color:#0f172a;border-top-left-radius:5px;border:1px solid rgba(226,232,240,.9);}',
-    '.wisebot-msg.user{color:#fff;border-top-right-radius:5px;align-self:flex-end;}',
+    '.wisebot-msg.user{color:#fff;border-top-right-radius:5px;align-self:flex-end;white-space:pre-wrap;}',
+    '.wisebot-rich{display:flex;flex-direction:column;gap:10px;}',
+    '.wisebot-rich p{margin:0;line-height:1.5;}',
+    '.wisebot-rich h4{margin:0;font-size:14px;line-height:1.45;font-weight:800;color:#0f172a;}',
+    '.wisebot-rich ul,.wisebot-rich ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;line-height:1.45;}',
+    '.wisebot-rich li{padding-left:2px;}',
+    '.wisebot-rich strong{font-weight:800;color:#0f172a;}',
+    '.wisebot-thinking{align-self:flex-start;display:inline-flex;align-items:center;padding:6px 2px;box-shadow:none;background:transparent;border:none;}',
     '.wisebot-typing{display:inline-flex;gap:4px;align-items:center;}',
     '.wisebot-typing span{width:6px;height:6px;border-radius:999px;background:#94a3b8;animation:wisebotTyping 1s infinite ease-in-out;}',
     '.wisebot-typing span:nth-child(2){animation-delay:.15s}.wisebot-typing span:nth-child(3){animation-delay:.3s}',
@@ -99,6 +107,9 @@
     '.wisebot-product-price{font-size:14px;font-weight:800;color:#2563eb;margin-bottom:3px;}',
     '.wisebot-product-reason{font-size:11px;color:#64748b;line-height:1.4;}',
     '.wisebot-product-list{display:flex;flex-direction:column;gap:8px;margin-top:8px;}',
+    '.wisebot-suggestions{display:flex;flex-direction:column;align-items:flex-end;gap:6px;padding-top:4px;}',
+    '.wisebot-suggestion-chip{padding:8px 14px;border-radius:16px 5px 16px 16px;background:#e8f0fe;border:1px solid #d0dff5;font-size:13px;color:#1a56db;cursor:pointer;transition:all .15s ease;text-align:left;max-width:85%;}',
+    '.wisebot-suggestion-chip:hover{background:#d0dff5;border-color:#9bb7e8;}',
     '@media (max-width:640px){.wisebot-widget-root{bottom:16px}.wisebot-widget-root[data-position="left"]{left:16px}.wisebot-widget-root[data-position="right"]{right:16px}.wisebot-panel{width:calc(100vw - 32px);height:min(72vh,620px);max-height:calc(100dvh - 96px);border-radius:22px;}.wisebot-bubble{width:60px;height:60px;border-radius:18px;}}'
   ].join('');
   document.head.appendChild(style);
@@ -125,6 +136,11 @@
       }
       return response.json();
     });
+  }
+
+  function appendSourceUrl(url) {
+    var separator = url.indexOf('?') === -1 ? '?' : '&';
+    return url + separator + 'sourceUrl=' + encodeURIComponent(window.location.href);
   }
 
   function getVisitorId() {
@@ -165,7 +181,7 @@
       return Promise.resolve(state.widgetSessionId);
     }
 
-    return postJson(apiUrl + '/sessions', {
+    return postJson(appendSourceUrl(apiUrl + '/sessions'), {
       tenantId: widget.tenantId,
       visitorId: getVisitorId(),
       sourceUrl: window.location.href,
@@ -187,9 +203,10 @@
       return Promise.resolve(state.chatSessionId);
     }
 
-    return postJson(apiBase.replace(/\/$/, '') + '/api/chat/public/widgets/' + encodeURIComponent(widget.id) + '/sessions', {
+    return postJson(appendSourceUrl(apiBase.replace(/\/$/, '') + '/api/chat/public/widgets/' + encodeURIComponent(widget.id) + '/sessions'), {
       tenantId: widget.tenantId,
       visitorId: getVisitorId(),
+      sourceUrl: window.location.href,
       title: 'Website Widget Chat',
     }).then(function (payload) {
       state.chatSessionId = payload && payload.data && payload.data.id ? payload.data.id : '';
@@ -224,7 +241,7 @@
         throw new Error('Missing widget chat session');
       }
 
-      return postJson(apiBase.replace(/\/$/, '') + '/api/chat/public/sessions/' + encodeURIComponent(sessionId) + '/ask', {
+      var body = JSON.stringify({
         tenantId: widget.tenantId,
         widgetId: widget.id,
         question: question,
@@ -233,24 +250,95 @@
         temperature: widget.appearanceConfig && widget.appearanceConfig.temperature != null ? widget.appearanceConfig.temperature : 0.2,
         pageContext: pageContext,
       });
-    }).then(function (payload) {
-      var answer = payload && payload.data && payload.data.answer ? payload.data.answer : 'I could not generate a response.';
-      var parsed = parseProducts(answer);
-      state.messages.push({ role: 'bot', content: parsed.text, products: parsed.products });
-      state.isReplying = false;
-      render();
-      trackEvent(widget, 'ANSWER_RECEIVED', { sourceUrl: window.location.href });
-    }).catch(function (error) {
-      state.messages.push({ role: 'bot', content: 'The assistant is temporarily unavailable. Please try again.' });
-      state.isReplying = false;
-      render();
-      console.error('[WiseBot] Ask failed.', error);
+
+      var url = apiBase.replace(/\/$/, '') + '/api/chat/public/sessions/' + encodeURIComponent(sessionId) + '/ask-stream';
+      var answerText = '';
+      var botMsg = { role: 'bot', content: '', products: null };
+      var hasRenderedAnswer = false;
+      state.messages.push(botMsg);
+
+        return fetch(appendSourceUrl(url), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body,
+      }).then(function (response) {
+        if (!response.ok || !response.body) {
+          throw new Error('Stream not available');
+        }
+
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder();
+        var buffer = '';
+
+        function readStream() {
+          return reader.read().then(function (result) {
+            if (result.done) {
+              var parsed = parseProducts(answerText);
+              botMsg.content = parsed.text;
+              botMsg.products = parsed.products;
+              state.isReplying = false;
+              render();
+              trackEvent(widget, 'ANSWER_RECEIVED', { sourceUrl: window.location.href });
+              return;
+            }
+
+            buffer += decoder.decode(result.value, { stream: true });
+            var events = buffer.split(/\r?\n\r?\n/);
+            buffer = events.pop() || '';
+
+            events.forEach(function (rawEvent) {
+              var dataLines = rawEvent.split(/\r?\n/).filter(function (line) {
+                return line.startsWith('data:');
+              }).map(function (line) {
+                return line.slice(5).trim();
+              });
+              if (dataLines.length === 0) return;
+
+              var data = dataLines.join('\n');
+              if (!data || data === '[DONE]') return;
+
+              try {
+                var payload = JSON.parse(data);
+                if (typeof payload.token === 'string') {
+                  answerText += payload.token;
+                  botMsg.content = answerText;
+                  if (!hasRenderedAnswer) {
+                    hasRenderedAnswer = true;
+                    state.isReplying = false;
+                    render();
+                  }
+                  var bodyEl = root.querySelector('.wisebot-body');
+                  if (bodyEl) {
+                    var botMsgs = bodyEl.querySelectorAll('.wisebot-msg.bot');
+                    var lastBot = botMsgs[botMsgs.length - 1];
+                    if (lastBot) {
+                      lastBot.innerHTML = '';
+                      appendFormattedContent(lastBot, answerText);
+                    }
+                    scrollToLatestMessage();
+                  }
+                }
+              } catch(e) {}
+            });
+
+            return readStream();
+          });
+        }
+
+        return readStream();
+      }).catch(function (error) {
+        state.messages.pop(); // remove empty bot msg
+        state.messages.push({ role: 'bot', content: 'The assistant is temporarily unavailable. Please try again.' });
+        state.isReplying = false;
+        render();
+        console.error('[WiseBot] Ask failed.', error);
+      });
     });
   }
 
   function trackEvent(widget, eventType, extraPayload) {
     ensureWidgetSession(widget).then(function (sessionId) {
-      return postJson(apiUrl + '/events', {
+      return postJson(appendSourceUrl(apiUrl + '/events'), {
         tenantId: widget.tenantId,
         sessionId: sessionId || null,
         eventType: eventType,
@@ -297,6 +385,99 @@
 
   function renderSendIcon(container) {
     container.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 12 16-8-5 16-3.2-6.8L4 12Z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="m11.8 13.2 3.4-3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
+  }
+
+  function scrollToLatestMessage() {
+    var body = root.querySelector('.wisebot-body');
+    if (body) {
+      body.scrollTop = body.scrollHeight;
+    }
+  }
+
+  function appendInlineText(parent, text) {
+    String(text || '').split(/(\*\*[^*]+\*\*)/g).forEach(function (part) {
+      if (!part) return;
+      if (part.indexOf('**') === 0 && part.lastIndexOf('**') === part.length - 2) {
+        var strong = createEl('strong', '', part.slice(2, -2));
+        parent.appendChild(strong);
+        return;
+      }
+      parent.appendChild(document.createTextNode(part));
+    });
+  }
+
+  function appendFormattedContent(container, content) {
+    var rich = createEl('div', 'wisebot-rich', null);
+    var lines = String(content || '').trim().split(/\r?\n/);
+    var paragraph = [];
+    var list = null;
+    var listType = '';
+
+    function flushParagraph() {
+      if (paragraph.length === 0) return;
+      var text = paragraph.join(' ').replace(/\s+/g, ' ').trim();
+      if (text) {
+        var p = createEl('p', '', null);
+        appendInlineText(p, text);
+        rich.appendChild(p);
+      }
+      paragraph = [];
+    }
+
+    function flushList() {
+      if (!list) return;
+      rich.appendChild(list);
+      list = null;
+      listType = '';
+    }
+
+    lines.forEach(function (rawLine) {
+      var line = rawLine.trim();
+      if (!line) {
+        flushParagraph();
+        flushList();
+        return;
+      }
+
+      var heading = line.match(/^#{1,3}\s+(.+)$/);
+      if (heading) {
+        flushParagraph();
+        flushList();
+        var h = createEl('h4', '', null);
+        appendInlineText(h, heading[1]);
+        rich.appendChild(h);
+        return;
+      }
+
+      var bullet = line.match(/^[-*]\s+(.+)$/);
+      var numbered = line.match(/^\d+[.)]\s+(.+)$/);
+      if (bullet || numbered) {
+        flushParagraph();
+        var nextType = bullet ? 'ul' : 'ol';
+        if (list && listType !== nextType) {
+          flushList();
+        }
+        if (!list) {
+          list = document.createElement(nextType);
+          listType = nextType;
+        }
+        var li = createEl('li', '', null);
+        appendInlineText(li, (bullet && bullet[1] ? bullet[1] : numbered && numbered[1] ? numbered[1] : '').trim());
+        list.appendChild(li);
+        return;
+      }
+
+      flushList();
+      paragraph.push(line);
+    });
+
+    flushParagraph();
+    flushList();
+
+    if (rich.childNodes.length === 0) {
+      rich.textContent = content || '';
+    }
+    container.appendChild(rich);
   }
 
   function render() {
@@ -351,13 +532,48 @@
     header.appendChild(close);
 
     var body = createEl('div', 'wisebot-body', null);
-    body.appendChild(createEl('div', 'wisebot-day', 'WiseBot'));
+
+    // Render welcome message trước
+    var hasUserMsg = false;
+    state.messages.forEach(function (message) {
+      if (message === state.messages[0] && !message._isWelcome) {
+        // First message = welcome, render it
+      }
+      renderMessage(body, message, config);
+      if (message.role === 'user') hasUserMsg = true;
+    });
+
+    // Welcome message nếu chưa có
     if (!state.messages.length) {
       var welcomeText = widget.welcomeMessage || 'Hello! How can I help you today?';
-      state.messages.push({ role: 'bot', content: welcomeText });
+      var welcomeMsg = { role: 'bot', content: welcomeText, _isWelcome: true };
+      state.messages.push(welcomeMsg);
+      renderMessage(body, welcomeMsg, config);
     }
-    state.messages.forEach(function (message) {
-      // Bot message container
+
+    // Suggested questions ngay dưới welcome message
+    if (!hasUserMsg) {
+      var sq = config.suggestedQuestions;
+      if (Array.isArray(sq) && sq.length > 0) {
+        var sqWrap = createEl('div', 'wisebot-suggestions', null);
+        sq.forEach(function (question) {
+          if (!question || !question.trim()) return;
+          var chip = createEl('span', 'wisebot-suggestion-chip', question.trim());
+          chip.addEventListener('click', function () {
+            state.messages.push({ role: 'user', content: question.trim() });
+            render();
+            trackEvent(widget, 'MESSAGE_SENT', { message: question, sourceUrl: window.location.href });
+            askAssistant(widget, question.trim());
+          });
+          sqWrap.appendChild(chip);
+        });
+        if (sqWrap.children.length > 0) {
+          body.appendChild(sqWrap);
+        }
+      }
+    }
+
+    function renderMessage(container, message, config) {
       var msgWrap = createEl('div', '', null);
       msgWrap.style.width = '100%';
       msgWrap.style.display = 'flex';
@@ -365,9 +581,12 @@
 
       // Text message
       if (message.content) {
-        var msg = createEl('div', 'wisebot-msg ' + message.role, message.content);
+        var msg = createEl('div', 'wisebot-msg ' + message.role, null);
         if (message.role === 'user') {
           msg.style.background = config.primaryColor;
+          msg.textContent = message.content;
+        } else {
+          appendFormattedContent(msg, message.content);
         }
         msgWrap.appendChild(msg);
       }
@@ -407,10 +626,11 @@
         msgWrap.appendChild(cardList);
       }
 
-      body.appendChild(msgWrap);
-    });
+      container.appendChild(msgWrap);
+    }
+
     if (state.isReplying) {
-      var thinking = createEl('div', 'wisebot-msg bot', null);
+      var thinking = createEl('div', 'wisebot-thinking', null);
       thinking.innerHTML = '<span class="wisebot-typing"><span></span><span></span><span></span></span>';
       body.appendChild(thinking);
     }
@@ -453,9 +673,10 @@
     panel.appendChild(body);
     panel.appendChild(inputWrap);
     root.appendChild(panel);
+    window.setTimeout(scrollToLatestMessage, 0);
   }
 
-  fetch(apiUrl)
+  fetch(appendSourceUrl(apiUrl))
     .then(function (response) {
       if (!response.ok) {
         throw new Error('Failed to load widget');

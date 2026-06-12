@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import vandinh.wisebot.widgetservice.common.response.ApiResponse;
@@ -29,12 +30,13 @@ public class PublicWidgetController {
     public ApiResponse getPublicWidget(
             @PathVariable String code,
             @RequestHeader(value = "Origin", required = false) String origin,
-            @RequestHeader(value = "Referer", required = false) String referer
+            @RequestHeader(value = "Referer", required = false) String referer,
+            @RequestParam(value = "sourceUrl", required = false) String sourceUrl
     ) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
                 .message("Public widget")
-                .data(widgetService.getPublicWidgetByCode(code, origin, referer))
+                .data(widgetService.getPublicWidgetByCode(code, origin, referer, sourceUrl))
                 .build();
     }
 
@@ -43,12 +45,13 @@ public class PublicWidgetController {
             @PathVariable String code,
             @RequestHeader(value = "Origin", required = false) String origin,
             @RequestHeader(value = "Referer", required = false) String referer,
+            @RequestParam(value = "sourceUrl", required = false) String sourceUrl,
             @Valid @RequestBody CreateWidgetSessionRequest request
     ) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
                 .message("Session created")
-                .data(widgetService.createPublicSession(code, request, origin, referer))
+                .data(widgetService.createPublicSession(code, request, origin, referer, request.getSourceUrl() != null ? request.getSourceUrl() : sourceUrl))
                 .build();
     }
 
@@ -57,12 +60,13 @@ public class PublicWidgetController {
             @PathVariable String code,
             @RequestHeader(value = "Origin", required = false) String origin,
             @RequestHeader(value = "Referer", required = false) String referer,
+            @RequestParam(value = "sourceUrl", required = false) String sourceUrl,
             @Valid @RequestBody TrackEventRequest request
     ) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
                 .message("Event tracked")
-                .data(widgetService.trackPublicEvent(code, request, origin, referer))
+                .data(widgetService.trackPublicEvent(code, request, origin, referer, sourceUrl))
                 .build();
     }
 

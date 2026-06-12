@@ -223,7 +223,7 @@ public class ChatServiceImpl implements ChatService {
             String type = String.valueOf(event.getOrDefault("type", ""));
             if ("TOKEN".equalsIgnoreCase(type)) {
                 String token = String.valueOf(event.getOrDefault("token", ""));
-                if (!token.isBlank()) {
+                if (!token.isEmpty()) {
                     streamedAnswer.append(token);
                     if (tokenConsumer != null) {
                         tokenConsumer.accept(token);
@@ -339,6 +339,11 @@ public class ChatServiceImpl implements ChatService {
     public void closeSession(UUID sessionId) {
         ChatSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found: " + sessionId));
+
+        // Phải xóa message + citation + feedback trước, vì không có cascade
+        citationRepository.deleteBySessionIds(List.of(sessionId));
+        feedbackRepository.deleteBySessionIds(List.of(sessionId));
+        messageRepository.deleteBySessionIds(List.of(sessionId));
         sessionRepository.delete(session);
     }
 

@@ -82,7 +82,7 @@ public class WidgetController {
     }
 
     @PostMapping("/widgets/{widgetId}/domains")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER')")
     public ApiResponse addDomain(@PathVariable UUID widgetId, @Valid @RequestBody AddDomainRequest request) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())
@@ -92,7 +92,7 @@ public class WidgetController {
     }
 
     @GetMapping("/widgets/{widgetId}/domains")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','USER')")
     public ApiResponse listDomains(@PathVariable UUID widgetId) {
         return ApiResponse.builder()
                 .status(HttpStatus.OK.value())

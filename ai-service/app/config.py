@@ -26,11 +26,18 @@ class Settings(BaseSettings):
     embedding_dimension: int = 768
     default_top_k: int = 5
     default_temperature: float = 0.2
-    min_similarity_score: float = 0.35
+    min_similarity_score: float = 0.25
     max_tokens: int = 1024
 
     # ── Query Rewriting ───────────────────────────────────────────────────
     query_rewriting_enabled: bool = True
+    multi_query_enabled: bool = True          # Multi-query: search nhiều biến thể
+    multi_query_count: int = 3                # Số lượng biến thể câu hỏi
+
+    # ── Dynamic Top-K ─────────────────────────────────────────────────────
+    dynamic_top_k_enabled: bool = True        # Tự động điều chỉnh top_k theo câu hỏi
+    top_k_specific: int = 3                   # Câu hỏi cụ thể (giá, bao nhiêu...)
+    top_k_general: int = 8                    # Câu hỏi tổng quan (gì, nào, thế nào...) 
 
     # ── Hybrid Search ──────────────────────────────────────────────────────
     hybrid_search_enabled: bool = True

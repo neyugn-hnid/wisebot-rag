@@ -114,6 +114,72 @@ export async function ask(sessionId: string, request: AskRequest): Promise<AskRe
   return handleResponse<AskResponse>(res);
 }
 
+export async function askStream(
+  sessionId: string,
+  request: AskRequest,
+  onToken: (token: string) => void
+): Promise<void> {
+  const res = await fetchWithAuth(`${CHAT_BASE}/sessions/${sessionId}/ask-stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const message = (body as { message?: string; error?: string })?.message
+      || (body as { error?: string })?.error
+      || `Request failed: ${res.status}`;
+    throw new Error(message);
+  }
+
+  if (!res.body) {
+    throw new Error('Streaming response is not available.');
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  const flushEvent = (rawEvent: string) => {
+    const dataLines = rawEvent
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trim());
+
+    if (dataLines.length === 0) {
+      return;
+    }
+
+    const data = dataLines.join('\n');
+    if (!data || data === '[DONE]') {
+      return;
+    }
+
+    const payload = JSON.parse(data) as { token?: unknown };
+    if (typeof payload.token === 'string') {
+      onToken(payload.token);
+    }
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split(/\r?\n\r?\n/);
+    buffer = events.pop() || '';
+    events.forEach(flushEvent);
+  }
+
+  buffer += decoder.decode();
+  if (buffer.trim()) {
+    flushEvent(buffer);
+  }
+}
+
 export async function getCitations(messageId: string): Promise<CitationItem[]> {
   const res = await fetchWithAuth(`${CHAT_BASE}/messages/${messageId}/citations`);
   return handleResponse<CitationItem[]>(res);
@@ -152,27 +218,4 @@ export interface UserPreferenceRequest {
   knowledgeBaseId?: string | null;
   topK?: number;
   temperature?: number;
-}
-
-export interface UserPreferenceResponse {
-  tenantId?: string;
-  userId?: string;
-  knowledgeBaseId?: string | null;
-  topK?: number;
-  temperature?: number;
-  updatedAt?: string;
-}
-
-export async function getUserPreference(tenantId: string): Promise<UserPreferenceResponse | null> {
-  const res = await fetchWithAuth(`${CHAT_BASE}/users/me/preferences?tenantId=${encodeURIComponent(tenantId)}`);
-  return handleResponse<UserPreferenceResponse | null>(res);
-}
-
-export async function saveUserPreference(request: UserPreferenceRequest): Promise<UserPreferenceResponse> {
-  const res = await fetchWithAuth(`${CHAT_BASE}/users/me/preferences`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-  return handleResponse<UserPreferenceResponse>(res);
 }

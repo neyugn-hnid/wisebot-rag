@@ -45,13 +45,18 @@ class OllamaEmbeddingClient(BaseEmbeddingClient):
                     raise
                 await asyncio.sleep(0.3 * (i + 1))
 
+    MAX_EMBED_CHARS: int = 2000  # nomic-embed-text context ~2048 tokens
+
     async def embed(self, text: str) -> list[float]:
         if text in self._cache:
             return self._cache[text]
 
+        # Truncate text to avoid exceeding model context length
+        truncated = text[:self.MAX_EMBED_CHARS]
+
         response = await self._post_with_retry(
             f"{self._base_url}/api/embeddings",
-            {"model": self.model_name, "prompt": text},
+            {"model": self.model_name, "prompt": truncated},
         )
         payload = response.json()
         vector = payload.get("embedding") or (payload.get("embeddings", [None])[0])
@@ -73,7 +78,8 @@ class OllamaEmbeddingClient(BaseEmbeddingClient):
                 raise ValueError("Invalid embedding response")
             return [[float(v) for v in vec] for vec in vectors]
         except HTTPStatusError as exc:
-            if exc.response.status_code != 404:
+            status = exc.response.status_code
+            if status != 404 and status != 400:
                 raise
 
             # Backward-compatible fallback for Ollama versions without /api/embed.

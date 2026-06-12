@@ -106,6 +106,7 @@ export default function KnowledgeBase() {
   const [previewData, setPreviewData] = useState<{ 
     name: string; 
     content: string | null; 
+    contentFormat?: 'html' | 'text';
     type: string; 
     url?: string;
     pdfPages?: string[]; // Array of data URLs for PDF pages
@@ -413,6 +414,7 @@ export default function KnowledgeBase() {
             name: file.name,
             type: file.type,
             content: file.previewContent,
+            contentFormat: 'text',
           });
         } else {
           const content = await previewDocument(file.id);
@@ -420,6 +422,7 @@ export default function KnowledgeBase() {
             name: file.name,
             type: file.type,
             content: content || 'No content available.',
+            contentFormat: 'text',
           });
         }
       } else if (file.type === 'PDF') {
@@ -429,8 +432,7 @@ export default function KnowledgeBase() {
           const pdf = await loadingTask.promise;
           
           const pages: string[] = [];
-          // Render first 5 pages for preview to keep it performant
-          const numPages = Math.min(pdf.numPages, 5);
+          const numPages = pdf.numPages;
           
           for (let i = 1; i <= numPages; i++) {
             const page = await pdf.getPage(i);
@@ -454,10 +456,12 @@ export default function KnowledgeBase() {
             pdfPages: pages
           });
         } else {
+          const content = await previewDocument(file.id);
           setPreviewData({
             name: file.name,
             type: file.type,
-            content: null
+            content: content || 'No content available.',
+            contentFormat: 'text',
           });
         }
       } else if (file.type === 'DOCX') {
@@ -467,20 +471,25 @@ export default function KnowledgeBase() {
           setPreviewData({
             name: file.name,
             type: file.type,
-            content: result.value
+            content: result.value,
+            contentFormat: 'html',
           });
         } else {
+          const content = await previewDocument(file.id);
           setPreviewData({
             name: file.name,
             type: file.type,
-            content: null
+            content: content || 'No content available.',
+            contentFormat: 'text',
           });
         }
       } else {
+        const content = await previewDocument(file.id);
         setPreviewData({
           name: file.name,
           type: file.type,
-          content: null
+          content: content || 'No content available.',
+          contentFormat: 'text',
         });
       }
     } catch (error) {
@@ -489,7 +498,8 @@ export default function KnowledgeBase() {
       setPreviewData({
         name: file.name,
         type: file.type,
-        content: message
+        content: message,
+        contentFormat: 'text',
       });
     } finally {
       setIsPreviewLoading(false);
@@ -1021,7 +1031,7 @@ export default function KnowledgeBase() {
                   ref={fileInputRef}
                   onChange={handleFileUpload}
                   className="hidden bg-transparent border border-[rgba(255,255,255,0.3)] rounded-[8px] text-[#f0f0f0] text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-[#a1a4a5]/40"
-                  accept=".pdf,.docx,.txt"
+                  accept=".pdf,.docx,.txt,.xls,.xlsx"
                 />
                 <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-[rgba(59,158,255,0.08)] transition-all group-hover:scale-110 group-hover:bg-[rgba(59,158,255,0.14)]">
                   <UploadCloud size={32} className="text-[#3b9eff]" />
@@ -1491,11 +1501,6 @@ export default function KnowledgeBase() {
                         />
                       </div>
                     ))}
-                    {previewData.pdfPages.length === 5 && (
-                      <p className="text-xs text-[#a1a4a5] py-4 italic">
-                        {t('kb.preview.pdf_limit')}
-                      </p>
-                    )}
                   </div>
                 ) : previewData.url ? (
                   <iframe 
@@ -1505,7 +1510,7 @@ export default function KnowledgeBase() {
                   />
                 ) : previewData.content ? (
                   <div className="min-h-full max-w-none rounded-[18px] border border-[rgba(255,255,255,0.12)] bg-[#000000] p-8 shadow-md shadow-black/40 prose prose-slate">
-                    {previewData.type === 'DOCX' ? (
+                    {previewData.contentFormat === 'html' ? (
                       <div dangerouslySetInnerHTML={{ __html: previewData.content }} />
                     ) : (
                       <pre className="text-sm text-[#f0f0f0] font-sans whitespace-pre-wrap leading-relaxed">

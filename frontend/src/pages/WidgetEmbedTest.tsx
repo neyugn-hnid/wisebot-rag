@@ -33,10 +33,30 @@ function currentDomain() {
   return window.location.hostname.replace(/^www\./, '').toLowerCase();
 }
 
+function normalizeDomain(value: string) {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return '';
+
+  try {
+    const url = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+    return url.hostname.replace(/^\[|\]$/g, '').replace(/^www\./, '');
+  } catch {
+    const host = trimmed.replace(/^https?:\/\//, '').split('/')[0] || '';
+    return host.replace(/:\d+$/, '').replace(/^\[|\]$/g, '').replace(/^www\./, '');
+  }
+}
+
+function isLoopbackHost(host: string) {
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+}
+
 function domainAllowed(host: string, domains: DomainResponse[]) {
+  const normalizedHost = normalizeDomain(host);
   return domains.some((item) => {
-    const allowed = item.domain.replace(/^www\./, '').toLowerCase();
-    return host === allowed || (item.allowSubdomains && host.endsWith(`.${allowed}`));
+    const allowed = normalizeDomain(item.domain);
+    return normalizedHost === allowed
+      || (isLoopbackHost(normalizedHost) && isLoopbackHost(allowed))
+      || (item.allowSubdomains && normalizedHost.endsWith(`.${allowed}`));
   });
 }
 
@@ -72,7 +92,7 @@ const BANNERS = [
   '/ictu-banner3.jpg',
 ];
 
-const WIDGET_SCRIPT_VERSION = '20260607-session-ttl';
+const WIDGET_SCRIPT_VERSION = '20260612-rich-stream';
 
 const styles: Record<string, React.CSSProperties> = {
   page: {

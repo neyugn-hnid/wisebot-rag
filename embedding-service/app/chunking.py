@@ -62,6 +62,13 @@ def _split_by_token_budget(text: str, max_tokens: int) -> list[str]:
             else:
                 high = mid - 1
 
+        # Điều chỉnh best_end về ranh giới từ (khoảng trắng) gần nhất
+        if best_end < text_len:
+            # Lùi về khoảng trắng gần nhất trước best_end
+            space_pos = normalized.rfind(" ", start + 1, best_end)
+            if space_pos > start:
+                best_end = space_pos + 1  # +1 để giữ khoảng trắng cho lần cắt sau không dính
+
         chunk = normalized[start:best_end].strip()
         if not chunk:
             best_end = min(text_len, start + 1)

@@ -20,10 +20,10 @@ class Settings(BaseSettings):
     # Ollama dimension (nomic-embed-text = 768, llama3 embeddings vary)
     # OpenAI text-embedding-3-small = 1536
     embedding_dimension: int = 768
-    default_chunk_size: int = 1200
-    default_chunk_overlap: int = 200
+    default_chunk_size: int = 800
+    default_chunk_overlap: int = 150
     default_collection_name: str = "default"
-    min_similarity_score: float = 0.35
+    min_similarity_score: float = 0.25
     search_max_chunk_chars: int = 800
     embed_concurrency: int = 4
 

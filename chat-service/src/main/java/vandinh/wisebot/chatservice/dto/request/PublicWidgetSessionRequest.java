@@ -10,5 +10,6 @@ public class PublicWidgetSessionRequest {
     @NotNull
     private UUID tenantId;
     private String visitorId;
+    private String sourceUrl;
     private String title;
 }

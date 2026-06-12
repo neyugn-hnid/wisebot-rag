@@ -2,6 +2,7 @@ package vandinh.wisebot.widgetservice.dto;
 
 import lombok.Data;
 
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -14,4 +15,5 @@ public class WidgetAppearanceConfig {
     private UUID knowledgeBaseId;
     private Integer topK;
     private Double temperature;
+    private List<String> suggestedQuestions;
 }

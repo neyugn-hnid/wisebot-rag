@@ -21,11 +21,11 @@ public interface WidgetService {
 
     WidgetResponse updateWidget(UUID widgetId, UpdateWidgetRequest request);
 
-    PublicWidgetResponse getPublicWidgetByCode(String code, String origin, String referer);
+    PublicWidgetResponse getPublicWidgetByCode(String code, String origin, String referer, String sourceUrl);
 
-    WidgetSessionResponse createPublicSession(String code, CreateWidgetSessionRequest request, String origin, String referer);
+    WidgetSessionResponse createPublicSession(String code, CreateWidgetSessionRequest request, String origin, String referer, String sourceUrl);
 
-    WidgetEventResponse trackPublicEvent(String code, TrackEventRequest request, String origin, String referer);
+    WidgetEventResponse trackPublicEvent(String code, TrackEventRequest request, String origin, String referer, String sourceUrl);
 
     boolean isWidgetOriginAllowed(UUID widgetId, String origin, String referer, String sourceUrl);
 
