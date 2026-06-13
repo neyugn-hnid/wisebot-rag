@@ -58,7 +58,7 @@ public class PublicApiController {
             aiPayload.put("page_context", request.getPageContext());
         }
 
-        Map<String, Object> aiResult = aiClient.ask(aiPayload);
+        Map<String, Object> aiResult = callAiStream(aiPayload);
         String answer = aiResult == null || aiResult.get("answer") == null
                 ? ""
                 : aiResult.get("answer").toString();
@@ -99,10 +99,38 @@ public class PublicApiController {
         pageContext.put("recommendMode", true);
         aiPayload.put("page_context", pageContext);
 
-        Map<String, Object> aiResult = aiClient.ask(aiPayload);
+        Map<String, Object> aiResult = callAiStream(aiPayload);
         String answer = (String) aiResult.getOrDefault("answer", "");
 
         return ResponseEntity.ok(parseRecommendResponse(answer));
+    }
+
+    private Map<String, Object> callAiStream(Map<String, Object> aiPayload) {
+        StringBuilder streamedAnswer = new StringBuilder();
+        Map<String, Object> donePayload = new HashMap<>();
+        aiClient.streamAsk(aiPayload, event -> {
+            String type = String.valueOf(event.getOrDefault("type", ""));
+            if ("TOKEN".equalsIgnoreCase(type)) {
+                String token = String.valueOf(event.getOrDefault("token", ""));
+                if (!token.isEmpty()) {
+                    streamedAnswer.append(token);
+                }
+            } else if ("DONE".equalsIgnoreCase(type)) {
+                donePayload.clear();
+                donePayload.putAll(event);
+            } else if ("ERROR".equalsIgnoreCase(type)) {
+                String message = String.valueOf(event.getOrDefault("message", "Unknown stream error"));
+                throw new IllegalStateException(message);
+            }
+        });
+
+        if (!donePayload.containsKey("answer")) {
+            donePayload.put("answer", streamedAnswer.toString().trim());
+        }
+        if (!donePayload.containsKey("citations")) {
+            donePayload.put("citations", List.of());
+        }
+        return donePayload;
     }
 
     @SuppressWarnings("unchecked")

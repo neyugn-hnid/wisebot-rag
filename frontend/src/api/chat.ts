@@ -27,6 +27,7 @@ export interface AskRequest {
   topK?: number;
   temperature?: number;
   knowledgeBaseId?: string;
+  pageContext?: Record<string, unknown>;
 }
 
 export interface AskResponse {
@@ -140,6 +141,7 @@ export async function askStream(
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let receivedToken = false;
 
   const flushEvent = (rawEvent: string) => {
     const dataLines = rawEvent
@@ -156,9 +158,15 @@ export async function askStream(
       return;
     }
 
-    const payload = JSON.parse(data) as { token?: unknown };
+    const payload = JSON.parse(data) as { token?: unknown; answer?: unknown };
     if (typeof payload.token === 'string') {
+      receivedToken = true;
       onToken(payload.token);
+      return;
+    }
+
+    if (!receivedToken && typeof payload.answer === 'string' && payload.answer.trim()) {
+      onToken(payload.answer);
     }
   };
 

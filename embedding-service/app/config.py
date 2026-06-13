@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     ollama_provider_name: str = "Ollama Local"
     ollama_base_url: str = "http://localhost:11434"
     ollama_embedding_model: str = "nomic-embed-text"
+    ollama_keep_alive: str = "30m"
     third_party_provider_name: str = "OpenAI-Compatible Embeddings API"
     third_party_base_url: str = "https://api.openai.com/v1"
     third_party_api_key: str = ""

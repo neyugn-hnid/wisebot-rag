@@ -46,6 +46,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final StorageProperties storageProperties;
     private final StorageService storageService;
     private final AsyncDocumentProcessor asyncDocumentProcessor;
+    private final EmbeddingClient embeddingClient;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -135,6 +136,12 @@ public class DocumentServiceImpl implements DocumentService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(UUID id) {
         Document document = getDocument(id);
+        KnowledgeBase knowledgeBase = document.getKnowledgeBase();
+        UUID knowledgeBaseId = knowledgeBase != null ? knowledgeBase.getId() : null;
+        UUID tenantId = knowledgeBase != null ? knowledgeBase.getTenantId() : null;
+        if (knowledgeBaseId != null && tenantId != null) {
+            embeddingClient.deleteDocumentEmbeddings(tenantId, knowledgeBaseId, id);
+        }
         documentChunkRepository.deleteAllByDocument_Id(id);
         documentRepository.delete(document);
     }

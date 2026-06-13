@@ -27,25 +27,6 @@ public class AiClient {
     private final AiClientProperties properties;
     private final ObjectMapper objectMapper;
 
-    @SuppressWarnings("unchecked")
-    public Map<String, Object> ask(Map<String, Object> payload) {
-        String url = properties.getBaseUrl() + properties.getAskPath();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (properties.getServiceToken() != null && !properties.getServiceToken().isBlank()) {
-            headers.setBearerAuth(properties.getServiceToken().trim());
-        }
-
-        ResponseEntity<Map> response = restTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                new HttpEntity<>(payload, headers),
-                Map.class
-        );
-
-        return response.getBody();
-    }
-
     public void streamAsk(Map<String, Object> payload, Consumer<Map<String, Object>> onEvent) {
         String url = properties.getBaseUrl() + properties.getStreamPath();
 

@@ -29,6 +29,7 @@ class OllamaLlmClient(BaseLlmClient):
         self.provider_name = settings.ollama_provider_name
         self.model_name = settings.ollama_llm_model
         self._base_url = settings.ollama_base_url.rstrip("/")
+        self._keep_alive = settings.ollama_keep_alive
         self._client = httpx.AsyncClient(timeout=timeout_seconds)
 
     async def close(self) -> None:
@@ -56,6 +57,7 @@ class OllamaLlmClient(BaseLlmClient):
                 {"role": "user", "content": user_prompt},
             ],
             "options": {"temperature": temperature},
+            "keep_alive": self._keep_alive,
         }
         response = await self._post(f"{self._base_url}/api/chat", payload)
         return response.json()
@@ -69,6 +71,7 @@ class OllamaLlmClient(BaseLlmClient):
                 {"role": "user", "content": user_prompt},
             ],
             "options": {"temperature": temperature},
+            "keep_alive": self._keep_alive,
         }
 
         async with self._client.stream(

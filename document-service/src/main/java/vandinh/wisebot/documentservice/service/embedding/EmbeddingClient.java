@@ -12,6 +12,9 @@ import vandinh.wisebot.documentservice.dto.request.EmbeddingRequest;
 import vandinh.wisebot.documentservice.dto.response.EmbeddingResponse;
 import vandinh.wisebot.documentservice.exception.InvalidDataException;
 
+import java.util.Map;
+import java.util.UUID;
+
 @Service
 public class EmbeddingClient {
 
@@ -41,6 +44,33 @@ public class EmbeddingClient {
             );
         } catch (RestClientException e) {
             throw new InvalidDataException("Embedding request failed: " + e.getMessage());
+        }
+    }
+
+    public void deleteDocumentEmbeddings(UUID tenantId, UUID knowledgeBaseId, UUID documentId) {
+        String url = properties.getBaseUrl() + "/v1/embeddings/delete-document";
+        Map<String, Object> payload = Map.of(
+                "tenant_id", tenantId,
+                "knowledge_base_id", knowledgeBaseId,
+                "document_id", documentId
+        );
+
+        try {
+            restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    new HttpEntity<>(payload),
+                    Map.class
+            );
+        } catch (HttpStatusCodeException e) {
+            String responseBody = e.getResponseBodyAsString();
+            String detail = (responseBody == null || responseBody.isBlank()) ? e.getStatusText() : responseBody;
+            throw new InvalidDataException(
+                    "Delete embeddings request failed: " + e.getStatusCode().value() + " "
+                            + e.getStatusText() + " - " + detail
+            );
+        } catch (RestClientException e) {
+            throw new InvalidDataException("Delete embeddings request failed: " + e.getMessage());
         }
     }
 }

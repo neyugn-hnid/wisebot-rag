@@ -91,6 +91,12 @@ class EmbedResponse(BaseModel):
     results: list[EmbedResultResponse]
 
 
+class DeleteDocumentEmbeddingsRequest(BaseModel):
+    tenant_id: UUID
+    knowledge_base_id: UUID
+    document_id: UUID
+
+
 class ProviderConfigResponse(BaseModel):
     mode: str
     provider: str

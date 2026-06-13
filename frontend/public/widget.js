@@ -222,7 +222,11 @@
   // ── Parse JSON products from AI response ─────────────────────────────
   function parseProducts(content) {
     var jsonMatch = content.match(/__JSON_PRODUCTS__\s*([\s\S]*?)\s*__END_JSON__/);
-    if (!jsonMatch) return { text: content, products: null };
+    if (!jsonMatch) {
+      var markerIndex = content.indexOf('__JSON_PRODUCTS__');
+      if (markerIndex >= 0) return { text: content.slice(0, markerIndex).trim(), products: null };
+      return { text: content, products: null };
+    }
     try {
       var products = JSON.parse(jsonMatch[1]);
       if (!Array.isArray(products) || products.length === 0) return { text: content, products: null };
@@ -233,7 +237,7 @@
     }
   }
 
-  function askAssistant(widget, question) {
+  function askAssistant(widget, question, retried) {
     state.isReplying = true;
     render();
     return ensureChatSession(widget).then(function (sessionId) {
@@ -269,10 +273,17 @@
         var reader = response.body.getReader();
         var decoder = new TextDecoder();
         var buffer = '';
+        var streamError = '';
 
         function readStream() {
           return reader.read().then(function (result) {
             if (result.done) {
+              if (streamError) {
+                throw new Error(streamError);
+              }
+              if (!answerText.trim()) {
+                throw new Error('Empty assistant response');
+              }
               var parsed = parseProducts(answerText);
               botMsg.content = parsed.text;
               botMsg.products = parsed.products;
@@ -287,6 +298,9 @@
             buffer = events.pop() || '';
 
             events.forEach(function (rawEvent) {
+              var isErrorEvent = rawEvent.split(/\r?\n/).some(function (line) {
+                return line.trim().toLowerCase() === 'event:error';
+              });
               var dataLines = rawEvent.split(/\r?\n/).filter(function (line) {
                 return line.startsWith('data:');
               }).map(function (line) {
@@ -301,26 +315,35 @@
                 var payload = JSON.parse(data);
                 if (typeof payload.token === 'string') {
                   answerText += payload.token;
-                  botMsg.content = answerText;
-                  if (!hasRenderedAnswer) {
-                    hasRenderedAnswer = true;
+                  var liveParsed = parseProducts(answerText);
+                  botMsg.content = liveParsed.text;
+                  botMsg.products = liveParsed.products;
+                  var hasVisibleAnswer = Boolean(liveParsed.text) || Boolean(liveParsed.products && liveParsed.products.length);
+                  if (hasVisibleAnswer) {
                     state.isReplying = false;
-                    render();
+                    hasRenderedAnswer = true;
+                  } else if (!hasRenderedAnswer) {
+                    state.isReplying = true;
                   }
-                  var bodyEl = root.querySelector('.wisebot-body');
-                  if (bodyEl) {
-                    var botMsgs = bodyEl.querySelectorAll('.wisebot-msg.bot');
-                    var lastBot = botMsgs[botMsgs.length - 1];
-                    if (lastBot) {
-                      lastBot.innerHTML = '';
-                      appendFormattedContent(lastBot, answerText);
-                    }
-                    scrollToLatestMessage();
-                  }
+                  render();
+                } else if (!answerText && typeof payload.answer === 'string') {
+                  answerText = payload.answer;
+                  var doneParsed = parseProducts(answerText);
+                  botMsg.content = doneParsed.text;
+                  botMsg.products = doneParsed.products;
+                  state.isReplying = false;
+                  render();
                 }
-              } catch(e) {}
+              } catch(e) {
+                if (isErrorEvent) {
+                  streamError = data;
+                }
+              }
             });
 
+            if (streamError) {
+              throw new Error(streamError);
+            }
             return readStream();
           });
         }
@@ -328,6 +351,13 @@
         return readStream();
       }).catch(function (error) {
         state.messages.pop(); // remove empty bot msg
+        state.chatSessionId = '';
+        window.localStorage.removeItem(chatSessionStorageKey);
+        window.localStorage.removeItem(chatSessionCreatedAtKey);
+        if (!retried) {
+          state.isReplying = false;
+          return askAssistant(widget, question, true);
+        }
         state.messages.push({ role: 'bot', content: 'The assistant is temporarily unavailable. Please try again.' });
         state.isReplying = false;
         render();
@@ -579,51 +609,52 @@
       msgWrap.style.display = 'flex';
       msgWrap.style.justifyContent = message.role === 'bot' ? 'flex-start' : 'flex-end';
 
-      // Text message
-      if (message.content) {
+      // Text message + product cards
+      if (message.content || (message.products && message.products.length > 0)) {
         var msg = createEl('div', 'wisebot-msg ' + message.role, null);
         if (message.role === 'user') {
           msg.style.background = config.primaryColor;
           msg.textContent = message.content;
         } else {
-          appendFormattedContent(msg, message.content);
+          if (message.content) {
+            appendFormattedContent(msg, message.content);
+          }
+
+          if (message.products && message.products.length > 0) {
+            var cardList = createEl('div', 'wisebot-product-list', null);
+            message.products.forEach(function (product) {
+              var card = createEl('a', 'wisebot-product-card', null);
+              card.href = product.detailUrl || '#';
+              if (product.detailUrl) {
+                card.target = '_blank';
+                card.rel = 'noopener';
+              }
+
+              var img = createEl('img', 'wisebot-product-img', null);
+              img.src = product.imageUrl || '';
+              img.alt = product.name || '';
+              img.loading = 'lazy';
+              img.onerror = function () { this.style.display = 'none'; };
+
+              var info = createEl('div', 'wisebot-product-info', null);
+              var name = createEl('div', 'wisebot-product-name', product.name || '');
+              var price = createEl('div', 'wisebot-product-price', null);
+              if (product.price) {
+                price.textContent = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price);
+              }
+              var reason = createEl('div', 'wisebot-product-reason', product.reason || '');
+
+              info.appendChild(name);
+              info.appendChild(price);
+              info.appendChild(reason);
+              card.appendChild(img);
+              card.appendChild(info);
+              cardList.appendChild(card);
+            });
+            msg.appendChild(cardList);
+          }
         }
         msgWrap.appendChild(msg);
-      }
-
-      // Product cards
-      if (message.products && message.products.length > 0) {
-        var cardList = createEl('div', 'wisebot-product-list', null);
-        message.products.forEach(function (product) {
-          var card = createEl('a', 'wisebot-product-card', null);
-          card.href = product.detailUrl || '#';
-          if (product.detailUrl) {
-            card.target = '_blank';
-            card.rel = 'noopener';
-          }
-
-          var img = createEl('img', 'wisebot-product-img', null);
-          img.src = product.imageUrl || '';
-          img.alt = product.name || '';
-          img.loading = 'lazy';
-          img.onerror = function () { this.style.display = 'none'; };
-
-          var info = createEl('div', 'wisebot-product-info', null);
-          var name = createEl('div', 'wisebot-product-name', product.name || '');
-          var price = createEl('div', 'wisebot-product-price', null);
-          if (product.price) {
-            price.textContent = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price);
-          }
-          var reason = createEl('div', 'wisebot-product-reason', product.reason || '');
-
-          info.appendChild(name);
-          info.appendChild(price);
-          info.appendChild(reason);
-          card.appendChild(img);
-          card.appendChild(info);
-          cardList.appendChild(card);
-        });
-        msgWrap.appendChild(cardList);
       }
 
       container.appendChild(msgWrap);

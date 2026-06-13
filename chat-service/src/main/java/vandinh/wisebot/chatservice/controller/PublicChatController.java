@@ -27,7 +27,9 @@ import vandinh.wisebot.chatservice.service.ChatService;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -88,7 +90,7 @@ public class PublicChatController {
             askRequest.setTopK(request.getTopK());
             askRequest.setTemperature(request.getTemperature());
             askRequest.setKnowledgeBaseId(request.getKnowledgeBaseId());
-            askRequest.setPageContext(request.getPageContext());
+            askRequest.setPageContext(prepareWidgetPageContext(request));
 
             return ResponseEntity.ok(ApiResponse.builder()
                     .status(HttpStatus.OK.value())
@@ -130,7 +132,7 @@ public class PublicChatController {
                 askRequest.setTopK(request.getTopK());
                 askRequest.setTemperature(request.getTemperature());
                 askRequest.setKnowledgeBaseId(request.getKnowledgeBaseId());
-                askRequest.setPageContext(request.getPageContext());
+                askRequest.setPageContext(prepareWidgetPageContext(request));
 
                 chatService.askStreaming(sessionId, askRequest, token -> {
                     try {
@@ -199,6 +201,61 @@ public class PublicChatController {
             return null;
         }
         return pageContext.get("pageUrl").toString();
+    }
+
+    private Map<String, Object> prepareWidgetPageContext(PublicWidgetAskRequest request) {
+        Map<String, Object> pageContext = new HashMap<>();
+        if (request.getPageContext() != null) {
+            pageContext.putAll(request.getPageContext());
+        }
+
+        if (shouldEnableProductRecommendMode(request.getQuestion())) {
+            pageContext.put("recommendMode", true);
+        } else {
+            pageContext.remove("recommendMode");
+        }
+        return pageContext;
+    }
+
+    private boolean shouldEnableProductRecommendMode(String question) {
+        String q = normalizeQuestion(question);
+        if (q.isBlank()) {
+            return false;
+        }
+
+        String[] faqSignals = {
+                "chinh sach", "bao hanh", "doi tra", "hoan tien", "giao hang", "van chuyen",
+                "thanh toan", "hoa don", "lien he", "hotline", "dia chi", "thoi gian",
+                "quy dinh", "dieu khoan", "huong dan", "bao tri", "sua chua"
+        };
+        for (String signal : faqSignals) {
+            if (q.contains(signal)) {
+                return false;
+            }
+        }
+
+        String[] recommendSignals = {
+                "muon mua", "can mua", "mua", "tu van", "goi y", "de xuat", "nen chon",
+                "chon", "phu hop", "tim", "so sanh", "recommend", "suggest", "budget",
+                "ngan sach", "tam gia", "gia khoang", "duoi", "tren", "khoang"
+        };
+        for (String signal : recommendSignals) {
+            if (q.contains(signal)) {
+                return true;
+            }
+        }
+
+        return q.matches(".*\\b\\d{5,}\\b.*");
+    }
+
+    private String normalizeQuestion(String value) {
+        String normalized = java.text.Normalizer.normalize(value == null ? "" : value, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
+        return normalized.replace('đ', 'd')
+                .replaceAll("[^a-z0-9\\s]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     private ResponseEntity<ApiResponse> forbiddenDomain() {

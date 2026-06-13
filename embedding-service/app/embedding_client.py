@@ -28,6 +28,7 @@ class OllamaEmbeddingClient(BaseEmbeddingClient):
         self.provider_name = settings.ollama_provider_name
         self.model_name = settings.ollama_embedding_model
         self._base_url = settings.ollama_base_url.rstrip("/")
+        self._keep_alive = settings.ollama_keep_alive
         self._client = httpx.AsyncClient(timeout=timeout_seconds)
         self._cache: dict[str, list[float]] = {}
 
@@ -56,7 +57,7 @@ class OllamaEmbeddingClient(BaseEmbeddingClient):
 
         response = await self._post_with_retry(
             f"{self._base_url}/api/embeddings",
-            {"model": self.model_name, "prompt": truncated},
+            {"model": self.model_name, "prompt": truncated, "keep_alive": self._keep_alive},
         )
         payload = response.json()
         vector = payload.get("embedding") or (payload.get("embeddings", [None])[0])
@@ -70,7 +71,7 @@ class OllamaEmbeddingClient(BaseEmbeddingClient):
         try:
             response = await self._post_with_retry(
                 f"{self._base_url}/api/embed",
-                {"model": self.model_name, "input": texts},
+                {"model": self.model_name, "input": texts, "keep_alive": self._keep_alive},
             )
             payload = response.json()
             vectors = payload.get("embeddings")

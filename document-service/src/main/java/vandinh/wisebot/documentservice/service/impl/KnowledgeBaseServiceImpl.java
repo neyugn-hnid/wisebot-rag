@@ -14,6 +14,7 @@ import vandinh.wisebot.documentservice.repository.DocumentRepository;
 import vandinh.wisebot.documentservice.repository.KnowledgeBaseRepository;
 import vandinh.wisebot.documentservice.service.BillingEntitlementService;
 import vandinh.wisebot.documentservice.service.KnowledgeBaseService;
+import vandinh.wisebot.documentservice.service.embedding.EmbeddingClient;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +27,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private final DocumentRepository documentRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final BillingEntitlementService billingEntitlementService;
+    private final EmbeddingClient embeddingClient;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -80,6 +82,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         // Xóa tất cả document chunks và documents thuộc KB này
         List<Document> documents = documentRepository.findAllByKnowledgeBase_Id(id);
         for (Document doc : documents) {
+            embeddingClient.deleteDocumentEmbeddings(tenantId, id, doc.getId());
             documentChunkRepository.deleteAllByDocument_Id(doc.getId());
             documentRepository.delete(doc);
         }

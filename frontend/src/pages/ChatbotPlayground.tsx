@@ -39,6 +39,15 @@ interface Message {
   sources?: CitationResponse[];
 }
 
+interface ProductCard {
+  id: number | string;
+  name: string;
+  price: number;
+  imageUrl?: string;
+  detailUrl?: string;
+  reason?: string;
+}
+
 interface CitationResponse {
   name: string;
   snippet: string;
@@ -233,6 +242,38 @@ export default function ChatbotPlayground() {
     } catch {
       return undefined;
     }
+  };
+
+  const normalizeQuestion = (value: string) => value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const shouldEnableProductRecommendMode = (question: string) => {
+    const normalized = normalizeQuestion(question);
+    if (!normalized) return false;
+
+    const faqSignals = [
+      'chinh sach', 'bao hanh', 'doi tra', 'hoan tien', 'giao hang', 'van chuyen',
+      'thanh toan', 'hoa don', 'lien he', 'hotline', 'dia chi', 'thoi gian',
+      'quy dinh', 'dieu khoan', 'huong dan', 'bao tri', 'sua chua',
+    ];
+    if (faqSignals.some((signal) => normalized.includes(signal))) {
+      return false;
+    }
+
+    const recommendSignals = [
+      'muon mua', 'can mua', 'mua', 'tu van', 'goi y', 'de xuat', 'nen chon',
+      'chon', 'phu hop', 'tim', 'so sanh', 'recommend', 'suggest', 'budget',
+      'ngan sach', 'tam gia', 'gia khoang', 'duoi', 'tren', 'khoang',
+    ];
+
+    return recommendSignals.some((signal) => normalized.includes(signal)) || /\b\d{5,}\b/.test(normalized);
   };
 
   const fetchSessionMessages = async (targetSessionId: string) => {
@@ -461,6 +502,9 @@ export default function ChatbotPlayground() {
         topK,
         temperature,
         knowledgeBaseId: knowledgeBaseId.trim() || undefined,
+        pageContext: shouldEnableProductRecommendMode(userMessage.content)
+          ? { recommendMode: true }
+          : {},
       };
 
       const assistantMessageId = `temp-assistant-${Date.now() + 1}`;
@@ -595,8 +639,106 @@ export default function ChatbotPlayground() {
     });
   };
 
+  const parseProductsBlock = (content: string): { text: string; products: ProductCard[] } => {
+    const match = content.match(/__JSON_PRODUCTS__\s*([\s\S]*?)\s*__END_JSON__/);
+    if (!match) {
+      const markerIndex = content.indexOf('__JSON_PRODUCTS__');
+      if (markerIndex >= 0) {
+        return { text: content.slice(0, markerIndex).trim(), products: [] };
+      }
+      return { text: content, products: [] };
+    }
+
+    try {
+      const parsed = JSON.parse(match[1]) as unknown;
+      const products = Array.isArray(parsed)
+        ? parsed
+            .map((item): ProductCard | null => {
+              if (!item || typeof item !== 'object') return null;
+              const product = item as Record<string, unknown>;
+              const id = typeof product.id === 'number' || typeof product.id === 'string' ? product.id : '';
+              const name = typeof product.name === 'string' ? product.name.trim() : '';
+              const rawPrice = typeof product.price === 'number'
+                ? product.price
+                : typeof product.price === 'string'
+                  ? Number(product.price.replace(/[^\d.-]/g, ''))
+                  : 0;
+              if (!id || !name || !Number.isFinite(rawPrice)) return null;
+              return {
+                id,
+                name,
+                price: rawPrice,
+                imageUrl: typeof product.imageUrl === 'string' ? product.imageUrl : '',
+                detailUrl: typeof product.detailUrl === 'string' ? product.detailUrl : '',
+                reason: typeof product.reason === 'string' ? product.reason : '',
+              };
+            })
+            .filter((item): item is ProductCard => item !== null)
+        : [];
+
+      return {
+        text: content.replace(match[0], '').trim(),
+        products,
+      };
+    } catch {
+      return { text: content, products: [] };
+    }
+  };
+
+  const formatProductPrice = (price: number) => {
+    if (!Number.isFinite(price)) return '';
+    return `${Math.round(price).toLocaleString('vi-VN')} VND`;
+  };
+
+  const renderProductCards = (products: ProductCard[]) => {
+    if (products.length === 0) return null;
+
+    return (
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {products.map((product) => (
+          <a
+            key={`${product.id}-${product.name}`}
+            href={product.detailUrl || undefined}
+            target={product.detailUrl?.startsWith('http') ? '_blank' : undefined}
+            rel={product.detailUrl?.startsWith('http') ? 'noreferrer' : undefined}
+            className={cn(
+              "group flex min-w-0 gap-3 rounded-[8px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.05)] p-3 text-left transition",
+              product.detailUrl ? "hover:border-[#3b9eff]/60 hover:bg-[rgba(59,158,255,0.08)]" : "pointer-events-none"
+            )}
+          >
+            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[8px] bg-[rgba(255,255,255,0.08)]">
+              {product.imageUrl ? (
+                <img
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold uppercase text-[#8b8f91]">
+                  No image
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start gap-2">
+                <p className="line-clamp-2 flex-1 text-sm font-semibold leading-5 text-white">{product.name}</p>
+                {product.detailUrl ? <LinkIcon size={14} className="mt-0.5 shrink-0 text-[#3b9eff]" /> : null}
+              </div>
+              <p className="mt-1 text-sm font-bold text-[#3b9eff]">{formatProductPrice(product.price)}</p>
+              {product.reason ? (
+                <p className="mt-2 line-clamp-2 text-xs leading-5 text-[#c9cdcf]">{product.reason}</p>
+              ) : null}
+            </div>
+          </a>
+        ))}
+      </div>
+    );
+  };
+
   const renderFormattedContent = (content: string) => {
-    const lines = content.trim().split(/\r?\n/);
+    const { text, products } = parseProductsBlock(content);
+    const displayText = text.trim();
     const blocks: React.ReactNode[] = [];
     let paragraph: string[] = [];
     let listItems: string[] = [];
@@ -632,7 +774,7 @@ export default function ChatbotPlayground() {
       listType = null;
     };
 
-    lines.forEach((rawLine) => {
+    displayText.split(/\r?\n/).forEach((rawLine) => {
       const line = rawLine.trim();
       if (!line) {
         flushParagraph();
@@ -672,7 +814,12 @@ export default function ChatbotPlayground() {
     flushParagraph();
     flushList();
 
-    return <div className="space-y-3">{blocks}</div>;
+    return (
+      <div className="space-y-3">
+        {blocks}
+        {renderProductCards(products)}
+      </div>
+    );
   };
 
   return (

@@ -7,7 +7,15 @@ from typing import Any
 
 import httpx
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
-from qdrant_client.http.models import PointStruct, VectorParams, Distance, Filter, FieldCondition, MatchValue
+from qdrant_client.http.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    FilterSelector,
+    MatchValue,
+    PointStruct,
+    VectorParams,
+)
 
 from app.chunking import chunk_text
 from app.config import settings
@@ -18,6 +26,7 @@ from app.parsing import UnsupportedFileTypeError, parse_text_from_bytes
 from app.schemas import (
     CollectionResponse,
     CreateCollectionRequest,
+    DeleteDocumentEmbeddingsRequest,
     EmbedResponse,
     EmbedResultResponse,
     EmbedRequest,
@@ -33,6 +42,24 @@ from app.security import require_service_auth
 
 embedding_manager = RuntimeEmbeddingManager(settings)
 logger = logging.getLogger(__name__)
+
+
+async def _warmup_embedding_model() -> None:
+    for attempt in range(1, 4):
+        try:
+            vector = await embedding_manager.client.embed("wisebot warmup")
+            ensure_dimension(vector, settings.embedding_dimension)
+            logger.info(
+                "Embedding warmup completed with provider=%s model=%s",
+                embedding_manager.client.provider_key,
+                embedding_manager.client.model_name,
+            )
+            return
+        except Exception:
+            if attempt == 3:
+                logger.warning("Embedding warmup failed after %d attempts", attempt, exc_info=True)
+                return
+            await asyncio.sleep(2 * attempt)
 
 
 async def _embed_texts_to_vectors(texts: list[str], target_dimension: int) -> list[list[float]]:
@@ -65,7 +92,10 @@ async def lifespan(_: FastAPI):
             await embedding_manager.switch_mode(persisted_mode)
         except Exception:
             logger.exception("Failed to restore persisted embedding mode '%s'", persisted_mode)
+    warmup_task = asyncio.create_task(_warmup_embedding_model())
     yield
+    if not warmup_task.done():
+        warmup_task.cancel()
     await embedding_manager.close()
     await close_db_pool()
 
@@ -412,6 +442,65 @@ async def resolve_collection(
     if not collection:
         raise HTTPException(status_code=404, detail="No active collection found for this knowledge base")
     return {"id": str(collection["id"]), "dimension": collection["dimension"]}
+
+
+@app.post("/v1/embeddings/delete-document")
+async def delete_document_embeddings(
+    payload: DeleteDocumentEmbeddingsRequest,
+    _: dict[str, Any] = Depends(require_service_auth),
+) -> dict:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        collection = await conn.fetchrow(
+            """
+            SELECT id, tenant_id, dimension, status
+            FROM embedding_service.embedding_collections
+            WHERE tenant_id = $1 AND knowledge_base_id = $2 AND status = 'ACTIVE'
+            ORDER BY updated_at DESC, created_at DESC
+            LIMIT 1
+            """,
+            payload.tenant_id,
+            payload.knowledge_base_id,
+        )
+
+    if not collection:
+        return {
+            "collection_id": None,
+            "document_id": str(payload.document_id),
+            "deleted": 0,
+        }
+
+    collection_id = collection["id"]
+    delete_filter = Filter(
+        must=[
+            FieldCondition(key="tenant_id", match=MatchValue(value=str(payload.tenant_id))),
+            FieldCondition(key="source_document_id", match=MatchValue(value=str(payload.document_id))),
+        ]
+    )
+
+    qdrant = await get_qdrant()
+    deleted_count: int | None = None
+    try:
+        count_result = await qdrant.count(
+            collection_name=str(collection_id),
+            count_filter=delete_filter,
+            exact=True,
+        )
+        deleted_count = int(count_result.count)
+    except Exception:
+        logger.warning("Failed to count Qdrant points before deleting document %s", payload.document_id)
+
+    await qdrant.delete(
+        collection_name=str(collection_id),
+        points_selector=FilterSelector(filter=delete_filter),
+        wait=True,
+    )
+
+    return {
+        "collection_id": str(collection_id),
+        "document_id": str(payload.document_id),
+        "deleted": deleted_count,
+    }
 
 
 @app.post("/v1/search", response_model=SearchResponse)
