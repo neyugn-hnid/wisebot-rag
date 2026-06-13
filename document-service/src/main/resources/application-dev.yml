@@ -35,10 +35,6 @@ storage:
   enabled: true
   base-path: ${STORAGE_BASE_PATH:./data/uploads}
 
-chunking:
-  chunk-size: 800
-  overlap: 120
-
 embedding:
   base-url: ${EMBEDDING_BASE_URL:http://localhost:8001}
   path: /embed
@@ -47,16 +43,3 @@ billing:
   base-url: ${BILLING_BASE_URL:http://localhost:8085}
   internal-api-key: ${INTERNAL_API_KEY:wisebot-internal-key}
 
-mineru:
-  enabled: ${MINERU_ENABLED:false}
-  base-url: ${MINERU_BASE_URL:http://localhost:8000}
-  file-parse-path: /file_parse
-  backend: ${MINERU_BACKEND:pipeline}
-  parse-method: ${MINERU_PARSE_METHOD:txt}
-  lang: ${MINERU_LANG:latin}
-  read-timeout-ms: ${MINERU_READ_TIMEOUT_MS:900000}
-
-markitdown:
-  enabled: ${MARKITDOWN_ENABLED:true}
-  base-url: ${MARKITDOWN_BASE_URL:http://localhost:8006}
-  parse-path: /parse

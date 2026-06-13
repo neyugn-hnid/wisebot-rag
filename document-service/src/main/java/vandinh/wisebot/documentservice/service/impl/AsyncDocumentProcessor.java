@@ -13,8 +13,7 @@ import vandinh.wisebot.documentservice.entity.DocumentChunk;
 import vandinh.wisebot.documentservice.repository.DocumentChunkRepository;
 import vandinh.wisebot.documentservice.repository.DocumentRepository;
 import vandinh.wisebot.documentservice.service.embedding.EmbeddingClient;
-import vandinh.wisebot.documentservice.service.text.TextChunker;
-import vandinh.wisebot.documentservice.service.text.TextExtractor;
+import vandinh.wisebot.documentservice.service.kreuzberg.KreuzbergClient;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,8 +28,7 @@ public class AsyncDocumentProcessor {
 
     private final DocumentRepository documentRepository;
     private final DocumentChunkRepository documentChunkRepository;
-    private final TextExtractor textExtractor;
-    private final TextChunker textChunker;
+    private final KreuzbergClient kreuzbergClient;
     private final EmbeddingClient embeddingClient;
 
     @Async
@@ -47,30 +45,42 @@ public class AsyncDocumentProcessor {
             document.setStatus(DocumentStatus.PROCESSING);
             documentRepository.save(document);
 
-            // extract(byte[], filename) for MinerU-aware extraction, fallback to InputStream
-            String text = textExtractor.extract(fileContent, document.getFilename());
+            // Call kreuzberg-service (Python, full features: ChunkConfig, OCR, tables)
+            KreuzbergClient.KreuzbergResult result = kreuzbergClient.parse(
+                    fileContent, document.getFilename(), document.getContentType());
 
-            // Detect MinerU output (Markdown with headings) → section-aware chunking
-            boolean isMarkdown = text.contains("# ") || text.contains("## ") || text.contains("### ");
-            List<String> chunks = isMarkdown
-                ? textChunker.chunkMarkdown(text)
-                : textChunker.chunk(text);
-            
-            if (chunks.isEmpty()) {
-                log.warn("No text extracted for document: {}", documentId);
+            if (result == null || !result.hasContent()) {
+                log.warn("Kreuzberg returned empty for: {}", documentId);
                 document.setStatus(DocumentStatus.FAILED);
                 documentRepository.save(document);
                 return;
             }
 
-            List<DocumentChunk> chunkEntities = new ArrayList<>(chunks.size());
-            for (int i = 0; i < chunks.size(); i++) {
-                chunkEntities.add(DocumentChunk.builder()
-                        .document(document)
-                        .chunkIndex(i)
-                        .content(chunks.get(i))
-                        .status(EmbeddingStatus.PENDING)
-                        .build());
+            // Use chunks from kreuzberg-service (markdown-aware, heading-preserving)
+            List<KreuzbergClient.KreuzbergChunk> kChunks = result.getChunks();
+            if (kChunks == null || kChunks.isEmpty()) {
+                // Fallback: treat full text as single chunk
+                kChunks = List.of(KreuzbergClient.KreuzbergChunk.builder()
+                        .content(result.getText()).build());
+            }
+
+            List<DocumentChunk> chunkEntities = new ArrayList<>();
+            int idx = 0;
+            for (KreuzbergClient.KreuzbergChunk kc : kChunks) {
+                if (kc.getContent() != null && !kc.getContent().isBlank()) {
+                    chunkEntities.add(DocumentChunk.builder()
+                            .document(document)
+                            .chunkIndex(idx++)
+                            .content(kc.getContent())
+                            .status(EmbeddingStatus.PENDING)
+                            .build());
+                }
+            }
+            if (chunkEntities.isEmpty()) {
+                log.warn("No chunks for document: {}", documentId);
+                document.setStatus(DocumentStatus.FAILED);
+                documentRepository.save(document);
+                return;
             }
             documentChunkRepository.saveAll(chunkEntities);
 

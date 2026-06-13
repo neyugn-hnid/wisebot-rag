@@ -403,7 +403,7 @@ async def index_file(
     content = await file.read()
 
     try:
-        extracted = parse_text_from_bytes(content=content, filename=file.filename or "", content_type=file.content_type)
+        extracted = await parse_text_from_bytes(content=content, filename=file.filename or "", content_type=file.content_type)
     except UnsupportedFileTypeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

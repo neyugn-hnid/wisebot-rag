@@ -35,10 +35,6 @@ storage:
   enabled: true
   base-path: ${STORAGE_BASE_PATH:/var/lib/wisebot/documents}
 
-chunking:
-  chunk-size: 800
-  overlap: 120
-
 embedding:
   base-url: ${EMBEDDING_BASE_URL}
   path: /embed

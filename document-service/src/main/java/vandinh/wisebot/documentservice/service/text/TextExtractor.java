@@ -10,7 +10,7 @@ public interface TextExtractor {
     String extract(InputStream inputStream);
 
     /**
-     * Extract text from byte content with filename (for MinerU-aware extraction).
+     * Extract text from byte content with filename (for Kreuzberg-aware extraction).
      * Default implementation delegates to extract(InputStream) for backward compatibility.
      */
     default String extract(byte[] content, String filename) {

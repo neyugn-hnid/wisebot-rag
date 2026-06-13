@@ -7,9 +7,10 @@ ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-      ffmpeg \
-      libmagic1 \
-      poppler-utils && \
+      tesseract-ocr \
+      tesseract-ocr-eng \
+      tesseract-ocr-vie \
+      libmagic1 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./

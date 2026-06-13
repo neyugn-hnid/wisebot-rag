@@ -4,8 +4,7 @@ asyncpg==0.30.0
 httpx==0.28.1
 pydantic-settings==2.8.1
 python-multipart==0.0.20
-pypdf==5.4.0
-python-docx==1.1.2
+kreuzberg==4.9.9
 PyJWT==2.10.1
 alembic==1.14.1
 SQLAlchemy==2.0.38
