@@ -56,6 +56,17 @@ class Settings(BaseSettings):
     judge_llm_model: str = "deepseek-chat"
     judge_timeout_seconds: float = 60.0
 
+    query_rewriter_provider_mode: str = "shared"  # shared | ollama | openai-compatible | third-party | api
+    query_rewriter_base_url: str = ""
+    query_rewriter_api_key: str = ""
+    query_rewriter_model: str = ""
+    query_rewriter_provider_name: str = "Query Rewriter API"
+    reranker_provider_mode: str = "shared"  # shared | ollama | openai-compatible | third-party | api
+    reranker_base_url: str = ""
+    reranker_api_key: str = ""
+    reranker_model: str = ""
+    reranker_provider_name: str = "Reranker API"
+
     auth_enabled: bool = True
     service_jwt_secret: str = "change-me"
     service_jwt_algorithm: str = "HS256"

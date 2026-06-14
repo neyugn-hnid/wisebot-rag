@@ -61,7 +61,7 @@ interface WidgetSettings extends WidgetAppearanceConfig {
 }
 
 const WIDGET_SETTINGS_STORAGE_KEY = 'wisebot_widget_settings';
-const WIDGET_SCRIPT_VERSION = '20260612-rich-stream';
+const WIDGET_SCRIPT_VERSION = '20260612-suggested-questions';
 
 export default function WidgetCustomization() {
   const { t } = useLanguage();

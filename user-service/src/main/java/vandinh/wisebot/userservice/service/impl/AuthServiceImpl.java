@@ -227,7 +227,7 @@ public class AuthServiceImpl implements AuthService {
                 .status(UserStatus.ACTIVE)
                 .roles(Set.of(role))
                 .tenant(tenant)
-                .isEmailVerified(true)
+                .isEmailVerified(false)
                 .emailVerificationToken(emailVerificationToken)
                 .emailVerificationExpiresAt(LocalDateTime.now().plusMinutes(EMAIL_VERIFICATION_EXPIRES_MINUTES))
                 .build();

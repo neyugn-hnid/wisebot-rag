@@ -44,9 +44,9 @@ from app.rag_processing import (
     _strip_json_products_block,
     _tokenize_for_rank,
     _try_answer_from_markdown_table,
-    _try_answer_from_plain_text_context,
     _try_product_recommend_from_markdown_table,
 )
+from app.stopwords import LIGHT_STOPWORDS, PHRASE_STOPWORDS, QA_MARKERS
 
 
 llm_manager = RuntimeLlmManager(settings)
@@ -295,6 +295,8 @@ def _build_prompts(question: str, retrieved_chunks: list[dict], page_context: di
         f" - Loi chao ngan nhu 'xin chao', 'hi', 'hello' ma KB khong co kich ban chao rieng thi tra loi dung marker {KB_NOT_FOUND_MARKER}.\n"
         " - Cac cau hoi ve quy dinh, chinh sach, quy trinh noi bo co trong KB KHONG phai cau hoi phap ly; hay tra loi binh thuong dua tren KB.\n"
         " - Chi tu choi cau hoi phap ly khi nguoi dung xin tu van luat, tranh chap, hop dong, kien tung hoac nghia vu phap ly ngoai KB.\n"
+        " - Chi tra loi dung khia canh nguoi dung hoi. Neu hoi thoi gian thi khong liet ke phi/dieu kien; neu hoi phi thi khong liet ke quy trinh; neu hoi bao hanh thi khong them doi tra, tru khi cau hoi yeu cau.\n"
+        " - Neu trong context co chunk Hoi/Tra loi khop truc tiep voi cau hoi, uu tien tra loi theo chunk do va bo qua cac thong tin cung chu de nhung khong duoc hoi.\n"
     )
 
     if recommend_mode:
@@ -311,7 +313,7 @@ def _build_prompts(question: str, retrieved_chunks: list[dict], page_context: di
             "1. Viết 1-2 câu giới thiệu ngắn gọn bằng tiếng Việt.\n"
             "2. Sau đó ghi đúng dòng sau:\n"
             "__JSON_PRODUCTS__\n"
-            "3. Tiếp theo là JSON array chứa tối đa 3 sản phẩm phù hợp nhất từ CONTEXT.\n"
+            "3. Tiếp theo là JSON array chứa tối đa 4 sản phẩm phù hợp nhất từ CONTEXT.\n"
             "4. Sau đó ghi đúng dòng sau:\n"
             "__END_JSON__\n"
             "5. Cuối cùng viết 1 câu kết ngắn gọn bằng tiếng Việt.\n"
@@ -321,7 +323,7 @@ def _build_prompts(question: str, retrieved_chunks: list[dict], page_context: di
             " - KHÔNG tự bịa id, name, price, imageUrl, detailUrl dưới bất kỳ hình thức nào.\n"
             " - Chỉ đưa sản phẩm vào JSON nếu CONTEXT có ít nhất id, tên sản phẩm và giá.\n"
             " - Map cột tương đương từ CONTEXT sang JSON: name lấy từ name/ten/tên/ten_san_pham/title; price lấy từ price/gia/giá/gia_vnd; imageUrl lấy từ imageUrl/image_url/image/anh/ảnh; detailUrl lấy từ detailUrl/detail_url/url/link.\n"
-            " - Nếu CONTEXT có nhiều hơn 3 sản phẩm, chọn tối đa 3 sản phẩm phù hợp nhất với câu hỏi.\n"
+            " - Nếu CONTEXT có nhiều hơn 4 sản phẩm, chọn tối đa 4 sản phẩm phù hợp nhất với câu hỏi.\n"
             " - Nếu người dùng hỏi theo ngân sách, nhu cầu, danh mục hoặc đặc điểm cụ thể, ưu tiên sản phẩm khớp với các điều kiện đó dựa trên dữ liệu trong CONTEXT.\n"
             " - KHÔNG suy diễn sản phẩm 'tương tự' hoặc 'cùng loại' nếu CONTEXT không nêu rõ mối quan hệ.\n"
             " - KHÔNG khẳng định sản phẩm còn hàng, hết hàng, đang khuyến mãi nếu CONTEXT không nói rõ.\n"
@@ -379,19 +381,30 @@ def _build_prompts(question: str, retrieved_chunks: list[dict], page_context: di
             common_rules
             + "\n"
             "CHẾ ĐỘ CHAT THƯỜNG:\n"
-            " - Luôn trả lời bằng văn bản tự nhiên, tối đa 3-4 câu.\n"
-            " - TUYỆT ĐỐI KHÔNG xuất JSON sản phẩm.\n"
-            " - TUYỆT ĐỐI KHÔNG dùng các marker __JSON_PRODUCTS__ hoặc __END_JSON__.\n"
-            " - Với câu hỏi về chính sách giao hàng, đổi trả, bảo hành, học phí, đặt lịch, phí dịch vụ, điều khoản hoặc hướng dẫn sử dụng, "
-            "CHỈ tóm tắt đúng các ý có trong CONTEXT, KHÔNG thêm bất kỳ thông tin nào ngoài CONTEXT.\n"
-            " - Có thể dùng gạch đầu dòng nếu câu trả lời có nhiều ý, nhưng vẫn phải dựa hoàn toàn trên CONTEXT.\n"
-            " - Nếu người dùng hỏi ngoài phạm vi thông tin có trong KB/CONTEXT, "
+            " - Với câu hỏi chính sách/FAQ: trả lời văn bản ngắn gọn, tối đa 3-4 câu.\n"
+            " - Nếu người dùng hỏi ngoài phạm vi KB/CONTEXT, "
             f"trả lời đúng marker {KB_NOT_FOUND_MARKER}\n"
-            " - Nếu người dùng yêu cầu thực hiện hành động (gửi email, đặt hàng, tạo tài khoản, thanh toán), "
-            f"trả lời đúng marker {KB_NOT_FOUND_MARKER}\n"
-            " - KHÔNG đưa ra lời khuyên cá nhân, đánh giá chủ quan hoặc khuyến nghị mua hàng.\n"
-            " - KHÔNG suy diễn chính sách khuyến mãi, giảm giá, ưu đãi nếu CONTEXT không nêu rõ.\n"
-            f" - Nếu câu hỏi có thể hiểu sai theo nhiều nghĩa, KHÔNG tự chọn một nghĩa — hãy trả lời dựa trên thông tin trong CONTEXT hoặc trả lời đúng marker {KB_NOT_FOUND_MARKER}\n"
+            " - KHÔNG suy diễn, KHÔNG tự bịa thông tin.\n"
+            "\n"
+            "QUY TẮC GỢI Ý SẢN PHẨM (BẮT BUỘC khi CONTEXT có dữ liệu sản phẩm dạng markdown):\n"
+            " - Nếu CONTEXT chứa dữ liệu sản phẩm (có ## tên SP, **Id**, **Gia Vnd**, **Pin**...):\n"
+            "   BẮT BUỘC xuất __JSON_PRODUCTS__ với format sau, KHÔNG chỉ mô tả chung chung:\n"
+            "\n"
+            "1. 1-2 câu giới thiệu ngắn.\n"
+            "2. Dòng __JSON_PRODUCTS__ (riêng 1 dòng, không markdown).\n"
+            "3. JSON array chứa tối đa 4 sản phẩm, mỗi sản phẩm format:\n"
+            '   {{"id": <số từ CONTEXT>, "name": "<tên từ CONTEXT>", "price": <số VND từ CONTEXT>, "imageUrl": "<từ CONTEXT, rỗng nếu không có>", "detailUrl": "<từ CONTEXT, rỗng nếu không có>", "reason": "<1 câu ngắn>"}}\n'
+            "4. Dòng __END_JSON__ (riêng 1 dòng, không markdown).\n"
+            "5. 1 câu kết ngắn.\n"
+            "\n"
+            "Ví dụ đúng:\n"
+            "Dưới đây là một số điện thoại Samsung phù hợp:\n"
+            "__JSON_PRODUCTS__\n"
+            '[{{"id": 6, "name": "Samsung Galaxy S24 Ultra", "price": 28990000, "imageUrl": "https://...", "detailUrl": "/products/6", "reason": "Màn hình lớn, S Pen, camera 200MP."}}, {{"id": 7, "name": "Samsung Galaxy S24 Plus", "price": 22990000, "imageUrl": "https://...", "detailUrl": "/products/7", "reason": "Pin tốt, hiệu năng mạnh, màn hình đẹp."}}]\n'
+            "__END_JSON__\n"
+            "Bạn có thể xem chi tiết từng sản phẩm để chọn lựa phù hợp nhất.\n"
+            "\n"
+            "LƯU Ý QUAN TRỌNG: Nếu CONTEXT có sản phẩm, PHẢI xuất JSON. Không được chỉ viết 'tôi gợi ý...' rồi kết thúc."
         )
 
     user_prompt = f"CÂU HỎI:\n{question.strip()}\n"
@@ -399,13 +412,30 @@ def _build_prompts(question: str, retrieved_chunks: list[dict], page_context: di
     if page_info and page_info.strip():
         user_prompt += f"\nNGỮ CẢNH TRANG:\n{page_info.strip()}\n"
 
+    # Detect if context has product data → hint LLM to output JSON
+    has_products = "## " in context_text and "- **" in context_text
+
     user_prompt += (
         f"\nDỮ LIỆU NỘI BỘ ĐỂ TRẢ LỜI (không được nhắc tên phần này trong câu trả lời):\n{context_text.strip() if context_text else ''}\n"
         "\n"
         "YÊU CẦU:\n"
-        f"Trả lời trực tiếp câu hỏi của người dùng bằng dữ liệu ở trên. Nếu dữ liệu không chứa đáp án trực tiếp, chỉ trả lời marker {KB_NOT_FOUND_MARKER}. Không nhắc tên phần dữ liệu, không nói 'theo thông tin', và tuân thủ toàn bộ luật trong system prompt.\n"
-        "\n"
-        "TRẢ LỜI:"
+        f"Trả lời trực tiếp câu hỏi của người dùng bằng dữ liệu ở trên. Nếu dữ liệu không chứa đáp án trực tiếp, chỉ trả lời marker {KB_NOT_FOUND_MARKER}.\n"
+    )
+
+    if has_products:
+        user_prompt += (
+            "\nQUAN TRONG: Dữ liệu có sản phẩm. Đây CHÍNH LÀ câu trả lời cho câu hỏi tư vấn/gợi ý mua hàng.\n"
+            "KHÔNG được trả lời marker not-found. PHẢI xuất JSON sản phẩm theo format:\n"
+            "\n"
+            "1 câu giới thiệu\n"
+            "__JSON_PRODUCTS__\n"
+            '[{"id": <id thật>, "name": "<tên thật>", "price": <giá thật>, "imageUrl": "<url thật hoặc \\"\\">", "detailUrl": "<url thật hoặc \\"\\">", "reason": "<1 câu>"}]\n'
+            "__END_JSON__\n"
+            "1 câu kết\n"
+        )
+
+    user_prompt += (
+        "\nTRẢ LỜI:"
     )
 
     return system_prompt, user_prompt
@@ -672,105 +702,101 @@ async def _include_document_all_chunks(
     )
 
 
-def _is_support_policy_question(question: str) -> bool:
-    q_norm = _fold_for_match(question)
-    markers = {
-        "chinhsach", "thanhtoan", "doitra", "baohanh", "tragop", "giaohang",
-        "donhang", "hotro", "dichvu", "caidat", "ungdung", "khieunai",
-        "baotri", "suachua", "huongdan",
-    }
-    return any(marker in q_norm for marker in markers)
-
-
-def _looks_like_product_table_chunk(text: str) -> bool:
-    lowered = (text or "").lower()
-    pipe_count = lowered.count("|")
-    return pipe_count >= 12 and any(
-        marker in lowered
-        for marker in ("ten\\_san\\_pham", "ten_san_pham", "gia\\_vnd", "gia_vnd", "image\\_url", "detail\\_url")
-    )
-
-
-async def _include_relevant_text_chunks(
-    chunks: list[dict],
-    question: str,
-    tenant_id: uuid.UUID,
-    collection_id: uuid.UUID | None,
-    limit: int = 200,
-) -> list[dict]:
-    if not collection_id or not _is_support_policy_question(question):
-        return chunks
-
-    question_terms = _question_lookup_terms(question)
-    if not question_terms:
-        return chunks
-
-    existing_ids = {str(chunk.get("source_chunk_id")) for chunk in chunks}
-    qdrant = await get_qdrant()
-    try:
-        scroll_filter = Filter(
-            must=[
-                FieldCondition(key="tenant_id", match=MatchValue(value=str(tenant_id))),
-            ]
-        )
-        points, _ = await qdrant.scroll(
-            collection_name=str(collection_id),
-            scroll_filter=scroll_filter,
-            limit=limit,
-            with_payload=True,
-            with_vectors=False,
-        )
-    except Exception as exc:
-        logger.debug("Failed to fetch relevant text chunks for KB: %s", exc)
-        return chunks
-
-    scored_extra: list[tuple[int, dict]] = []
-    for point in points:
-        payload_data = point.payload or {}
-        source_chunk_id = str(payload_data.get("source_chunk_id") or point.id)
-        if source_chunk_id in existing_ids:
-            continue
-
-        chunk_text = str(payload_data.get("chunk_text", ""))
-        if not chunk_text or _looks_like_product_table_chunk(chunk_text):
-            continue
-
-        text_terms = _question_lookup_terms(chunk_text)
-        overlap = len(question_terms & text_terms)
-        text_norm = _normalize_for_compare(chunk_text)
-        bonus = 2 if any(term in text_norm for term in ("hoi", "hỏi", "traloi", "trảlời")) else 0
-        score = overlap + bonus
-        if score <= 0:
-            continue
-
-        source_document_id = payload_data.get("source_document_id")
-        if not source_document_id:
-            continue
-
-        try:
-            chunk = {
-                "source_document_id": uuid.UUID(str(source_document_id)),
-                "source_chunk_id": uuid.UUID(source_chunk_id),
-                "chunk_index": int(payload_data.get("chunk_index", 0)),
-                "chunk_text": chunk_text,
-                "score": 0.0,
-            }
-        except (TypeError, ValueError):
-            continue
-
-        scored_extra.append((score, chunk))
-        existing_ids.add(source_chunk_id)
-
-    if not scored_extra:
-        return chunks
-
-    extra_chunks = [chunk for _, chunk in sorted(scored_extra, key=lambda item: item[0], reverse=True)[:20]]
-    return [*chunks, *extra_chunks]
-
-
 def _resolve_dynamic_top_k(question: str, default_top_k: int) -> int:
     """Giữ top_k trung tính để phù hợp nhiều loại KB/lĩnh vực khác nhau."""
     return default_top_k
+
+
+def _fold_words_for_relevance(value: str) -> list[str]:
+    text = (value or "").lower().replace("đ", "d").replace("Đ", "d")
+    text = text.replace("Ä‘", "d").replace("Ä", "d")
+    decomposed = unicodedata.normalize("NFD", text)
+    folded = "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
+    return re.findall(r"[a-z0-9]+", folded)
+
+
+def _content_terms_for_relevance(question: str) -> list[str]:
+    terms = list(_question_lookup_terms(question))
+    return [term for term in terms if term not in LIGHT_STOPWORDS and len(term) > 1]
+
+
+def _query_phrases_for_relevance(question: str) -> set[str]:
+    words = [word for word in _fold_words_for_relevance(question) if word not in PHRASE_STOPWORDS and len(word) > 1]
+    phrases: set[str] = set()
+    for size in (3, 2):
+        for start in range(0, max(0, len(words) - size + 1)):
+            phrase_words = words[start:start + size]
+            if len(phrase_words) == size:
+                phrases.add(" ".join(phrase_words))
+    return phrases
+
+
+def _has_relevant_context(question: str, chunks: list[dict]) -> bool:
+    if not chunks:
+        return False
+
+    content_terms = _content_terms_for_relevance(question)
+    if not content_terms:
+        return True
+
+    context_text = " ".join(str(chunk.get("chunk_text") or "") for chunk in chunks[:8])
+    context_folded = " ".join(_fold_words_for_relevance(context_text))
+    if not context_folded:
+        return False
+
+    matched_terms = {term for term in content_terms if re.search(rf"\b{re.escape(term)}\b", context_folded)}
+    coverage = len(matched_terms) / max(1, len(content_terms))
+
+    phrases = _query_phrases_for_relevance(question)
+    if phrases and any(re.search(rf"\b{re.escape(phrase)}\b", context_folded) for phrase in phrases):
+        return True
+
+    min_required = 1.0 if len(content_terms) <= 2 else 0.67
+    return coverage >= min_required
+
+
+def _rerank_by_question_terms(question: str, chunks: list[dict]) -> list[dict]:
+    content_terms = _content_terms_for_relevance(question)
+    phrases = _query_phrases_for_relevance(question)
+    if not content_terms and not phrases:
+        return chunks
+
+    def score(chunk: dict) -> tuple[int, float]:
+        text_folded = " ".join(_fold_words_for_relevance(str(chunk.get("chunk_text") or "")))
+        term_hits = sum(1 for term in content_terms if re.search(rf"\b{re.escape(term)}\b", text_folded))
+        phrase_hits = sum(1 for phrase in phrases if re.search(rf"\b{re.escape(phrase)}\b", text_folded))
+        return phrase_hits * 10 + term_hits, float(chunk.get("score", 0.0))
+
+    return sorted(chunks, key=score, reverse=True)
+
+
+def _folded_text(value: str) -> str:
+    return " ".join(_fold_words_for_relevance(value))
+
+
+def _chunk_has_direct_answer(question: str, chunk: dict) -> bool:
+    question_norm = _normalize_for_compare(question)
+    text_norm = _normalize_for_compare(str(chunk.get("chunk_text") or ""))
+    return bool(
+        question_norm
+        and question_norm in text_norm
+        and any(marker in text_norm for marker in QA_MARKERS)
+    )
+
+
+def _focus_retrieved_context(question: str, chunks: list[dict], final_top_k: int) -> list[dict]:
+    """Chọn top chunk sau Re-rank, ưu tiên direct answer (Hỏi/Trả lời khớp chính xác)."""
+    if not chunks:
+        return []
+
+    ranked = _rank_context_chunks(question, chunks)
+    # Ưu tiên chunk có cặp Hỏi/Trả lời khớp chính xác với câu hỏi
+    direct = [chunk for chunk in ranked if _chunk_has_direct_answer(question, chunk)]
+    if direct:
+        return direct[: min(2, final_top_k)]
+
+    # Re-ranker đã chấm điểm relevance → dùng trực tiếp top N
+    return ranked[:final_top_k]
 
 
 async def _multi_query_retrieve(
@@ -949,6 +975,12 @@ async def rag_ask_stream(
                     collection_id=resolved_collection or payload.collection_id,
                 )
 
+            if retrieved and not _has_relevant_context(payload.question, retrieved):
+                logger.info("Retrieved context failed lexical relevance check")
+                retrieved = []
+            elif retrieved:
+                retrieved = _rerank_by_question_terms(payload.question, retrieved)
+
             table_context_chunks = await _include_document_header_chunks(
                 list(retrieved),
                 tenant_id=payload.tenant_id,
@@ -962,6 +994,8 @@ async def rag_ask_stream(
                     chunks=retrieved,
                     final_top_k=effective_top_k,
                 )
+            if retrieved:
+                retrieved = _focus_retrieved_context(payload.question, retrieved, effective_top_k)
 
             # ── Lọc chunk score thấp ───────────────────────────────────────
             # Đã comment: Qdrant ở embedding-service đã filter score_threshold
@@ -1112,68 +1146,7 @@ async def rag_ask_stream(
                 yield f"data: {json.dumps(done_event, ensure_ascii=True)}\n\n"
                 return
 
-            plain_text_context_chunks = await _include_document_all_chunks(
-                table_context_chunks or retrieved,
-                tenant_id=payload.tenant_id,
-                collection_id=resolved_collection or payload.collection_id,
-            )
-            plain_text_context_chunks = await _include_relevant_text_chunks(
-                plain_text_context_chunks,
-                question=payload.question,
-                tenant_id=payload.tenant_id,
-                collection_id=resolved_collection or payload.collection_id,
-            )
-            plain_text_answer = _try_answer_from_plain_text_context(payload.question, plain_text_context_chunks)
-            if plain_text_answer:
-                source_chunks = plain_text_context_chunks[:20]
-                for token in re.findall(r"\S+\s*", plain_text_answer):
-                    yield f"data: {json.dumps({'type': 'TOKEN', 'token': token}, ensure_ascii=True)}\n\n"
-
-                async with pool.acquire() as conn:
-                    async with conn.transaction():
-                        for rank_no, result in enumerate(source_chunks, start=1):
-                            await conn.execute(
-                                """
-                                INSERT INTO ai_service.ai_rag_retrieval_results
-                                (request_id, source_document_id, source_chunk_id, score, rank_no, snippet)
-                                VALUES ($1, $2, $3, $4, $5, $6)
-                                """,
-                                request_id,
-                                result["source_document_id"],
-                                result["source_chunk_id"],
-                                result["score"],
-                                rank_no,
-                                result["chunk_text"][:500],
-                            )
-                        await conn.execute(
-                            """
-                            UPDATE ai_service.ai_rag_requests
-                            SET status='SUCCESS', finished_at=CURRENT_TIMESTAMP
-                            WHERE id=$1
-                            """,
-                            request_id,
-                        )
-
-                done_event = {
-                    "type": "DONE",
-                    "request_id": str(request_id),
-                    "trace_id": trace_id,
-                    "answer": plain_text_answer,
-                    "model_name": llm_client.model_name,
-                    "citations": [
-                        {
-                            "source_document_id": str(item["source_document_id"]),
-                            "source_chunk_id": str(item["source_chunk_id"]),
-                            "chunk_index": item["chunk_index"],
-                            "score": item["score"],
-                            "snippet": (item.get("chunk_text") or "")[:300],
-                        }
-                        for item in source_chunks
-                    ],
-                }
-                yield f"data: {json.dumps(done_event, ensure_ascii=True)}\n\n"
-                return
-
+            # ── Table-only context without non-table content → not found ──
             if (
                 not (payload.page_context and payload.page_context.get("recommendMode") is True)
                 and _parse_markdown_table_rows(table_context_chunks or retrieved)
@@ -1225,8 +1198,6 @@ async def rag_ask_stream(
 
             latency_ms = int((time.perf_counter() - llm_start) * 1000)
             answer_text = "".join(answer_parts).strip()
-            if not (payload.page_context and payload.page_context.get("recommendMode") is True):
-                answer_text = _strip_json_products_block(answer_text)
             answer_text = _normalize_answer_text(answer_text, payload.question)
             if not answer_text:
                 answer_text = KB_NOT_FOUND_ANSWER

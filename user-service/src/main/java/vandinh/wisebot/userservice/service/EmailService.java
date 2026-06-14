@@ -70,13 +70,22 @@ public class EmailService {
             if (response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
                 log.setStatus("SEND");
                 log.setSentAt(LocalDateTime.now());
+                EmailService.log.info("Sent email to {} using template {}", to, templateId);
             } else {
                 log.setStatus("FAILED");
                 log.setErrorMessage(response.getBody());
+                EmailService.log.warn(
+                        "Failed to send email to {} using template {}. SendGrid status={}, body={}",
+                        to,
+                        templateId,
+                        response.getStatusCode(),
+                        response.getBody()
+                );
             }
         } catch (IOException e) {
             log.setStatus("FAILED");
             log.setErrorMessage(e.getMessage());
+            EmailService.log.warn("Failed to send email to {} using template {}", to, templateId, e);
         }
         emailLogRepository.save(log);
     }

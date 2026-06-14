@@ -10,16 +10,75 @@ Flow:
 """
 
 import logging
+import re
+import unicodedata
 import uuid
 
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.http.models import Filter, FieldCondition, MatchText
+from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 
 from app.config import settings
+from app.stopwords import VIETNAMESE_STOPWORDS
 
 logger = logging.getLogger(__name__)
 
 RRF_K = 60
+
+
+def _normalize_text(text: str) -> str:
+    lowered = text.lower().replace("đ", "d")
+    without_marks = "".join(
+        char for char in unicodedata.normalize("NFD", lowered)
+        if unicodedata.category(char) != "Mn"
+    )
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", without_marks)).strip()
+
+
+def _query_terms(query_text: str) -> tuple[list[str], list[str]]:
+    raw_tokens = [token for token in re.sub(r"[^\w\s]", " ", query_text.lower()).split() if len(token) >= 2]
+    terms: list[str] = []
+    normalized_terms: list[str] = []
+
+    for token in raw_tokens:
+        if token in VIETNAMESE_STOPWORDS:
+            continue
+        normalized = _normalize_text(token)
+        if not normalized:
+            continue
+        if normalized not in normalized_terms:
+            terms.append(token)
+            normalized_terms.append(normalized)
+
+    phrases: list[str] = []
+    for size in (3, 2):
+        for start in range(0, max(0, len(normalized_terms) - size + 1)):
+            phrase = " ".join(normalized_terms[start:start + size])
+            if phrase not in phrases:
+                phrases.append(phrase)
+
+    return terms, phrases
+
+
+def _keyword_relevance_score(chunk_text: str, terms: list[str], phrases: list[str]) -> float:
+    normalized_text = f" {_normalize_text(chunk_text)} "
+    normalized_terms = [_normalize_text(term) for term in terms]
+
+    score = 0.0
+    for phrase in phrases:
+        if f" {phrase} " in normalized_text:
+            score += 3.0 if len(phrase.split()) >= 3 else 2.0
+
+    matched_terms = 0
+    for term in normalized_terms:
+        if f" {term} " in normalized_text:
+            matched_terms += 1
+            score += 1.0
+
+    if normalized_terms:
+        coverage = matched_terms / len(normalized_terms)
+        score += coverage * 2.0
+
+    return score
 
 
 class HybridSearcher:
@@ -91,51 +150,49 @@ class HybridSearcher:
         top_k: int,
     ) -> list[dict]:
         """Keyword search trong Qdrant payload sử dụng MatchText filter."""
-        import re
-
-        cleaned = re.sub(r"[^\w\s]", " ", query_text)
-        keywords = [w.strip().lower() for w in cleaned.split() if len(w.strip()) >= 2]
+        keywords, phrases = _query_terms(query_text)
 
         if not keywords:
             return []
 
-        all_results: dict[str, dict] = {}
+        try:
+            scroll_filter = Filter(
+                must=[
+                    FieldCondition(key="tenant_id", match=MatchValue(value=str(tenant_id))),
+                ]
+            )
+            points, _ = await qdrant_client.scroll(
+                collection_name=collection_name,
+                scroll_filter=scroll_filter,
+                limit=min(max(top_k * 20, 100), 500),
+                with_payload=True,
+                with_vectors=False,
+            )
+        except Exception as exc:
+            logger.warning("Keyword candidate scan failed: %s", exc)
+            return []
 
-        for keyword in keywords[:10]:
-            try:
-                scroll_filter = Filter(
-                    must=[
-                        FieldCondition(key="tenant_id", match={"value": str(tenant_id)}),
-                        FieldCondition(key="chunk_text", match=MatchText(text=keyword)),
-                    ]
-                )
-                points, _ = await qdrant_client.scroll(
-                    collection_name=collection_name,
-                    scroll_filter=scroll_filter,
-                    limit=top_k,
-                    with_payload=True,
-                    with_vectors=False,
-                )
-
-                for point in points:
-                    payload = point.payload or {}
-                    chunk_id = payload.get("source_chunk_id", str(point.id))
-
-                    if chunk_id in all_results:
-                        all_results[chunk_id]["score"] = min(1.0, all_results[chunk_id]["score"] + 0.15)
-                    else:
-                        all_results[chunk_id] = {
-                            "source_document_id": uuid.UUID(payload.get("source_document_id", str(uuid.uuid4()))),
-                            "source_chunk_id": uuid.UUID(chunk_id),
-                            "chunk_index": int(payload.get("chunk_index", 0)),
-                            "chunk_text": str(payload.get("chunk_text", "")),
-                            "score": 0.6,
-                        }
-            except Exception as exc:
-                logger.warning("Keyword search for '%s' failed: %s", keyword, exc)
+        all_results: list[dict] = []
+        for point in points:
+            payload = point.payload or {}
+            chunk_text = str(payload.get("chunk_text", ""))
+            keyword_score = _keyword_relevance_score(chunk_text, keywords, phrases)
+            if keyword_score <= 0:
                 continue
 
-        results = sorted(all_results.values(), key=lambda c: c["score"], reverse=True)
+            chunk_id = payload.get("source_chunk_id", str(point.id))
+            all_results.append(
+                {
+                    "source_document_id": uuid.UUID(payload.get("source_document_id", str(uuid.uuid4()))),
+                    "source_chunk_id": uuid.UUID(chunk_id),
+                    "chunk_index": int(payload.get("chunk_index", 0)),
+                    "chunk_text": chunk_text,
+                    "score": min(1.0, 0.4 + keyword_score / 12.0),
+                    "keyword_score": keyword_score,
+                }
+            )
+
+        results = sorted(all_results, key=lambda c: c["keyword_score"], reverse=True)
         return results[:top_k]
 
     # ── Reciprocal Rank Fusion ─────────────────────────────────────────────

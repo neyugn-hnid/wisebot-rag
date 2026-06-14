@@ -15,7 +15,7 @@ import asyncio
 import logging
 import re
 
-from app.llm_client import BaseLlmClient
+from app.llm_client import BaseLlmClient, build_llm_client_for_mode
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -34,13 +34,37 @@ Rules:
 5. You MUST output a score for EVERY chunk provided."""
 
 
+def _build_reranker_client(shared_client: BaseLlmClient) -> BaseLlmClient:
+    mode = settings.reranker_provider_mode.strip().lower()
+    if mode in {"", "shared"}:
+        return shared_client
+
+    try:
+        overrides = {}
+        if settings.reranker_base_url.strip():
+            overrides["third_party_base_url"] = settings.reranker_base_url.strip()
+        if settings.reranker_api_key.strip():
+            overrides["third_party_api_key"] = settings.reranker_api_key.strip()
+        if settings.reranker_model.strip():
+            overrides["third_party_llm_model"] = settings.reranker_model.strip()
+        if settings.reranker_provider_name.strip():
+            overrides["third_party_provider_name"] = settings.reranker_provider_name.strip()
+
+        dedicated_settings = settings.model_copy(update=overrides)
+        return build_llm_client_for_mode(dedicated_settings, mode)
+    except Exception as exc:
+        logger.warning("Reranker dedicated LLM unavailable (%s), using shared client", exc)
+        return shared_client
+
+
 class Reranker:
     """
     Xếp hạng lại danh sách chunk dựa trên độ liên quan với câu hỏi.
     """
 
     def __init__(self, llm_client: BaseLlmClient) -> None:
-        self._client = llm_client
+        self._fallback_client = llm_client
+        self._client = _build_reranker_client(llm_client)
         self._enabled = settings.reranking_enabled
         self._top_k_multiplier = settings.rerank_top_k_multiplier
 
@@ -69,10 +93,6 @@ class Reranker:
             return chunks[:final_top_k]
 
         # Tối ưu: nếu số chunk ít hơn 2x final_top_k, dùng score gốc
-        if len(chunks) <= final_top_k * 2:
-            logger.debug("Reranking skipped: only %d chunks for %d needed", len(chunks), final_top_k)
-            return chunks[:final_top_k]
-
         try:
             # Batch chunks để tránh prompt quá dài (max 15 chunks mỗi batch)
             BATCH_SIZE = 15
@@ -115,7 +135,7 @@ class Reranker:
             f"{chunks_text}"
         )
 
-        result = await self._client.chat(
+        result = await self._chat(
             system_prompt=RERANK_SYSTEM_PROMPT,
             user_prompt=user_prompt,
             temperature=0.0,  # deterministic scoring
@@ -137,6 +157,15 @@ class Reranker:
         # Sắp xếp theo rerank score giảm dần
         chunks.sort(key=lambda c: c.get("_rerank_score", 0), reverse=True)
         return chunks
+
+    async def _chat(self, system_prompt: str, user_prompt: str, temperature: float) -> dict:
+        try:
+            return await self._client.chat(system_prompt, user_prompt, temperature)
+        except Exception:
+            if self._client is self._fallback_client:
+                raise
+            logger.warning("Dedicated reranker failed, retrying with shared LLM")
+            return await self._fallback_client.chat(system_prompt, user_prompt, temperature)
 
     @staticmethod
     def _parse_scores(content: str, expected_count: int) -> dict[int, float]:
@@ -186,7 +215,8 @@ Ranked: [3, 0, 5, 1, 2, 4]
 Only output the "Ranked: [...]" line, nothing else."""
 
     def __init__(self, llm_client: BaseLlmClient) -> None:
-        self._client = llm_client
+        self._fallback_client = llm_client
+        self._client = _build_reranker_client(llm_client)
         self._enabled = settings.reranking_enabled
 
     async def rerank_listwise(
@@ -206,7 +236,8 @@ Only output the "Ranked: [...]" line, nothing else."""
             reranked_head = await self._rerank_listwise_core(question, head)
             return (reranked_head + tail)[:final_top_k]
 
-        return await self._rerank_listwise_core(question, chunks)[:final_top_k]
+        reranked = await self._rerank_listwise_core(question, chunks)
+        return reranked[:final_top_k]
 
     async def _rerank_listwise_core(self, question: str, chunks: list[dict]) -> list[dict]:
         chunks_text = ""
@@ -217,7 +248,7 @@ Only output the "Ranked: [...]" line, nothing else."""
         user_prompt = f"Question: {question}\n\nChunks:\n{chunks_text}"
 
         try:
-            result = await self._client.chat(
+            result = await self._chat(
                 system_prompt=self.LISTWISE_PROMPT,
                 user_prompt=user_prompt,
                 temperature=0.0,
@@ -249,3 +280,12 @@ Only output the "Ranked: [...]" line, nothing else."""
         except Exception as exc:
             logger.error("Listwise reranking failed: %s", exc)
             return chunks
+
+    async def _chat(self, system_prompt: str, user_prompt: str, temperature: float) -> dict:
+        try:
+            return await self._client.chat(system_prompt, user_prompt, temperature)
+        except Exception:
+            if self._client is self._fallback_client:
+                raise
+            logger.warning("Dedicated listwise reranker failed, retrying with shared LLM")
+            return await self._fallback_client.chat(system_prompt, user_prompt, temperature)
